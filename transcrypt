@@ -1,0 +1,369 @@
+#!/usr/bin/env bash
+
+#
+# transcrypt - https://github.com/elasticdog/transcrypt
+#
+# A script to configure transparent encryption of sensitive files stored in
+# a Git repository. It utilizes OpenSSL's symmetric cipher routines and follows
+# the gitattributes man page regarding the use of filters.
+#
+# Copyright (c) 2014 Aaron Bull Schaefer <aaron@elasticdog.com>
+# This source code is provided under the terms of the MIT License
+# that can be be found in the LICENSE file.
+#
+
+##### Constants
+
+readonly VERSION='0.1.0'               # the release version of this script
+readonly BASENAME="${0##*/}"           # the name of this script for error output
+readonly DEFAULT_CIPHER='aes-256-cbc'  # the default cipher to utilize
+
+# the current git repository's top-level directory
+readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
+
+# whether or not transcrypt is already configured
+readonly CONFIGURED=$(git config --get --local transcrypt.cipher 2> /dev/null)
+
+# regular expressions used to test user input
+readonly YES_REGEX='^[Yy]$'
+readonly HEX_REGEX='^[0-9A-Fa-f]+$'
+
+##### Functions
+
+# print a message to stderr
+warn() {
+	local fmt="$1"
+	shift
+	printf "$BASENAME: $fmt\n" "$@" >&2
+}
+
+# print a message to stderr and exit with either
+# the given status or that of the most recent command
+die() {
+	local st="$?"
+	if [[ "$1" != *[^0-9]* ]]; then
+		st="$1"
+		shift
+	fi
+	warn "$@"
+	exit "$st"
+}
+
+# verify that all requirements have been met
+run_safety_checks() {
+	# validate that we're in a git repository
+	[[ $REPO ]] || die 'you are not currently in a git repository; did you forget to run "git init"?'
+
+	# see if transcrypt is already configured
+	[[ $CONFIGURED ]] && die 1 'the current repository is already configured; see --display'
+
+	# check for dependencies
+	command -v openssl > /dev/null || die 'required command "openssl" was not found'
+}
+
+# ensure we have a password to encrypt with
+get_password() {
+	while [[ ! $password ]]
+	do
+		local answer
+		printf 'Generate a random password? [Y/n] '
+		read -r -n 1 -s answer
+		printf '\n'
+
+		# generate a random password if the user answered yes;
+		# otherwise prompt the user for a password
+		if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
+			local password_length=32
+			local random_alnum=$(LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | head -c $password_length)
+			password=$random_alnum
+		else
+			printf 'Password: '
+			read -r password
+			[[ ! $password ]] && printf 'no password was specified\n'
+			printf '\n'
+		fi
+	done
+}
+
+# unset the salt variable if does not meet openssl's requirements
+validate_salt() {
+	if [[ ! $salt =~ $HEX_REGEX ]] || [[ ${#salt} -gt 16 ]]; then
+		printf 'invalid salt; it must be hexadecimal and no longer than 16 digits\n'
+		unset salt
+	fi
+}
+
+# ensure we have a salt to encrypt with
+get_salt() {
+	while [[ ! $salt ]]
+	do
+		local answer
+		printf 'Generate a random salt? [Y/n] '
+		read -r -n 1 -s answer
+		printf '\n'
+
+		# generate a random salt if the user answered yes;
+		# otherwise prompt the user for a salt
+		if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
+			local salt_length=16
+			local random_hex=$(LC_ALL=C tr -cd '[:xdigit:]' < /dev/urandom | head -c $salt_length | tr '[:upper:]' '[:lower:]')
+			salt=$random_hex
+		else
+			printf 'Salt: '
+			read -r salt
+			if [[ ! $salt ]]; then
+				printf 'no salt was specified\n'
+			else
+				validate_salt
+			fi
+			printf '\n'
+		fi
+	done
+}
+
+# unset the cipher variable if does not meet openssl's requirements
+validate_cipher() {
+	local supported=$(openssl list-cipher-commands | grep --line-regexp "$cipher")
+	if [[ ! $supported ]]; then
+		printf '"%s" is not a valid cipher; choose one of the following:\n\n' $cipher
+		openssl list-cipher-commands | column -c 80
+		printf '\n'
+		unset cipher
+	fi
+}
+
+# ensure we have a cipher to encrypt with
+get_cipher() {
+	while [[ ! $cipher ]]
+	do
+		local answer
+		printf 'Encrypt using which cipher? [%s] ' $DEFAULT_CIPHER
+		read -r answer
+		printf '\n'
+
+		# use the default cipher if the user gave no answer;
+		# otherwise verify the given cipher is supported by openssl
+		if [[ ! $answer ]]; then
+			cipher=$DEFAULT_CIPHER
+		else
+			cipher=$answer
+			validate_cipher
+		fi
+	done
+}
+
+# confirm the transcrypt configuration
+confirm_configuration() {
+	local answer
+
+	printf 'The following configuration will be saved:\n\n'
+	printf '  REPO:     %s\n' $REPO
+	printf '  PASSWORD: %s\n' $password
+	printf '  SALT:     %s\n' $salt
+	printf '  CIPHER:   %s\n\n' $cipher
+	printf 'Does this look correct? [Y/n] '
+	read -r -n 1 -s answer
+
+	# exit if the user did not confirm
+	if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
+		printf '\n\n'
+	else
+		printf '\n'
+		die 1 'configuration has been aborted'
+	fi
+}
+
+# write the configuration to the repository's .git/config
+save_configuration() {
+	# write the encryption info
+	git config --add transcrypt.password "$password"
+	git config --add transcrypt.salt "$salt"
+	git config --add transcrypt.cipher "$cipher"
+
+	# write the filter settings
+	local password_cmd='$(git config --get --local transcrypt.password)'
+	local salt_cmd='$(git config --get --local transcrypt.salt)'
+	local cipher_cmd='$(git config --get --local transcrypt.cipher)'
+	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass pass:$password_cmd -e -a -S $salt_cmd"
+	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass pass:$password_cmd -d -a"
+	git config filter.crypt.required 'true'
+	git config diff.crypt.textconv "openssl enc -$cipher_cmd -pass pass:$password_cmd -d -a -in \$1 2> /dev/null || cat"
+	git config merge.renormalize 'true'
+
+	# add a git alias for listing encrypted files
+	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
+}
+
+# display the current configuration settings
+display_configuration() {
+	if [[ ! $CONFIGURED ]]; then
+		printf 'transcrypt is not configured for this repository\n'
+	else
+		local current_password=$(git config --get --local transcrypt.password)
+		local current_salt=$(git config --get --local transcrypt.salt)
+		local current_cipher=$(git config --get --local transcrypt.cipher)
+
+		printf 'The current repository has the following configuration:\n\n'
+		printf '  PASSWORD: %s\n' $current_password
+		printf '  SALT:     %s\n' $current_salt
+		printf '  CIPHER:   %s\n\n' $current_cipher
+		printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
+		printf '  transcrypt -p %s -s %s -c %s\n' $current_password $current_salt $current_cipher
+	fi
+}
+
+# print this script's usage message
+usage() {
+	cat <<-EOF
+	usage: transcrypt [-p PASSWORD] [-s SALT] [-c CIPHER] [-d] [-v] [-h]
+	EOF
+}
+
+# print this script's help message
+help() {
+	cat <<-EOF
+
+	NAME
+	     transcrypt -- transparently encrypt files within a git repository
+
+	SYNOPSIS
+	     transcrypt [-p PASSWORD] [-s SALT] [-c CIPHER] [-d] [-v] [-h]
+
+	DESCRIPTION
+	     transcrypt will configure a Git repository to support the transparent
+	     encryption/decryption of files utilizing OpenSSL's symmetric cipher
+	     routines. It will also add a Git alias "ls-crypt" to list all
+	     transparently encrypted files within the repository.
+
+	     transcrypt will prompt the user interactively for all required
+	     information if the corresponding option flags were not given.
+
+	OPTIONS
+	     -p, --password=PASSWORD
+	          the password to derive the key from
+
+	     -s, --salt=SALT
+	          the salt to use in the key derivation routines;
+	          this must be comprised only of hex digits
+
+	     -c, --cipher=CIPHER
+	          the symmetric cipher to utilize for encryption;
+	          defaults to aes-256-cbc
+
+	     -d, --display
+	          display the current repository's password, salt, and cipher
+
+	     -v, --version
+	          print the version information
+
+	     -h, --help
+	          view this help message
+
+	USAGE
+	      Once a repository has been configured with transcrypt, you can
+	      transparently encrypt files by applying the "crypt" filter and diff
+	      to a pattern in the top-level .gitattributes config. If that pattern
+	      matches a file in your repository, the file will be transparently
+	      encrypted once you stage and commit it:
+
+	        $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
+	        $ git add .gitattributes sensitive_file
+	        $ git commit -m 'Add encrypted version of a sensitive file'
+
+	      See the gitattributes(5) man page for more information.
+
+	      If you have just cloned a repository containing files that are
+	      encrypted, you'll want to configure transcrypt with the same
+	      password, salt, and cipher as the origin repository, then force a
+	      checkout of all encrypted files to decrypt them:
+
+	        $ transcrypt
+	        $ git checkout --force -- \$(git ls-crypt)
+
+	      WARNING! Since we're dealing with `git checkout --force`, you should
+	      make sure to commit or stash all changes in your working directory
+	      before performing the above action, just to be safe.
+	EOF
+}
+
+
+##### Main
+
+# reset all variables that might be set
+password=''
+salt=''
+cipher=''
+
+# parse command line options
+while [[ "$1" != '' ]]
+do
+	case $1 in
+		-h | --help | -\?)
+			help
+			exit 0
+			;;
+		-v | --version)
+			printf "$BASENAME $VERSION\n"
+			exit 0
+			;;
+		-d | --display)
+			display_configuration
+			exit 0
+			;;
+		-p | --password)
+			password=$2
+			shift
+			;;
+		--password=*)
+			password=${1#*=}
+			;;
+		-s | --salt)
+			salt=$2
+			shift
+			validate_salt
+			;;
+		--salt=*)
+			salt=${1#*=}
+			validate_salt
+			;;
+		-c | --cipher)
+			cipher=$2
+			shift
+			validate_cipher
+			;;
+		--cipher=*)
+			cipher=${1#*=}
+			validate_cipher
+			;;
+		--*)
+			warn "unknown option -- ${1#--}"
+			usage
+			exit 1
+			;;
+		*)
+			warn "unknown option -- ${1#-}"
+			usage
+			exit 1
+			;;
+	esac
+	shift
+done
+
+run_safety_checks
+
+# ensure we have all the required information
+get_password
+get_salt
+get_cipher
+
+confirm_configuration
+save_configuration
+
+# ensure the gitattributes file exists
+if [[ ! -f "$REPO/.gitattributes" ]]; then
+	printf '#pattern  filter=crypt diff=crypt\n' > "$REPO/.gitattributes"
+fi
+
+printf 'transcrypt has been successfully configured!\n'
+
+exit 0
