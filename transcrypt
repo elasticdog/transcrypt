@@ -213,14 +213,14 @@ display_configuration() {
 	fi
 }
 
-# print this script's usage message
+# print this script's usage message to stderr
 usage() {
-	cat <<-EOF
+	cat <<-EOF >&2
 	usage: transcrypt [-p PASSWORD] [-s SALT] [-c CIPHER] [-d] [-v] [-h]
 	EOF
 }
 
-# print this script's help message
+# print this script's help message to sdtout
 help() {
 	cat <<-EOF
 
