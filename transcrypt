@@ -14,7 +14,7 @@
 
 ##### Constants
 
-readonly VERSION='0.1.0'               # the release version of this script
+readonly VERSION='0.2.0'               # the release version of this script
 readonly BASENAME="${0##*/}"           # the name of this script for error output
 readonly DEFAULT_CIPHER='aes-256-cbc'  # the default cipher to utilize
 
@@ -61,6 +61,36 @@ run_safety_checks() {
 	command -v openssl > /dev/null || die 'required command "openssl" was not found'
 }
 
+# unset the cipher variable if it is not supported by openssl
+validate_cipher() {
+	local supported=$(openssl list-cipher-commands | grep --line-regexp "$cipher")
+	if [[ ! $supported ]]; then
+		printf '"%s" is not a valid cipher; choose one of the following:\n\n' $cipher
+		openssl list-cipher-commands | column -c 80
+		printf '\n'
+		unset cipher
+	fi
+}
+
+# ensure we have a cipher to encrypt with
+get_cipher() {
+	while [[ ! $cipher ]]
+	do
+		local answer
+		printf 'Encrypt using which cipher? [%s] ' $DEFAULT_CIPHER
+		read -r answer
+
+		# use the default cipher if the user gave no answer;
+		# otherwise verify the given cipher is supported by openssl
+		if [[ ! $answer ]]; then
+			cipher=$DEFAULT_CIPHER
+		else
+			cipher=$answer
+			validate_cipher
+		fi
+	done
+}
+
 # ensure we have a password to encrypt with
 get_password() {
 	while [[ ! $password ]]
@@ -80,75 +110,8 @@ get_password() {
 			printf 'Password: '
 			read -r password
 			[[ ! $password ]] && printf 'no password was specified\n'
-			printf '\n'
 		fi
-	done
-}
-
-# unset the salt variable if does not meet openssl's requirements
-validate_salt() {
-	if [[ ! $salt =~ $HEX_REGEX ]] || [[ ${#salt} -gt 16 ]]; then
-		printf 'invalid salt; it must be hexadecimal and no longer than 16 digits\n'
-		unset salt
-	fi
-}
-
-# ensure we have a salt to encrypt with
-get_salt() {
-	while [[ ! $salt ]]
-	do
-		local answer
-		printf 'Generate a random salt? [Y/n] '
-		read -r -n 1 -s answer
 		printf '\n'
-
-		# generate a random salt if the user answered yes;
-		# otherwise prompt the user for a salt
-		if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
-			local salt_length=16
-			local random_hex=$(LC_ALL=C tr -cd '[:xdigit:]' < /dev/urandom | head -c $salt_length | tr '[:upper:]' '[:lower:]')
-			salt=$random_hex
-		else
-			printf 'Salt: '
-			read -r salt
-			if [[ ! $salt ]]; then
-				printf 'no salt was specified\n'
-			else
-				validate_salt
-			fi
-			printf '\n'
-		fi
-	done
-}
-
-# unset the cipher variable if does not meet openssl's requirements
-validate_cipher() {
-	local supported=$(openssl list-cipher-commands | grep --line-regexp "$cipher")
-	if [[ ! $supported ]]; then
-		printf '"%s" is not a valid cipher; choose one of the following:\n\n' $cipher
-		openssl list-cipher-commands | column -c 80
-		printf '\n'
-		unset cipher
-	fi
-}
-
-# ensure we have a cipher to encrypt with
-get_cipher() {
-	while [[ ! $cipher ]]
-	do
-		local answer
-		printf 'Encrypt using which cipher? [%s] ' $DEFAULT_CIPHER
-		read -r answer
-		printf '\n'
-
-		# use the default cipher if the user gave no answer;
-		# otherwise verify the given cipher is supported by openssl
-		if [[ ! $answer ]]; then
-			cipher=$DEFAULT_CIPHER
-		else
-			cipher=$answer
-			validate_cipher
-		fi
 	done
 }
 
@@ -158,9 +121,8 @@ confirm_configuration() {
 
 	printf 'The following configuration will be saved:\n\n'
 	printf '  REPO:     %s\n' $REPO
-	printf '  PASSWORD: %s\n' $password
-	printf '  SALT:     %s\n' $salt
-	printf '  CIPHER:   %s\n\n' $cipher
+	printf '  CIPHER:   %s\n' $cipher
+	printf '  PASSWORD: %s\n\n' $password
 	printf 'Does this look correct? [Y/n] '
 	read -r -n 1 -s answer
 
@@ -177,14 +139,20 @@ confirm_configuration() {
 save_configuration() {
 	# write the encryption info
 	git config --add transcrypt.version "$VERSION"
-	git config --add transcrypt.password "$password"
-	git config --add transcrypt.salt "$salt"
 	git config --add transcrypt.cipher "$cipher"
+	git config --add transcrypt.password "$password"
+
+	# the `decryption -> encryption` process on an unchanged file must be
+	# deterministic for everything to work transparently. to do that, the same
+	# salt must be used each time we encrypt the file. rather than use
+	# a static salt common to all files, we'll take a hash of each file
+	# individually (when it's decrypted) and use the last 16 bytes of that
+	# hash for its unique salt.
+	local cipher_cmd='$(git config --get --local transcrypt.cipher)'
+	local password_cmd='$(git config --get --local transcrypt.password)'
+	local salt_cmd='$(openssl dgst -sha256 %f | tail -c 16)'
 
 	# write the filter settings
-	local password_cmd='$(git config --get --local transcrypt.password)'
-	local salt_cmd='$(git config --get --local transcrypt.salt)'
-	local cipher_cmd='$(git config --get --local transcrypt.cipher)'
 	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass pass:$password_cmd -e -a -S $salt_cmd"
 	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass pass:$password_cmd -d -a"
 	git config filter.crypt.required 'true'
@@ -200,23 +168,23 @@ display_configuration() {
 	if [[ ! $CONFIGURED ]]; then
 		printf 'transcrypt is not configured for this repository\n'
 	else
-		local current_password=$(git config --get --local transcrypt.password)
-		local current_salt=$(git config --get --local transcrypt.salt)
+		local current_version=$(git config --get --local transcrypt.version)
 		local current_cipher=$(git config --get --local transcrypt.cipher)
+		local current_password=$(git config --get --local transcrypt.password)
 
-		printf 'The current repository has the following configuration:\n\n'
-		printf '  PASSWORD: %s\n' $current_password
-		printf '  SALT:     %s\n' $current_salt
-		printf '  CIPHER:   %s\n\n' $current_cipher
+		printf 'The current repository was configured using transcrypt v%s\n' $current_version
+		printf 'and has the following configuration:\n\n'
+		printf '  CIPHER:   %s\n' $current_cipher
+		printf '  PASSWORD: %s\n\n' $current_password
 		printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
-		printf '  transcrypt -p %s -s %s -c %s\n' $current_password $current_salt $current_cipher
+		printf '  transcrypt -c %s -p %s\n' $current_cipher $current_password
 	fi
 }
 
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
-	usage: transcrypt [-p PASSWORD] [-s SALT] [-c CIPHER] [-d] [-v] [-h]
+	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-d] [-v] [-h]
 	EOF
 }
 
@@ -228,7 +196,7 @@ help() {
 	     transcrypt -- transparently encrypt files within a git repository
 
 	SYNOPSIS
-	     transcrypt [-p PASSWORD] [-s SALT] [-c CIPHER] [-d] [-v] [-h]
+	     transcrypt [-c CIPHER] [-p PASSWORD] [-d] [-v] [-h]
 
 	DESCRIPTION
 	     transcrypt will configure a Git repository to support the transparent
@@ -243,16 +211,12 @@ help() {
 	     -p, --password=PASSWORD
 	          the password to derive the key from
 
-	     -s, --salt=SALT
-	          the salt to use in the key derivation routines;
-	          this must be comprised only of hex digits
-
 	     -c, --cipher=CIPHER
 	          the symmetric cipher to utilize for encryption;
 	          defaults to aes-256-cbc
 
 	     -d, --display
-	          display the current repository's password, salt, and cipher
+	          display the current repository's cipher and password
 
 	     -v, --version
 	          print the version information
@@ -275,8 +239,8 @@ help() {
 
 	      If you have just cloned a repository containing files that are
 	      encrypted, you'll want to configure transcrypt with the same
-	      password, salt, and cipher as the origin repository, then force a
-	      checkout of all encrypted files to decrypt them:
+	      cipher and password as the origin repository, then force a checkout
+	      of all encrypted files to decrypt them:
 
 	        $ transcrypt
 	        $ git checkout --force -- \$(git ls-crypt)
@@ -291,9 +255,8 @@ help() {
 ##### Main
 
 # reset all variables that might be set
-password=''
-salt=''
 cipher=''
+password=''
 
 # parse command line options
 while [[ "$1" != '' ]]
@@ -311,22 +274,6 @@ do
 			display_configuration
 			exit 0
 			;;
-		-p | --password)
-			password=$2
-			shift
-			;;
-		--password=*)
-			password=${1#*=}
-			;;
-		-s | --salt)
-			salt=$2
-			shift
-			validate_salt
-			;;
-		--salt=*)
-			salt=${1#*=}
-			validate_salt
-			;;
 		-c | --cipher)
 			cipher=$2
 			shift
@@ -335,6 +282,13 @@ do
 		--cipher=*)
 			cipher=${1#*=}
 			validate_cipher
+			;;
+		-p | --password)
+			password=$2
+			shift
+			;;
+		--password=*)
+			password=${1#*=}
 			;;
 		--*)
 			warn "unknown option -- ${1#--}"
@@ -350,13 +304,10 @@ do
 	shift
 done
 
+# perform function calls
 run_safety_checks
-
-# ensure we have all the required information
-get_password
-get_salt
 get_cipher
-
+get_password
 confirm_configuration
 save_configuration
 
