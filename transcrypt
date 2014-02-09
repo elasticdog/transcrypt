@@ -22,7 +22,7 @@ readonly DEFAULT_CIPHER='aes-256-cbc'  # the default cipher to utilize
 readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
 
 # whether or not transcrypt is already configured
-readonly CONFIGURED=$(git config --get --local transcrypt.cipher 2> /dev/null)
+readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
 
 # regular expressions used to test user input
 readonly YES_REGEX='^[Yy]$'
@@ -176,6 +176,7 @@ confirm_configuration() {
 # write the configuration to the repository's .git/config
 save_configuration() {
 	# write the encryption info
+	git config --add transcrypt.version "$VERSION"
 	git config --add transcrypt.password "$password"
 	git config --add transcrypt.salt "$salt"
 	git config --add transcrypt.cipher "$cipher"
