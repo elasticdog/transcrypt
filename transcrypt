@@ -14,9 +14,11 @@
 
 ##### Constants
 
-readonly VERSION='0.2.0'               # the release version of this script
-readonly BASENAME="${0##*/}"           # the name of this script for error output
-readonly DEFAULT_CIPHER='aes-256-cbc'  # the default cipher to utilize
+# the release version of this script
+readonly VERSION='0.2.0'
+
+# the default cipher to utilize
+readonly DEFAULT_CIPHER='aes-256-cbc'
 
 # the current git repository's top-level directory
 readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
@@ -24,9 +26,9 @@ readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
 # whether or not transcrypt is already configured
 readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
 
-# regular expressions used to test user input
+# regular expression used to test user input
 readonly YES_REGEX='^[Yy]$'
-readonly HEX_REGEX='^[0-9A-Fa-f]+$'
+
 
 ##### Functions
 
@@ -34,7 +36,7 @@ readonly HEX_REGEX='^[0-9A-Fa-f]+$'
 warn() {
 	local fmt="$1"
 	shift
-	printf "$BASENAME: $fmt\n" "$@" >&2
+	printf "transcrypt: $fmt\n" "$@" >&2
 }
 
 # print a message to stderr and exit with either
@@ -168,11 +170,10 @@ display_configuration() {
 	if [[ ! $CONFIGURED ]]; then
 		printf 'transcrypt is not configured for this repository\n'
 	else
-		local current_version=$(git config --get --local transcrypt.version)
 		local current_cipher=$(git config --get --local transcrypt.cipher)
 		local current_password=$(git config --get --local transcrypt.password)
 
-		printf 'The current repository was configured using transcrypt v%s\n' $current_version
+		printf 'The current repository was configured using transcrypt v%s\n' $CONFIGURED
 		printf 'and has the following configuration:\n\n'
 		printf '  CIPHER:   %s\n' $current_cipher
 		printf '  PASSWORD: %s\n\n' $current_password
@@ -267,7 +268,7 @@ do
 			exit 0
 			;;
 		-v | --version)
-			printf "$BASENAME $VERSION\n"
+			printf "transcrypt $VERSION\n"
 			exit 0
 			;;
 		-d | --display)
