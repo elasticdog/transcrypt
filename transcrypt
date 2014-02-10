@@ -83,10 +83,10 @@ validate_cipher() {
 			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
 			openssl list-cipher-commands | column -c 80
 			printf '\n'
+			unset cipher
 		else
 			die 1 '"%s" is not a valid cipher; see `openssl list-cipher-commands`' "$cipher"
 		fi
-		unset cipher
 	fi
 }
 
