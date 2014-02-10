@@ -140,10 +140,10 @@ from tracking binary files, and when used as intended, transcrypt should not
 noticeably impact performance. There are much better options if your goal is
 to encrypt the entire repository.
 
-Note that the configuration and encryption password are stored in plain text
-within the repository's _.git/config_ file. This prevents them from being
-transferred to remote clones, but they are not protected from inquisitive
-users on your local machine.
+Note that the configuration and encryption information is stored in plain
+text within the repository's _.git/config_ file. This prevents them from
+being transferred to remote clones, but they are not protected from
+inquisitive users on your local machine.
 
 License
 -------
