@@ -174,10 +174,10 @@ save_configuration() {
 	local salt_cmd='$(openssl dgst -sha256 %f | tail -c 16)'
 
 	# write the filter settings
-	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass 'pass:$password_cmd' -e -a -S $salt_cmd"
-	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass 'pass:$password_cmd' -d -a"
+	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -e -a -S $salt_cmd"
+	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a"
 	git config filter.crypt.required 'true'
-	git config diff.crypt.textconv "openssl enc -$cipher_cmd -pass 'pass:$password_cmd' -d -a -in \$1 2> /dev/null || cat"
+	git config diff.crypt.textconv "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a -in \$1 2> /dev/null || cat"
 	git config merge.renormalize 'true'
 
 	# add a git alias for listing encrypted files
