@@ -128,6 +128,10 @@ of any exising encrypted files in order to decrypt them.
       -d, --display
            display the current repository's cipher and password
 
+      -f, --flush-credentials
+           remove the locally cached encryption credentials
+           and re-encrypt any files that had been previously decrypted
+
       -v, --version
            print the version information
 

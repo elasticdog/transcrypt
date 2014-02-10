@@ -184,8 +184,10 @@ save_configuration() {
 	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
 }
 
-# decrypt any existing encrypted files that may exist
-decrypt_existing() {
+# force the checkout of any files with the crypt filter applied to them;
+# this will decrypt existing encrypted files if you've just cloned a repository,
+# or it will encrypt locally decrypted files if you've just flushed the credentials
+force_checkout() {
 	# make sure a HEAD revision exists
 	if [[ $HEAD_EXISTS ]]; then
 		# this would normally delete uncommitted changes in the working directory,
@@ -208,7 +210,48 @@ display_configuration() {
 		printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
 		printf "  transcrypt -c %s -p '%s' -y \n" "$current_cipher" "$escaped_password"
 	else
-		printf 'transcrypt is not configured for this repository\n'
+		die 1 'this repository is not configured'
+	fi
+}
+
+# flush the encryption info and filter settings from the repository's .git/config
+flush_credentials() {
+	if [[ $CONFIGURED ]]; then
+		local answer
+
+		if [[ $interactive ]]; then
+			printf 'You are about to flush the local credentials; make sure you have saved them elsewhere.\n'
+			printf 'All previously decrypted files will revert to their encrypted form.\n'
+			printf 'Proceed? [y/N] '
+			read -r answer
+			printf '\n'
+		else
+			# although destructive, we should support the --yes option
+			answer='y'
+		fi
+
+		# only flush if the user explicitly confirmed
+		if [[ $answer =~ $YES_REGEX ]]; then
+			git config --remove-section transcrypt
+			git config --remove-section filter.crypt
+			git config --remove-section diff.crypt
+			git config --unset merge.renormalize
+
+			# remove the merge section if it's now empty
+			local merge_values=$(git config --get-regex --local 'merge\..*')
+			if [[ ! $merge_values ]]; then
+				git config --remove-section merge
+			fi
+
+			# re-encrypt any files that had been previously decrypted
+			force_checkout
+
+			printf 'The local transcrypt credentials have been successfully flushed!\n'
+		else
+			die 1 'flushing of credentials has been aborted'
+		fi
+	else
+		die 1 'this repository is not configured'
 	fi
 }
 
@@ -227,7 +270,7 @@ help() {
 	     transcrypt -- transparently encrypt files within a git repository
 
 	SYNOPSIS
-	     transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-v] [-h]
+	     transcrypt [option...]
 
 	DESCRIPTION
 	     transcrypt will configure a Git repository to support the transparent
@@ -252,6 +295,10 @@ help() {
 
 	     -d, --display
 	          display the current repository's cipher and password
+
+	     -f, --flush-credentials
+	          remove the locally cached encryption credentials
+	          and re-encrypt any files that had been previously decrypted
 
 	     -v, --version
 	          print the version information
@@ -287,23 +334,13 @@ help() {
 cipher=''
 password=''
 interactive='true'
+display_config=''
+flush_creds=''
 
 # parse command line options
 while [[ "$1" != '' ]]
 do
 	case $1 in
-		-h | --help | -\?)
-			help
-			exit 0
-			;;
-		-v | --version)
-			printf "transcrypt $VERSION\n"
-			exit 0
-			;;
-		-d | --display)
-			display_configuration
-			exit 0
-			;;
 		-c | --cipher)
 			cipher=$2
 			shift
@@ -321,6 +358,20 @@ do
 		-y | --yes)
 			unset interactive
 			;;
+		-d | --display)
+			display_config='true'
+			;;
+		-f | --flush-credentials)
+			flush_creds='true'
+			;;
+		-v | --version)
+			printf "transcrypt $VERSION\n"
+			exit 0
+			;;
+		-h | --help | -\?)
+			help
+			exit 0
+			;;
 		--*)
 			warn "unknown option -- ${1#--}"
 			usage
@@ -336,8 +387,21 @@ do
 done
 
 # in order to keep behavior consistent no matter what order the options were
-# specified in, we must run this here rather than in the case statement above
-[[ $cipher ]] && validate_cipher
+# specified in, we must run these here rather than in the case statement above
+if [[ $display_config ]] && [[ $flush_creds ]]; then
+	display_configuration
+	printf '\n'
+	flush_credentials
+	exit 0
+elif [[ $display_config ]]; then
+	display_configuration
+	exit 0
+elif [[ $flush_creds ]]; then
+	flush_credentials
+	exit 0
+elif [[ $cipher ]]; then
+	validate_cipher
+fi
 
 # perform function calls
 run_safety_checks
@@ -345,13 +409,13 @@ get_cipher
 get_password
 [[ $interactive ]] && confirm_configuration
 save_configuration
-decrypt_existing
+force_checkout
 
 # ensure the gitattributes file exists
 if [[ ! -f "$REPO/.gitattributes" ]]; then
 	printf '#pattern  filter=crypt diff=crypt\n' > "$REPO/.gitattributes"
 fi
 
-printf 'transcrypt has been successfully configured!\n'
+printf 'The repository has been successfully configured by transcrypt!\n'
 
 exit 0
