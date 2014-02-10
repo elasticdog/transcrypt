@@ -196,9 +196,7 @@ decrypt_existing() {
 
 # display the current configuration settings
 display_configuration() {
-	if [[ ! $CONFIGURED ]]; then
-		printf 'transcrypt is not configured for this repository\n'
-	else
+	if [[ $CONFIGURED ]]; then
 		local current_cipher=$(git config --get --local transcrypt.cipher)
 		local current_password=$(git config --get --local transcrypt.password)
 
@@ -208,6 +206,8 @@ display_configuration() {
 		printf '  PASSWORD: %s\n\n' "$current_password"
 		printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
 		printf "  transcrypt -c %s -p '%s' -y \n" "$current_cipher" "$current_password"
+	else
+		printf 'transcrypt is not configured for this repository\n'
 	fi
 }
 
