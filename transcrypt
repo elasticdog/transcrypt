@@ -159,9 +159,9 @@ confirm_configuration() {
 # write the configuration to the repository's .git/config
 save_configuration() {
 	# write the encryption info
-	git config --add transcrypt.version "$VERSION"
-	git config --add transcrypt.cipher "$cipher"
-	git config --add transcrypt.password "$password"
+	git config transcrypt.version "$VERSION"
+	git config transcrypt.cipher "$cipher"
+	git config transcrypt.password "$password"
 
 	# the `decryption -> encryption` process on an unchanged file must be
 	# deterministic for everything to work transparently. to do that, the same
