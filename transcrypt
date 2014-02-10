@@ -165,10 +165,10 @@ save_configuration() {
 
 	# the `decryption -> encryption` process on an unchanged file must be
 	# deterministic for everything to work transparently. to do that, the same
-	# salt must be used each time we encrypt the file. rather than use
+	# salt must be used each time we encrypt the same file. rather than use
 	# a static salt common to all files, we'll take a hash of each file
-	# individually (when it's decrypted) and use the last 16 bytes of that
-	# hash for its unique salt.
+	# when it's decrypted, and then use the last 16 bytes of that
+	# hash for the file's unique salt.
 	local cipher_cmd='$(git config --get --local transcrypt.cipher)'
 	local password_cmd='$(git config --get --local transcrypt.password)'
 	local salt_cmd='$(openssl dgst -sha256 %f | tail -c 16)'
@@ -286,6 +286,8 @@ uninstall_transcrypt() {
 
 			# also remove the `git ls-crypt` alias
 			git config --unset alias.ls-crypt
+
+			# remove the alias section if it's now empty
 			local alias_values=$(git config --get-regex --local 'alias\..*')
 			if [[ ! $alias_values ]]; then
 				git config --remove-section alias
