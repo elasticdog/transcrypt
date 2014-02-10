@@ -350,6 +350,6 @@ if [[ ! -f "$REPO/.gitattributes" ]]; then
 	printf '#pattern  filter=crypt diff=crypt\n' > "$REPO/.gitattributes"
 fi
 
-[[ $interactive ]] && printf 'transcrypt has been successfully configured!\n'
+printf 'transcrypt has been successfully configured!\n'
 
 exit 0
