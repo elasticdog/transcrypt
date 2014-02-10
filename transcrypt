@@ -126,8 +126,8 @@ get_password() {
 		# otherwise prompt the user for a password
 		if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
 			local password_length=30
-			local random_alnum=$(openssl rand -base64 $password_length)
-			password=$random_alnum
+			local random_base64=$(openssl rand -base64 $password_length)
+			password=$random_base64
 		else
 			printf 'Password: '
 			read -r password
