@@ -80,11 +80,11 @@ validate_cipher() {
 	local supported=$(openssl list-cipher-commands | grep --line-regexp "$cipher")
 	if [[ ! $supported ]]; then
 		if [[ $interactive ]]; then
-			printf '"%s" is not a valid cipher; choose one of the following:\n\n' $cipher
+			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
 			openssl list-cipher-commands | column -c 80
 			printf '\n'
 		else
-			die 1 '"%s" is not a valid cipher; see `openssl list-cipher-commands`' $cipher
+			die 1 '"%s" is not a valid cipher; see `openssl list-cipher-commands`' "$cipher"
 		fi
 		unset cipher
 	fi
@@ -96,7 +96,7 @@ get_cipher() {
 	do
 		local answer
 		if [[ $interactive ]]; then
-			printf 'Encrypt using which cipher? [%s] ' $DEFAULT_CIPHER
+			printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER"
 			read -r answer
 		fi
 
@@ -141,9 +141,9 @@ confirm_configuration() {
 	local answer
 
 	printf '\nThe following configuration will be saved:\n\n'
-	printf '  REPO:     %s\n' $REPO
-	printf '  CIPHER:   %s\n' $cipher
-	printf '  PASSWORD: %s\n\n' $password
+	printf '  REPO:     %s\n' "$REPO"
+	printf '  CIPHER:   %s\n' "$cipher"
+	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'Does this look correct? [Y/n] '
 	read -r -n 1 -s answer
 
@@ -174,10 +174,10 @@ save_configuration() {
 	local salt_cmd='$(openssl dgst -sha256 %f | tail -c 16)'
 
 	# write the filter settings
-	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass pass:$password_cmd -e -a -S $salt_cmd"
-	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass pass:$password_cmd -d -a"
+	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -e -a -S $salt_cmd"
+	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a"
 	git config filter.crypt.required 'true'
-	git config diff.crypt.textconv "openssl enc -$cipher_cmd -pass pass:$password_cmd -d -a -in \$1 2> /dev/null || cat"
+	git config diff.crypt.textconv "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a -in \$1 2> /dev/null || cat"
 	git config merge.renormalize 'true'
 
 	# add a git alias for listing encrypted files
@@ -202,12 +202,12 @@ display_configuration() {
 		local current_cipher=$(git config --get --local transcrypt.cipher)
 		local current_password=$(git config --get --local transcrypt.password)
 
-		printf 'The current repository was configured using transcrypt v%s\n' $CONFIGURED
+		printf 'The current repository was configured using transcrypt v%s\n' "$CONFIGURED"
 		printf 'and has the following configuration:\n\n'
-		printf '  CIPHER:   %s\n' $current_cipher
-		printf '  PASSWORD: %s\n\n' $current_password
+		printf '  CIPHER:   %s\n' "$current_cipher"
+		printf '  PASSWORD: %s\n\n' "$current_password"
 		printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
-		printf '  transcrypt -c %s -p %s\n' $current_cipher $current_password
+		printf "  transcrypt -c %s -p '%s' -y \n" "$current_cipher" "$current_password"
 	fi
 }
 
