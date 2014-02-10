@@ -5,7 +5,7 @@
 #
 # A script to configure transparent encryption of sensitive files stored in
 # a Git repository. It utilizes OpenSSL's symmetric cipher routines and follows
-# the gitattributes man page regarding the use of filters.
+# the gitattributes(5) man page regarding the use of filters.
 #
 # Copyright (c) 2014 Aaron Bull Schaefer <aaron@elasticdog.com>
 # This source code is provided under the terms of the MIT License
@@ -25,6 +25,9 @@ readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
 
 # whether or not transcrypt is already configured
 readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
+
+# whether or not a HEAD revision exists
+readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2> /dev/null)
 
 # regular expression used to test user input
 readonly YES_REGEX='^[Yy]$'
@@ -61,6 +64,15 @@ run_safety_checks() {
 
 	# check for dependencies
 	command -v openssl > /dev/null || die 'required command "openssl" was not found'
+
+	# ensure the repository is clean so we can decrypt any existing
+	# files later on by forcing a checkout of the HEAD revision
+	if [[ $HEAD_EXISTS ]]; then
+		# check if the repo is dirty
+		if ! git diff-index --quiet HEAD; then
+			die 1 'the repo is dirty; commit or stash your changes before running transcrypt'
+		fi
+	fi
 }
 
 # unset the cipher variable if it is not supported by openssl
@@ -165,6 +177,16 @@ save_configuration() {
 	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
 }
 
+# decrypt any existing encrypted files that may exist
+decrypt_existing() {
+	# make sure a HEAD revision exists
+	if [[ $HEAD_EXISTS ]]; then
+		# this would normally delete uncommitted changes in the working directory,
+		# but we already made sure the repo was clean during the safety checks
+		git checkout --force HEAD -- $(git ls-crypt) > /dev/null
+	fi
+}
+
 # display the current configuration settings
 display_configuration() {
 	if [[ ! $CONFIGURED ]]; then
@@ -239,16 +261,10 @@ help() {
 	      See the gitattributes(5) man page for more information.
 
 	      If you have just cloned a repository containing files that are
-	      encrypted, you'll want to configure transcrypt with the same
-	      cipher and password as the origin repository, then force a checkout
-	      of all encrypted files to decrypt them:
-
-	        $ transcrypt
-	        $ git checkout --force -- \$(git ls-crypt)
-
-	      WARNING! Since we're dealing with `git checkout --force`, you should
-	      make sure to commit or stash all changes in your working directory
-	      before performing the above action, just to be safe.
+	      encrypted, you'll want to configure transcrypt with the same cipher
+	      and password as the origin repository. Once transcrypt has stored
+	      the matching credentials, it will force a checkout of any exising
+	      encrypted files in order to decrypt them.
 	EOF
 }
 
@@ -311,6 +327,7 @@ get_cipher
 get_password
 confirm_configuration
 save_configuration
+decrypt_existing
 
 # ensure the gitattributes file exists
 if [[ ! -f "$REPO/.gitattributes" ]]; then

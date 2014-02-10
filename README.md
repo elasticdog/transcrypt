@@ -92,16 +92,21 @@ this file :-)
 If you have just cloned a repository containing files that are encrypted,
 you'll want to configure transcrypt with the same cipher and password as the
 origin repository. The owner of the origin repository can dump the credentials for you
-by running the `--display` command line option.
+by running the `--display` command line option:
 
-Once you have configured transcrypt, force a checkout of all encrypted files
-to decrypt them in your local working copy:
+    $ transcrypt --display
+    The current repository was configured using transcrypt v0.2.0
+    and has the following configuration:
 
-    $ git checkout --force -- $(git ls-crypt)
+      CIPHER:   aes-256-cbc
+      PASSWORD: mysupersecretpassword
 
-> WARNING! Since we're dealing with `git checkout --force`, you should make
-> sure to commit or stash all changes in your working copy before performing
-> the above action, just to be safe.
+    Copy and paste the following command to initialize a cloned repository:
+
+      transcrypt -c aes-256-cbc -p mysupersecretpassword
+
+Once transcrypt has stored the matching credentials, it will force a checkout
+of any exising encrypted files in order to decrypt them.
 
 ### Command Line Options
 
