@@ -1,0 +1,145 @@
+transcrypt
+==========
+
+A script to configure transparent encryption of sensitive files stored in
+a Git repository. Files that you choose will be automatically encrypted when
+you commit them, and automatically decrypted when you check them out. The
+process will degrade gracefully, so even people without your encryption
+password can safely commit changes to the repository's non-encrypted files.
+
+transcrypt protects your data when it's pushed to remotes that you may not
+directly control (e.g., GitHub, Dropbox clones, etc.), while still allowing
+you to work normally on your local working copy. You can conveniently store
+things like passwords and private keys within your repository and not have to
+share them with your entire team or complicate your workflow.
+
+Overview
+--------
+
+transcrypt is in the same vein as existing projects like
+[git-crypt](https://github.com/AGWA/git-crypt) and
+[git-encrypt](https://github.com/shadowhand/git-encrypt), which follow Git's
+documentation regarding the use of clean/smudge filters for encryption.
+In comparison to those other projects, transcrypt makes substantial
+improvements in the areas of usability and safety.
+
+* transcrypt is just a Bash script and does not require compilation
+* transcrypt uses OpenSSL's symmetric cipher routines rather then implementing its own crypto
+* transcrypt does not have to remain installed after the initial repository configuration
+* transcrypt generates a unique salt for each encrypted file
+* transcrypt uses safety checks to avoid clobbering or duplicating configuration data
+* transcrypt facilitates setting up additional clones
+* transcrypt adds an alias `git ls-crypt` to list all encrypted files
+
+### Salt Generation
+
+The _decryption -> encryption_ process on an unchanged file must be
+deterministic for everything to work transparently. To do that, the same salt
+must be used each time we encrypt the same file. Rather than use a static salt
+common to all files, transcrypt takes a SHA-256 cryptographic hash of each
+file when it's decrypted, and then uses the last 16 bytes of that hash for the
+file's unique salt. When the content of the file changes, so does the salt.
+
+Usage
+-----
+
+The requirements to run transcrypt are minimal:
+
+* Bash
+* Git
+* OpenSSL
+
+You also need access to the _transcrypt_ script itself. You can add it
+directly to your repository, or just put it somewhere in your $PATH:
+
+    $ git clone https://github.com/elasticdog/transcrypt.git
+    $ cd transcrypt/
+    $ sudo ln -s ${PWD}/transcrypt /usr/local/bin/transcrypt
+
+### Initialize an Unconfigured Repository
+
+transcrypt will interactively prompt you for the required information, all you
+have to do run the script within a Git repository:
+
+    $ cd <path-to-your-repo>/
+    $ transcrypt
+
+If you already know the values you want to use, you can specify them directly
+using the command line options. Run `transcrypt --help` for more details.
+
+### Designate a File to be Encrypted
+
+Once a repository has been configured with transcrypt, you can designate
+for files to be encrypted by applying the "crypt" filter and diff to a
+[pattern](https://www.kernel.org/pub/software/scm/git/docs/gitignore.html#_pattern_format)
+in the top-level
+_[.gitattributes](http://git-scm.com/docs/gitattributes#_%3Ctt%3Efilter%3C/tt%3E)_
+config. If that pattern matches a file in your repository, the file will be
+transparently encrypted once you stage and commit it:
+
+    $ cd <path-to-your-repo>/
+    $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
+    $ git add .gitattributes sensitive_file
+    $ git commit -m 'Add encrypted version of a sensitive file'
+
+The _.gitattributes_ file should be committed and tracked along with
+everything else in your repository so clones will be aware of what is
+encrypted. Make sure you don't accidentally add a pattern that would encrypt
+this file :-)
+
+### Initialize a Clone of a Configured Repository
+
+If you have just cloned a repository containing files that are encrypted,
+you'll want to configure transcrypt with the same cipher and password as the
+origin repository. The owner of the origin repository can dump the credentials for you
+by running the `--display` command line option.
+
+Once you have configured transcrypt, force a checkout of all encrypted files
+to decrypt them in your local working copy:
+
+    $ git checkout --force -- $(git ls-crypt)
+
+> WARNING! Since we're dealing with `git checkout --force`, you should make
+> sure to commit or stash all changes in your working copy before performing
+> the above action, just to be safe.
+
+### Command Line Options
+
+    -p, --password=PASSWORD
+         the password to derive the key from
+
+    -c, --cipher=CIPHER
+         the symmetric cipher to utilize for encryption;
+         defaults to aes-256-cbc
+
+    -d, --display
+         display the current repository's cipher and password
+
+    -v, --version
+         print the version information
+
+    -h, --help
+         view the help message
+
+Caveats
+-------
+
+The method of using filters to selectively encrypt/decrypt files does add some
+overhead to Git by regularly forking OpenSSL processes and removing Git's
+ability to efficiently cache file changes. That said, it's not too different
+from tracking binary files, and when used as intended, transcrypt should not
+noticeably impact performance. There are much better options if your goal is
+to encrypt the entire repository.
+
+Note that the configuration and encryption password are stored in plain text
+within the repository's _.git/config_ file. This prevents them from being
+transferred to remote clones, but they are not protected from inquisitive
+users on your local machine.
+
+License
+-------
+
+transcrypt is provided under the terms of the
+[MIT License](https://en.wikipedia.org/wiki/MIT_License).
+
+Copyright &copy; 2014, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
