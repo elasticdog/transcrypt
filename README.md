@@ -99,11 +99,11 @@ by running the `--display` command line option:
     and has the following configuration:
 
       CIPHER:   aes-256-cbc
-      PASSWORD: mysupersecretpassword
+      PASSWORD: correct horse battery staple
 
     Copy and paste the following command to initialize a cloned repository:
 
-      transcrypt -c aes-256-cbc -p mysupersecretpassword
+      transcrypt -c aes-256-cbc -p 'correct horse battery staple' -y
 
 Once transcrypt has stored the matching credentials, it will force a checkout
 of any exising encrypted files in order to decrypt them.
