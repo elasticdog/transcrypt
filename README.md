@@ -132,6 +132,10 @@ of any exising encrypted files in order to decrypt them.
            remove the locally cached encryption credentials
            and re-encrypt any files that had been previously decrypted
 
+      -u, --uninstall
+           remove all transcrypt configuration from the repository
+           and leave files in the current working copy decrypted
+
       -v, --version
            print the version information
 

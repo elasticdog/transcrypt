@@ -214,7 +214,22 @@ display_configuration() {
 	fi
 }
 
-# flush the encryption info and filter settings from the repository's .git/config
+# remove transcrypt-related settings from the repository's .git/config
+clean_gitconfig() {
+	git config --remove-section transcrypt
+	git config --remove-section filter.crypt
+	git config --remove-section diff.crypt
+	git config --unset merge.renormalize
+
+	# remove the merge section if it's now empty
+	local merge_values=$(git config --get-regex --local 'merge\..*')
+	if [[ ! $merge_values ]]; then
+		git config --remove-section merge
+	fi
+}
+
+# remove the locally cached encryption credentials and
+# re-encrypt any files that had been previously decrypted
 flush_credentials() {
 	if [[ $CONFIGURED ]]; then
 		local answer
@@ -232,23 +247,60 @@ flush_credentials() {
 
 		# only flush if the user explicitly confirmed
 		if [[ $answer =~ $YES_REGEX ]]; then
-			git config --remove-section transcrypt
-			git config --remove-section filter.crypt
-			git config --remove-section diff.crypt
-			git config --unset merge.renormalize
-
-			# remove the merge section if it's now empty
-			local merge_values=$(git config --get-regex --local 'merge\..*')
-			if [[ ! $merge_values ]]; then
-				git config --remove-section merge
-			fi
+			clean_gitconfig
 
 			# re-encrypt any files that had been previously decrypted
 			force_checkout
 
-			printf 'The local transcrypt credentials have been successfully flushed!\n'
+			printf 'The local transcrypt credentials have been successfully flushed.\n'
 		else
 			die 1 'flushing of credentials has been aborted'
+		fi
+	else
+		die 1 'this repository is not configured'
+	fi
+}
+
+# remove all transcrypt configuration from the repository
+uninstall_transcrypt() {
+	if [[ $CONFIGURED ]]; then
+		local answer
+
+		if [[ $interactive ]]; then
+			printf 'You are about to remove all transcrypt configuration from your repository.\n'
+			printf 'All previously encrypted files will remain decrypted in this working copy.\n'
+			printf 'Proceed? [y/N] '
+			read -r answer
+			printf '\n'
+		else
+			# although destructive, we should support the --yes option
+			answer='y'
+		fi
+
+		# only uninstall if the user explicitly confirmed
+		if [[ $answer =~ $YES_REGEX ]]; then
+			clean_gitconfig
+
+			# also remove the `git ls-crypt` alias
+			git config --unset alias.ls-crypt
+			local alias_values=$(git config --get-regex --local 'alias\..*')
+			if [[ ! $alias_values ]]; then
+				git config --remove-section alias
+			fi
+
+			# remove any defined crypt patterns in .gitattributes
+			case $OSTYPE in
+				darwin*)
+					sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$REPO/.gitattributes"
+					;;
+				linux*)
+					sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$REPO/.gitattributes"
+					;;
+			esac
+
+			printf 'The transcrypt configuration has been completely removed from the repository.\n'
+		else
+			die 1 'uninstallation has been aborted'
 		fi
 	else
 		die 1 'this repository is not configured'
@@ -258,7 +310,7 @@ flush_credentials() {
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
-	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-v] [-h]
+	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-f] [-u ] [-v] [-h]
 	EOF
 }
 
@@ -300,6 +352,10 @@ help() {
 	          remove the locally cached encryption credentials
 	          and re-encrypt any files that had been previously decrypted
 
+	     -u, --uninstall
+	          remove all transcrypt configuration from the repository
+	          and leave files in the current working copy decrypted
+
 	     -v, --version
 	          print the version information
 
@@ -336,6 +392,7 @@ password=''
 interactive='true'
 display_config=''
 flush_creds=''
+uninstall=''
 
 # parse command line options
 while [[ "$1" != '' ]]
@@ -364,6 +421,9 @@ do
 		-f | --flush-credentials)
 			flush_creds='true'
 			;;
+		-u | --uninstall)
+			uninstall='true'
+			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"
 			exit 0
@@ -388,7 +448,11 @@ done
 
 # in order to keep behavior consistent no matter what order the options were
 # specified in, we must run these here rather than in the case statement above
-if [[ $display_config ]] && [[ $flush_creds ]]; then
+
+if [[ $uninstall ]]; then
+	uninstall_transcrypt
+	exit 0
+elif [[ $display_config ]] && [[ $flush_creds ]]; then
 	display_configuration
 	printf '\n'
 	flush_credentials
