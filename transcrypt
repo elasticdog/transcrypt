@@ -239,7 +239,8 @@ help() {
 
 	OPTIONS
 	     -p, --password=PASSWORD
-	          the password to derive the key from
+	          the password to derive the key from;
+	          defaults to 30 random base64 characters
 
 	     -c, --cipher=CIPHER
 	          the symmetric cipher to utilize for encryption;

@@ -86,6 +86,9 @@ everything else in your repository so clones will be aware of what is
 encrypted. Make sure you don't accidentally add a pattern that would encrypt
 this file :-)
 
+> For your reference, if you find the above description confusing, you'll find
+> that this repository has been configured following these exact steps.
+
 ### Initialize a Clone of a Configured Repository
 
 If you have just cloned a repository containing files that are encrypted,
@@ -112,7 +115,8 @@ of any exising encrypted files in order to decrypt them.
     transcrypt [option...]
 
       -p, --password=PASSWORD
-           the password to derive the key from
+           the password to derive the key from;
+           defaults to 30 random base64 characters
 
       -c, --cipher=CIPHER
            the symmetric cipher to utilize for encryption;
