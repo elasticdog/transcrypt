@@ -110,21 +110,26 @@ of any exising encrypted files in order to decrypt them.
 
 ### Command Line Options
 
-    -p, --password=PASSWORD
-         the password to derive the key from
+    transcrypt [option...]
 
-    -c, --cipher=CIPHER
-         the symmetric cipher to utilize for encryption;
-         defaults to aes-256-cbc
+      -p, --password=PASSWORD
+           the password to derive the key from
 
-    -d, --display
-         display the current repository's cipher and password
+      -c, --cipher=CIPHER
+           the symmetric cipher to utilize for encryption;
+           defaults to aes-256-cbc
 
-    -v, --version
-         print the version information
+      -y, --yes
+           assume yes and accept defaults for non-specified options
 
-    -h, --help
-         view the help message
+      -d, --display
+           display the current repository's cipher and password
+
+      -v, --version
+           print the version information
+
+      -h, --help
+           view the help message
 
 Caveats
 -------

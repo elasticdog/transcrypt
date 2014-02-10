@@ -79,9 +79,13 @@ run_safety_checks() {
 validate_cipher() {
 	local supported=$(openssl list-cipher-commands | grep --line-regexp "$cipher")
 	if [[ ! $supported ]]; then
-		printf '"%s" is not a valid cipher; choose one of the following:\n\n' $cipher
-		openssl list-cipher-commands | column -c 80
-		printf '\n'
+		if [[ $interactive ]]; then
+			printf '"%s" is not a valid cipher; choose one of the following:\n\n' $cipher
+			openssl list-cipher-commands | column -c 80
+			printf '\n'
+		else
+			die 1 '"%s" is not a valid cipher; see `openssl list-cipher-commands`' $cipher
+		fi
 		unset cipher
 	fi
 }
@@ -91,8 +95,10 @@ get_cipher() {
 	while [[ ! $cipher ]]
 	do
 		local answer
-		printf 'Encrypt using which cipher? [%s] ' $DEFAULT_CIPHER
-		read -r answer
+		if [[ $interactive ]]; then
+			printf 'Encrypt using which cipher? [%s] ' $DEFAULT_CIPHER
+			read -r answer
+		fi
 
 		# use the default cipher if the user gave no answer;
 		# otherwise verify the given cipher is supported by openssl
@@ -110,9 +116,11 @@ get_password() {
 	while [[ ! $password ]]
 	do
 		local answer
-		printf 'Generate a random password? [Y/n] '
-		read -r -n 1 -s answer
-		printf '\n'
+		if [[ $interactive ]]; then
+			printf 'Generate a random password? [Y/n] '
+			read -r -n 1 -s answer
+			printf '\n'
+		fi
 
 		# generate a random password if the user answered yes;
 		# otherwise prompt the user for a password
@@ -125,7 +133,6 @@ get_password() {
 			read -r password
 			[[ ! $password ]] && printf 'no password was specified\n'
 		fi
-		printf '\n'
 	done
 }
 
@@ -133,7 +140,7 @@ get_password() {
 confirm_configuration() {
 	local answer
 
-	printf 'The following configuration will be saved:\n\n'
+	printf '\nThe following configuration will be saved:\n\n'
 	printf '  REPO:     %s\n' $REPO
 	printf '  CIPHER:   %s\n' $cipher
 	printf '  PASSWORD: %s\n\n' $password
@@ -207,7 +214,7 @@ display_configuration() {
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
-	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-d] [-v] [-h]
+	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-v] [-h]
 	EOF
 }
 
@@ -219,7 +226,7 @@ help() {
 	     transcrypt -- transparently encrypt files within a git repository
 
 	SYNOPSIS
-	     transcrypt [-c CIPHER] [-p PASSWORD] [-d] [-v] [-h]
+	     transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-v] [-h]
 
 	DESCRIPTION
 	     transcrypt will configure a Git repository to support the transparent
@@ -237,6 +244,9 @@ help() {
 	     -c, --cipher=CIPHER
 	          the symmetric cipher to utilize for encryption;
 	          defaults to aes-256-cbc
+
+	     -y, --yes
+	          assume yes and accept defaults for non-specified options
 
 	     -d, --display
 	          display the current repository's cipher and password
@@ -274,6 +284,7 @@ help() {
 # reset all variables that might be set
 cipher=''
 password=''
+interactive='true'
 
 # parse command line options
 while [[ "$1" != '' ]]
@@ -294,11 +305,9 @@ do
 		-c | --cipher)
 			cipher=$2
 			shift
-			validate_cipher
 			;;
 		--cipher=*)
 			cipher=${1#*=}
-			validate_cipher
 			;;
 		-p | --password)
 			password=$2
@@ -306,6 +315,9 @@ do
 			;;
 		--password=*)
 			password=${1#*=}
+			;;
+		-y | --yes)
+			unset interactive
 			;;
 		--*)
 			warn "unknown option -- ${1#--}"
@@ -321,11 +333,15 @@ do
 	shift
 done
 
+# in order to keep behavior consistent no matter what order the options were
+# specified in, we must run this here rather than in the case statement above
+[[ $cipher ]] && validate_cipher
+
 # perform function calls
 run_safety_checks
 get_cipher
 get_password
-confirm_configuration
+[[ $interactive ]] && confirm_configuration
 save_configuration
 decrypt_existing
 
@@ -334,6 +350,6 @@ if [[ ! -f "$REPO/.gitattributes" ]]; then
 	printf '#pattern  filter=crypt diff=crypt\n' > "$REPO/.gitattributes"
 fi
 
-printf 'transcrypt has been successfully configured!\n'
+[[ $interactive ]] && printf 'transcrypt has been successfully configured!\n'
 
 exit 0
