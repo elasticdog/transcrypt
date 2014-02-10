@@ -281,6 +281,9 @@ uninstall_transcrypt() {
 		if [[ $answer =~ $YES_REGEX ]]; then
 			clean_gitconfig
 
+			# touch all encrypted files to prevent stale stat info
+			touch $(git ls-crypt)
+
 			# also remove the `git ls-crypt` alias
 			git config --unset alias.ls-crypt
 			local alias_values=$(git config --get-regex --local 'alias\..*')
