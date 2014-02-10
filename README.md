@@ -72,10 +72,9 @@ using the command line options. Run `transcrypt --help` for more details.
 Once a repository has been configured with transcrypt, you can designate
 for files to be encrypted by applying the "crypt" filter and diff to a
 [pattern](https://www.kernel.org/pub/software/scm/git/docs/gitignore.html#_pattern_format)
-in the top-level
-_[.gitattributes](http://git-scm.com/docs/gitattributes#_%3Ctt%3Efilter%3C/tt%3E)_
-config. If that pattern matches a file in your repository, the file will be
-transparently encrypted once you stage and commit it:
+in the top-level _[.gitattributes](http://git-scm.com/docs/gitattributes)_
+config. If that pattern matches a file in your repository, the file will
+be transparently encrypted once you stage and commit it:
 
     $ cd <path-to-your-repo>/
     $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
