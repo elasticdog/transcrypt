@@ -28,7 +28,7 @@ improvements in the areas of usability and safety.
 * transcrypt does not have to remain installed after the initial repository configuration
 * transcrypt generates a unique salt for each encrypted file
 * transcrypt uses safety checks to avoid clobbering or duplicating configuration data
-* transcrypt facilitates setting up additional clones
+* transcrypt facilitates setting up additional clones as well as rekeying
 * transcrypt adds an alias `git ls-crypt` to list all encrypted files
 
 ### Salt Generation
@@ -110,6 +110,30 @@ by running the `--display` command line option:
 Once transcrypt has stored the matching credentials, it will force a checkout
 of any exising encrypted files in order to decrypt them.
 
+### Rekeying
+
+Periodically, you may want to change the encryption cipher or password
+used to encrypt the files in your repository. You can do that easily with
+transcrypt's rekey option:
+
+    $ transcrypt --rekey
+
+> As a warning, rekeying will remove your ability to see historical diffs
+> of the encrypted files in plain text. Changes made with the new key will
+> still be visible, and you can always see the historical diffs in
+> encrypted form by disabling the text conversion filters:
+>
+>     $ git log --patch --no-textconv
+
+After rekeying, all clones of your repository should flush their
+transcrypt credentials, fetch and merge the new encrypted files via Git,
+and then re-configure transcrypt with the new credentials.
+
+    $ transcrypt --flush-credentials
+    $ git fetch origin
+    $ git merge origin/master
+    $ transcrypt -c aes-256-cbc -p 'the-new-password'
+
 ### Command Line Options
 
     transcrypt [option...]
@@ -127,6 +151,9 @@ of any exising encrypted files in order to decrypt them.
 
       -d, --display
            display the current repository's cipher and password
+
+      -r, --rekey
+           re-encrypt all encrypted files using new credentials
 
       -f, --flush-credentials
            remove the locally cached encryption credentials

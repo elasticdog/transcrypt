@@ -162,6 +162,38 @@ confirm_configuration() {
 	fi
 }
 
+# confirm the rekey configuration
+confirm_rekey() {
+	local answer
+
+	printf '\nThe following configuration will be saved:\n\n'
+	printf '  REPO:     %s\n' "$REPO"
+	printf '  CIPHER:   %s\n' "$cipher"
+	printf '  PASSWORD: %s\n\n' "$password"
+	printf 'You are about to re-encrypt all encrypted files using new credentials.\n'
+	printf 'Once you do this, their historical diffs will no longer display in plain text.\n\n'
+	printf 'Proceed with rekey? [y/N] '
+	read -r answer
+
+	# only rekey if the user explicitly confirmed
+	if [[ $answer =~ $YES_REGEX ]]; then
+		printf '\n'
+	else
+		die 1 'rekeying has been aborted'
+	fi
+}
+
+# automatically stage rekeyed files in preparation for the user to commit them
+stage_rekeyed_files() {
+	# touch all encrypted files to prevent stale stat info
+	touch $(git ls-crypt)
+
+	git update-index --add -- $(git ls-crypt)
+
+	printf '***  rekeyed files have been staged  ***\n'
+	printf '*** COMMIT THESE CHANGES RIGHT AWAY! ***\n\n'
+}
+
 # write the configuration to the repository's .git/config
 save_configuration() {
 	# write the encryption info
@@ -309,7 +341,7 @@ uninstall_transcrypt() {
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
-	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-f] [-u ] [-v] [-h]
+	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-r] [-f] [-u] [-v] [-h]
 	EOF
 }
 
@@ -347,6 +379,9 @@ help() {
 	     -d, --display
 	          display the current repository's cipher and password
 
+	     -r, --rekey
+	          re-encrypt all encrypted files using new credentials
+
 	     -f, --flush-credentials
 	          remove the locally cached encryption credentials
 	          and re-encrypt any files that had been previously decrypted
@@ -379,6 +414,11 @@ help() {
 	      and password as the origin repository. Once transcrypt has stored
 	      the matching credentials, it will force a checkout of any exising
 	      encrypted files in order to decrypt them.
+
+	      If the origin repository has just rekeyed, all clones should flush
+	      their transcrypt credentials, fetch and merge the new encrypted
+	      files via Git, and then re-configure transcrypt with the new
+	      credentials.
 	EOF
 }
 
@@ -390,6 +430,7 @@ cipher=''
 password=''
 interactive='true'
 display_config=''
+rekey=''
 flush_creds=''
 uninstall=''
 
@@ -423,6 +464,9 @@ do
 			requires_existing_config='true'
 			unset requires_clean_repo
 			;;
+		-r | --rekey)
+			rekey='true'
+			requires_existing_config='true'
 			;;
 		-f | --flush-credentials)
 			flush_creds='true'
@@ -481,9 +525,20 @@ fi
 # perform function calls to configure transcrypt
 get_cipher
 get_password
-[[ $interactive ]] && confirm_configuration
+
+if [[ $rekey ]] && [[ $interactive ]]; then
+	confirm_rekey
+elif [[ $interactive ]]; then
+	confirm_configuration
+fi
+
 save_configuration
-force_checkout
+
+if [[ $rekey ]]; then
+	stage_rekeyed_files
+else
+	force_checkout
+fi
 
 # ensure the gitattributes file exists
 if [[ ! -f "$REPO/.gitattributes" ]]; then
