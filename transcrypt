@@ -209,7 +209,7 @@ save_configuration() {
 	# hash for the file's unique salt.
 	local cipher_cmd='$(git config --get --local transcrypt.cipher)'
 	local password_cmd='$(git config --get --local transcrypt.password)'
-	local salt_cmd='$(openssl dgst -sha256 %f | tail -c 16)'
+	local salt_cmd="\$(openssl dgst -hmac \"%f:$password_cmd\" -sha256 %f | tail -c 16)"
 
 	# write the filter settings
 	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -e -a -S $salt_cmd 2> /dev/null"
