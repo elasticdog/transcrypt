@@ -59,11 +59,17 @@ run_safety_checks() {
 	# validate that we're in a git repository
 	[[ $REPO ]] || die 'you are not currently in a git repository; did you forget to run "git init"?'
 
-	# see if transcrypt is already configured
-	[[ $CONFIGURED ]] && die 1 'the current repository is already configured; see --display'
+	# exit if transcrypt is not in the required state
+	if [[ $requires_existing_config ]] && [[ ! $CONFIGURED ]]; then
+		die 1 'the current repository is not configured'
+	elif [[ ! $requires_existing_config ]] && [[ $CONFIGURED ]]; then
+		die 1 'the current repository is already configured; see --display'
+	fi
 
 	# check for dependencies
-	command -v openssl > /dev/null || die 'required command "openssl" was not found'
+	for cmd in {grep,openssl,sed}; do
+		command -v $cmd > /dev/null || die "required command \"$cmd\" was not found"
+	done
 
 	# ensure the repository is clean so we can decrypt any existing
 	# files later on by forcing a checkout of the HEAD revision
@@ -198,20 +204,16 @@ force_checkout() {
 
 # display the current configuration settings
 display_configuration() {
-	if [[ $CONFIGURED ]]; then
-		local current_cipher=$(git config --get --local transcrypt.cipher)
-		local current_password=$(git config --get --local transcrypt.password)
-		local escaped_password=${current_password//\'/\'\\\'\'}
+	local current_cipher=$(git config --get --local transcrypt.cipher)
+	local current_password=$(git config --get --local transcrypt.password)
+	local escaped_password=${current_password//\'/\'\\\'\'}
 
-		printf 'The current repository was configured using transcrypt v%s\n' "$CONFIGURED"
-		printf 'and has the following configuration:\n\n'
-		printf '  CIPHER:   %s\n' "$current_cipher"
-		printf '  PASSWORD: %s\n\n' "$current_password"
-		printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
-		printf "  transcrypt -c %s -p '%s' -y \n" "$current_cipher" "$escaped_password"
-	else
-		die 1 'this repository is not configured'
-	fi
+	printf 'The current repository was configured using transcrypt v%s\n' "$CONFIGURED"
+	printf 'and has the following configuration:\n\n'
+	printf '  CIPHER:   %s\n' "$current_cipher"
+	printf '  PASSWORD: %s\n\n' "$current_password"
+	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
+	printf "  transcrypt -c %s -p '%s'\n" "$current_cipher" "$escaped_password"
 }
 
 # remove transcrypt-related settings from the repository's .git/config
@@ -231,84 +233,76 @@ clean_gitconfig() {
 # remove the locally cached encryption credentials and
 # re-encrypt any files that had been previously decrypted
 flush_credentials() {
-	if [[ $CONFIGURED ]]; then
-		local answer
+	local answer
 
-		if [[ $interactive ]]; then
-			printf 'You are about to flush the local credentials; make sure you have saved them elsewhere.\n'
-			printf 'All previously decrypted files will revert to their encrypted form.\n'
-			printf 'Proceed? [y/N] '
-			read -r answer
-			printf '\n'
-		else
-			# although destructive, we should support the --yes option
-			answer='y'
-		fi
-
-		# only flush if the user explicitly confirmed
-		if [[ $answer =~ $YES_REGEX ]]; then
-			clean_gitconfig
-
-			# re-encrypt any files that had been previously decrypted
-			force_checkout
-
-			printf 'The local transcrypt credentials have been successfully flushed.\n'
-		else
-			die 1 'flushing of credentials has been aborted'
-		fi
+	if [[ $interactive ]]; then
+		printf 'You are about to flush the local credentials; make sure you have saved them elsewhere.\n'
+		printf 'All previously decrypted files will revert to their encrypted form.\n'
+		printf 'Proceed? [y/N] '
+		read -r answer
+		printf '\n'
 	else
-		die 1 'this repository is not configured'
+		# although destructive, we should support the --yes option
+		answer='y'
+	fi
+
+	# only flush if the user explicitly confirmed
+	if [[ $answer =~ $YES_REGEX ]]; then
+		clean_gitconfig
+
+		# re-encrypt any files that had been previously decrypted
+		force_checkout
+
+		printf 'The local transcrypt credentials have been successfully flushed.\n'
+	else
+		die 1 'flushing of credentials has been aborted'
 	fi
 }
 
 # remove all transcrypt configuration from the repository
 uninstall_transcrypt() {
-	if [[ $CONFIGURED ]]; then
-		local answer
+	local answer
 
-		if [[ $interactive ]]; then
-			printf 'You are about to remove all transcrypt configuration from your repository.\n'
-			printf 'All previously encrypted files will remain decrypted in this working copy.\n'
-			printf 'Proceed? [y/N] '
-			read -r answer
-			printf '\n'
-		else
-			# although destructive, we should support the --yes option
-			answer='y'
-		fi
-
-		# only uninstall if the user explicitly confirmed
-		if [[ $answer =~ $YES_REGEX ]]; then
-			clean_gitconfig
-
-			# touch all encrypted files to prevent stale stat info
-			touch $(git ls-crypt)
-
-			# also remove the `git ls-crypt` alias
-			git config --unset alias.ls-crypt
-
-			# remove the alias section if it's now empty
-			local alias_values=$(git config --get-regex --local 'alias\..*')
-			if [[ ! $alias_values ]]; then
-				git config --remove-section alias
-			fi
-
-			# remove any defined crypt patterns in .gitattributes
-			case $OSTYPE in
-				darwin*)
-					sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$REPO/.gitattributes"
-					;;
-				linux*)
-					sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$REPO/.gitattributes"
-					;;
-			esac
-
-			printf 'The transcrypt configuration has been completely removed from the repository.\n'
-		else
-			die 1 'uninstallation has been aborted'
-		fi
+	if [[ $interactive ]]; then
+		printf 'You are about to remove all transcrypt configuration from your repository.\n'
+		printf 'All previously encrypted files will remain decrypted in this working copy.\n'
+		printf 'Proceed? [y/N] '
+		read -r answer
+		printf '\n'
 	else
-		die 1 'this repository is not configured'
+		# although destructive, we should support the --yes option
+		answer='y'
+	fi
+
+	# only uninstall if the user explicitly confirmed
+	if [[ $answer =~ $YES_REGEX ]]; then
+		clean_gitconfig
+
+		# touch all encrypted files to prevent stale stat info
+		touch $(git ls-crypt)
+
+		# also remove the `git ls-crypt` alias
+		git config --unset alias.ls-crypt
+
+		# remove the alias section if it's now empty
+		local alias_values=$(git config --get-regex --local 'alias\..*')
+		if [[ ! $alias_values ]]; then
+			git config --remove-section alias
+		fi
+
+		# remove any defined crypt patterns in .gitattributes
+		case $OSTYPE in
+			darwin*)
+				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$REPO/.gitattributes"
+				;;
+			linux*)
+				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$REPO/.gitattributes"
+				;;
+		esac
+
+		printf 'The transcrypt configuration has been completely removed from the repository.\n'
+	else
+		die 1 'uninstallation has been aborted'
 	fi
 }
 
@@ -399,6 +393,10 @@ display_config=''
 flush_creds=''
 uninstall=''
 
+# whether or not a command requires an existing transcrypt configuration or
+# conversely expects no configuration to be in place; used for safety checks
+requires_existing_config=''
+
 # parse command line options
 while [[ "$1" != '' ]]
 do
@@ -422,12 +420,16 @@ do
 			;;
 		-d | --display)
 			display_config='true'
+			requires_existing_config='true'
+			;;
 			;;
 		-f | --flush-credentials)
 			flush_creds='true'
+			requires_existing_config='true'
 			;;
 		-u | --uninstall)
 			uninstall='true'
+			requires_existing_config='true'
 			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"
@@ -451,9 +453,11 @@ do
 	shift
 done
 
+# always run our safety checks
+run_safety_checks
+
 # in order to keep behavior consistent no matter what order the options were
 # specified in, we must run these here rather than in the case statement above
-
 if [[ $uninstall ]]; then
 	uninstall_transcrypt
 	exit 0
@@ -473,7 +477,6 @@ elif [[ $cipher ]]; then
 fi
 
 # perform function calls
-run_safety_checks
 get_cipher
 get_password
 [[ $interactive ]] && confirm_configuration
