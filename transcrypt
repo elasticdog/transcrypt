@@ -71,9 +71,9 @@ run_safety_checks() {
 		command -v $cmd > /dev/null || die "required command \"$cmd\" was not found"
 	done
 
-	# ensure the repository is clean so we can decrypt any existing
-	# files later on by forcing a checkout of the HEAD revision
-	if [[ $HEAD_EXISTS ]]; then
+	# ensure the repository is clean (if it has a HEAD revision) so we can force
+	# checkout files without the the distruction of uncommitted changes
+	if [[ $requires_clean_repo ]] && [[ $HEAD_EXISTS ]]; then
 		# check if the repo is dirty
 		if ! git diff-index --quiet HEAD; then
 			die 1 'the repo is dirty; commit or stash your changes before running transcrypt'
@@ -180,26 +180,14 @@ save_configuration() {
 	local salt_cmd='$(openssl dgst -sha256 %f | tail -c 16)'
 
 	# write the filter settings
-	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -e -a -S $salt_cmd"
-	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a"
+	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -e -a -S $salt_cmd 2> /dev/null"
+	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a 2> /dev/null || strings"
 	git config filter.crypt.required 'true'
-	git config diff.crypt.textconv "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a -in \$1 2> /dev/null || cat"
+	git config diff.crypt.textconv "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a -in \$1 2> /dev/null || strings"
 	git config merge.renormalize 'true'
 
 	# add a git alias for listing encrypted files
 	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
-}
-
-# force the checkout of any files with the crypt filter applied to them;
-# this will decrypt existing encrypted files if you've just cloned a repository,
-# or it will encrypt locally decrypted files if you've just flushed the credentials
-force_checkout() {
-	# make sure a HEAD revision exists
-	if [[ $HEAD_EXISTS ]]; then
-		# this would normally delete uncommitted changes in the working directory,
-		# but we already made sure the repo was clean during the safety checks
-		git checkout --force HEAD -- $(git ls-crypt) > /dev/null
-	fi
 }
 
 # display the current configuration settings
@@ -230,6 +218,18 @@ clean_gitconfig() {
 	fi
 }
 
+# force the checkout of any files with the crypt filter applied to them;
+# this will decrypt existing encrypted files if you've just cloned a repository,
+# or it will encrypt locally decrypted files if you've just flushed the credentials
+force_checkout() {
+	# make sure a HEAD revision exists
+	if [[ $HEAD_EXISTS ]]; then
+		# this would normally delete uncommitted changes in the working directory,
+		# but we already made sure the repo was clean during the safety checks
+		git checkout --force HEAD -- $(git ls-crypt) > /dev/null
+	fi
+}
+
 # remove the locally cached encryption credentials and
 # re-encrypt any files that had been previously decrypted
 flush_credentials() {
@@ -237,8 +237,8 @@ flush_credentials() {
 
 	if [[ $interactive ]]; then
 		printf 'You are about to flush the local credentials; make sure you have saved them elsewhere.\n'
-		printf 'All previously decrypted files will revert to their encrypted form.\n'
-		printf 'Proceed? [y/N] '
+		printf 'All previously decrypted files will revert to their encrypted form.\n\n'
+		printf 'Proceed with credential flush? [y/N] '
 		read -r answer
 		printf '\n'
 	else
@@ -265,8 +265,8 @@ uninstall_transcrypt() {
 
 	if [[ $interactive ]]; then
 		printf 'You are about to remove all transcrypt configuration from your repository.\n'
-		printf 'All previously encrypted files will remain decrypted in this working copy.\n'
-		printf 'Proceed? [y/N] '
+		printf 'All previously encrypted files will remain decrypted in this working copy.\n\n'
+		printf 'Proceed with uninstall? [y/N] '
 		read -r answer
 		printf '\n'
 	else
@@ -281,7 +281,7 @@ uninstall_transcrypt() {
 		# touch all encrypted files to prevent stale stat info
 		touch $(git ls-crypt)
 
-		# also remove the `git ls-crypt` alias
+		# remove the `git ls-crypt` alias
 		git config --unset alias.ls-crypt
 
 		# remove the alias section if it's now empty
@@ -393,9 +393,9 @@ display_config=''
 flush_creds=''
 uninstall=''
 
-# whether or not a command requires an existing transcrypt configuration or
-# conversely expects no configuration to be in place; used for safety checks
+# used to bypass certain safety checks
 requires_existing_config=''
+requires_clean_repo='true'
 
 # parse command line options
 while [[ "$1" != '' ]]
@@ -421,6 +421,7 @@ do
 		-d | --display)
 			display_config='true'
 			requires_existing_config='true'
+			unset requires_clean_repo
 			;;
 			;;
 		-f | --flush-credentials)
@@ -430,6 +431,7 @@ do
 		-u | --uninstall)
 			uninstall='true'
 			requires_existing_config='true'
+			unset requires_clean_repo
 			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"
@@ -476,7 +478,7 @@ elif [[ $cipher ]]; then
 	validate_cipher
 fi
 
-# perform function calls
+# perform function calls to configure transcrypt
 get_cipher
 get_password
 [[ $interactive ]] && confirm_configuration
@@ -488,6 +490,6 @@ if [[ ! -f "$REPO/.gitattributes" ]]; then
 	printf '#pattern  filter=crypt diff=crypt\n' > "$REPO/.gitattributes"
 fi
 
-printf 'The repository has been successfully configured by transcrypt!\n'
+printf 'The repository has been successfully configured by transcrypt.\n'
 
 exit 0

@@ -105,7 +105,7 @@ by running the `--display` command line option:
 
     Copy and paste the following command to initialize a cloned repository:
 
-      transcrypt -c aes-256-cbc -p 'correct horse battery staple' -y
+      transcrypt -c aes-256-cbc -p 'correct horse battery staple'
 
 Once transcrypt has stored the matching credentials, it will force a checkout
 of any exising encrypted files in order to decrypt them.
