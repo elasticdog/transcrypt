@@ -18,7 +18,7 @@
 readonly VERSION='0.8.0'
 
 # the default cipher to utilize
-readonly DEFAULT_CIPHER='aes-256-cbc'
+readonly DEFAULT_CIPHER='id-aes256-GCM'
 
 # the current git repository's top-level directory
 readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
