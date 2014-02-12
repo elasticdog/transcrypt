@@ -36,9 +36,14 @@ improvements in the areas of usability and safety.
 The _decryption -> encryption_ process on an unchanged file must be
 deterministic for everything to work transparently. To do that, the same salt
 must be used each time we encrypt the same file. Rather than use a static salt
-common to all files, transcrypt takes a SHA-256 cryptographic hash of each
-file when it's decrypted, and then uses the last 16 bytes of that hash for the
-file's unique salt. When the content of the file changes, so does the salt.
+common to all files, transcrypt first has OpenSSL generate an HMAC-SHA256
+cryptographic hash-based message authentication code for each decrypted file
+(keyed with a combination of the filename and transcrypt password), and then
+uses the last 16 bytes of that HMAC for the file's unique salt. When the
+content of the file changes, so does the salt. Since an
+[HMAC has been proven to be a PRF](http://cseweb.ucsd.edu/~mihir/papers/hmac-new.html),
+this method of salt selection does not leak information about the original
+contents, but is still deterministic.
 
 Usage
 -----

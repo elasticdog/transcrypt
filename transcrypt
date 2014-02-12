@@ -201,15 +201,15 @@ save_configuration() {
 	git config transcrypt.cipher "$cipher"
 	git config transcrypt.password "$password"
 
-	# the `decryption -> encryption` process on an unchanged file must be
-	# deterministic for everything to work transparently. to do that, the same
-	# salt must be used each time we encrypt the same file. rather than use
-	# a static salt common to all files, we'll take a hash of each file
-	# when it's decrypted, and then use the last 16 bytes of that
-	# hash for the file's unique salt.
+	# The `decryption -> encryption` process on an unchanged file must be
+	# deterministic for everything to work transparently. To do that, the same
+	# salt must be used each time we encrypt the same file. An HMAC has been
+	# proven to be a PRF, so we generate an HMAC-SHA256 for each decrypted file
+	# (keyed with a combination of the filename and transcrypt password), and
+	# then use the last 16 bytes of that HMAC for the file's unique salt.
 	local cipher_cmd='$(git config --get --local transcrypt.cipher)'
 	local password_cmd='$(git config --get --local transcrypt.password)'
-	local salt_cmd='$(openssl dgst -sha256 %f | tail -c 16)'
+	local salt_cmd="\$(openssl dgst -hmac \"%f:$password_cmd\" -sha256 %f | tail -c 16)"
 
 	# write the filter settings
 	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -e -a -S $salt_cmd 2> /dev/null"
