@@ -196,11 +196,17 @@ text within the repository's _.git/config_ file. This prevents them from
 being transferred to remote clones, but they are not protected from
 inquisitive users on your local machine.
 
+For safety, you may prefer to only have the credentials stored when
+actually updating encrypted files, and then flush them with
+`--flush-credentials` once you're done (make sure you have the credentials
+backed up elsewhere!). This will also revert any decrypted files back to
+their encrypted form in your local working copy.
+
 ### Cipher Selection
 
 Last up, regarding the default cipher choice of `aes-256-cbc`...there
 aren't any fantastic alternatives without pulling in outside dependencies.
-Ideally we would use an authenticated cipher mode like id-aes256-GCM by
+Ideally, we would use an authenticated cipher mode like `id-aes256-GCM` by
 default, but there are a couple of issues:
 
 1. I'd like to support OS X out of the box, and unfortunately they are the
@@ -213,7 +219,7 @@ default, but there are a couple of issues:
    [don't work exactly right](http://openssl.6102.n7.nabble.com/id-aes256-GCM-command-line-encrypt-decrypt-fail-td27187.html)
    when utilizing the command line `openssl enc`.
 
-I'm contemplating if transcrypt should append an HMAC to the aes-256-cbc
+I'm contemplating if transcrypt should append an HMAC to the `aes-256-cbc`
 ciphertext to provide authentication, or if we should live with the
 [malleability issues](http://www.jakoblell.com/blog/2013/12/22/practical-malleability-attack-against-cbc-encrypted-luks-partitions/)
 as a known limitation. Essentially, malicious comitters without the
