@@ -15,7 +15,7 @@
 ##### Constants
 
 # the release version of this script
-readonly VERSION='0.8.0'
+readonly VERSION='0.8.1'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -212,10 +212,10 @@ save_configuration() {
 	local salt_cmd="\$(openssl dgst -hmac \"%f:$password_cmd\" -sha256 %f | tail -c 16)"
 
 	# write the filter settings
-	git config filter.crypt.clean "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -e -a -S $salt_cmd 2> /dev/null"
-	git config filter.crypt.smudge "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a 2> /dev/null || strings"
+	git config filter.crypt.clean "TRANSCRYPT_PASS=$password_cmd openssl enc -$cipher_cmd -pass env:TRANSCRYPT_PASS -e -a -S $salt_cmd 2> /dev/null"
+	git config filter.crypt.smudge "TRANSCRYPT_PASS=$password_cmd openssl enc -$cipher_cmd -pass env:TRANSCRYPT_PASS -d -a 2> /dev/null || strings"
 	git config filter.crypt.required 'true'
-	git config diff.crypt.textconv "openssl enc -$cipher_cmd -pass \"pass:$password_cmd\" -d -a -in \$1 2> /dev/null || strings"
+	git config diff.crypt.textconv "TRANSCRYPT_PASS=$password_cmd openssl enc -$cipher_cmd -pass env:TRANSCRYPT_PASS -d -a -in \$1 2> /dev/null || strings"
 	git config merge.renormalize 'true'
 
 	# add a git alias for listing encrypted files
