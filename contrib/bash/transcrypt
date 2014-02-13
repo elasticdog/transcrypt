@@ -1,0 +1,26 @@
+# completion script for transcrypt
+
+_transcrypt() {
+	local cur prev opts
+	COMPREPLY=()
+	cur="${COMP_WORDS[COMP_CWORD]}"
+	prev="${COMP_WORDS[COMP_CWORD-1]}"
+	opts="-p -c -y -d -r -f -u -v -h \
+	      --password --cipher --yes --display --rekey --flush-credentials --uninstall --version --help"
+
+	case "${prev}" in
+		-p | --password)
+			return 0
+			;;
+		-c | --cipher)
+			local ciphers=$(openssl list-cipher-commands)
+			COMPREPLY=( $(compgen -W "${ciphers}" -- ${cur}) )
+			return 0
+			;;
+		*)
+			;;
+	esac
+
+	COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+}
+complete -F _transcrypt transcrypt
