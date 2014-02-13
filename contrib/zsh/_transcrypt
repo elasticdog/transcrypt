@@ -8,8 +8,8 @@ _transcrypt() {
     '(- 1 *)'{-v,--version}'[print version]' \
     '(- 1 *)'{-h,--help}'[view help message]' \
     '(- 1 *)'{-u,--uninstall}'[uninstall transcrypt]' \
-    '(-p --password -d --display -f --flush -u --uninstall)'{-p,--password=}'[specify encryption password]:password:' \
     '(-c --cipher -d --display -f --flush -u --uninstall)'{-c,--cipher=}'[specify encryption cipher]:cipher:' \
+    '(-p --password -d --display -f --flush -u --uninstall)'{-p,--password=}'[specify encryption password]:password:' \
     '(-y --yes -d --display)'{-y,--yes}'[assume yes and accept defaults]' \
     '(-d --display -p --password -c --cipher -y --yes -r --rekey -u --uninstall)'{-d,--display}'[display current credentials]' \
     '(-r --rekey -d --display -f --flush -u --uninstall)'{-r,--rekey}'[rekey all encrypted files]' \

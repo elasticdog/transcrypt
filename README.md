@@ -146,13 +146,13 @@ directory.
 
     transcrypt [option...]
 
-      -p, --password=PASSWORD
-           the password to derive the key from;
-           defaults to 30 random base64 characters
-
       -c, --cipher=CIPHER
            the symmetric cipher to utilize for encryption;
            defaults to aes-256-cbc
+
+      -p, --password=PASSWORD
+           the password to derive the key from;
+           defaults to 30 random base64 characters
 
       -y, --yes
            assume yes and accept defaults for non-specified options
