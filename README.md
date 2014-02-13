@@ -141,6 +141,9 @@ and then re-configure transcrypt with the new credentials.
 
 ### Command Line Options
 
+Completion scripts for both Bash and Zsh are included in the _contrib/_
+directory.
+
     transcrypt [option...]
 
       -p, --password=PASSWORD
