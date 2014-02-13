@@ -13,7 +13,7 @@ _transcrypt() {
     '(-y --yes -d --display)'{-y,--yes}'[assume yes and accept defaults]' \
     '(-d --display -p --password -c --cipher -y --yes -r --rekey -u --uninstall)'{-d,--display}'[display current credentials]' \
     '(-r --rekey -d --display -f --flush -u --uninstall)'{-r,--rekey}'[rekey all encrypted files]' \
-    '(-f --flush -d --display -r --rekey -u --uninstall)'{-f,--flush}'[flush cached credentials]' \
+    '(-f --flush -c --cipher -p --password -r --rekey -u --uninstall)'{-f,--flush}'[flush cached credentials]' \
     && return 0
 }
 
