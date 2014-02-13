@@ -180,6 +180,8 @@ directory.
 Caveats
 -------
 
+### Overhead
+
 The method of using filters to selectively encrypt/decrypt files does add some
 overhead to Git by regularly forking OpenSSL processes and removing Git's
 ability to efficiently cache file changes. That said, it's not too different
@@ -187,10 +189,38 @@ from tracking binary files, and when used as intended, transcrypt should not
 noticeably impact performance. There are much better options if your goal is
 to encrypt the entire repository.
 
+### Localhost
+
 Note that the configuration and encryption information is stored in plain
 text within the repository's _.git/config_ file. This prevents them from
 being transferred to remote clones, but they are not protected from
 inquisitive users on your local machine.
+
+### Cipher Selection
+
+Last up, regarding the default cipher choice of `aes-256-cbc`...there
+aren't any fantastic alternatives without pulling in outside dependencies.
+Ideally we would use an authenticated cipher mode like id-aes256-GCM by
+default, but there are a couple of issues:
+
+1. I'd like to support OS X out of the box, and unfortunately they are the
+   lowest common denominator when it comes to OpenSSL. For whatever
+   reason, they still include OpenSSL 0.9.8y rather than a newer release.
+   Unfortunately, GCM-based ciphers weren't added until OpenSSL 1.0.1
+   (back in early 2012).
+
+2. Even with newer versions of OpenSSL, the authenticated cipher modes
+   [don't work exactly right](http://openssl.6102.n7.nabble.com/id-aes256-GCM-command-line-encrypt-decrypt-fail-td27187.html)
+   when utilizing the command line `openssl enc`.
+
+I'm contemplating if transcrypt should append an HMAC to the aes-256-cbc
+ciphertext to provide authentication, or if we should live with the
+[malleability issues](http://www.jakoblell.com/blog/2013/12/22/practical-malleability-attack-against-cbc-encrypted-luks-partitions/)
+as a known limitation. Essentially, malicious comitters without the
+transcrypt password could potentially manipulate the plaintext in limited
+ways (given that the attacker knows the original plaintext). Honestly, I'm
+not sure if the added complexity here would be worth it given transcrypt's
+use case.
 
 License
 -------
