@@ -186,7 +186,8 @@ confirm_rekey() {
 # automatically stage rekeyed files in preparation for the user to commit them
 stage_rekeyed_files() {
 	# touch all encrypted files to prevent stale stat info
-	touch $(git ls-crypt)
+	local encrypted_files=$(git ls-crypt)
+	[[ $encrypted_files ]] && touch $encrypted_files
 
 	git update-index --add -- $(git ls-crypt)
 
@@ -311,7 +312,8 @@ uninstall_transcrypt() {
 		clean_gitconfig
 
 		# touch all encrypted files to prevent stale stat info
-		touch $(git ls-crypt)
+		local encrypted_files=$(git ls-crypt)
+		[[ $encrypted_files ]] && touch $encrypted_files
 
 		# remove the `git ls-crypt` alias
 		git config --unset alias.ls-crypt
