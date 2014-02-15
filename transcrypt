@@ -15,7 +15,7 @@
 ##### Constants
 
 # the release version of this script
-readonly VERSION='0.8.1'
+readonly VERSION='0.9.0'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -195,12 +195,9 @@ stage_rekeyed_files() {
 	printf '*** COMMIT THESE CHANGES RIGHT AWAY! ***\n\n'
 }
 
-# write the configuration to the repository's .git/config
-save_configuration() {
-	# write the encryption info
-	git config transcrypt.version "$VERSION"
-	git config transcrypt.cipher "$cipher"
-	git config transcrypt.password "$password"
+# save helper scripts under the repository's .git/ directory
+save_helper_scripts() {
+	mkdir "$REPO/.git/crypt"
 
 	# The `decryption -> encryption` process on an unchanged file must be
 	# deterministic for everything to work transparently. To do that, the same
@@ -208,15 +205,52 @@ save_configuration() {
 	# proven to be a PRF, so we generate an HMAC-SHA256 for each decrypted file
 	# (keyed with a combination of the filename and transcrypt password), and
 	# then use the last 16 bytes of that HMAC for the file's unique salt.
-	local cipher_cmd='$(git config --get --local transcrypt.cipher)'
-	local password_cmd='$(git config --get --local transcrypt.password)'
-	local salt_cmd="\$(openssl dgst -hmac \"%f:$password_cmd\" -sha256 %f | tail -c 16)"
+
+	cat <<-'EOF' > "$REPO/.git/crypt/clean"
+		#!/usr/bin/env bash
+		filename=$1
+		cipher=$(git config --get --local transcrypt.cipher)
+		password=$(git config --get --local transcrypt.password)
+		salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tail -c 16)
+		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -e -a -S $salt 2> /dev/null
+	EOF
+
+	cat <<-'EOF' > "$REPO/.git/crypt/smudge"
+		#!/usr/bin/env bash
+		filename=$1
+		cipher=$(git config --get --local transcrypt.cipher)
+		password=$(git config --get --local transcrypt.password)
+		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null || cat $filename
+	EOF
+
+	cat <<-'EOF' > "$REPO/.git/crypt/textconv"
+		#!/usr/bin/env bash
+		filename=$1
+		cipher=$(git config --get --local transcrypt.cipher)
+		password=$(git config --get --local transcrypt.password)
+		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null || cat $filename
+	EOF
+
+	# make scripts executable
+	for script in {clean,smudge,textconv}; do
+		chmod 0755 "$REPO/.git/crypt/$script"
+	done
+}
+
+# write the configuration to the repository's .git/config
+save_configuration() {
+	save_helper_scripts
+
+	# write the encryption info
+	git config transcrypt.version "$VERSION"
+	git config transcrypt.cipher "$cipher"
+	git config transcrypt.password "$password"
 
 	# write the filter settings
-	git config filter.crypt.clean "TRANSCRYPT_PASS=$password_cmd openssl enc -$cipher_cmd -pass env:TRANSCRYPT_PASS -e -a -S $salt_cmd 2> /dev/null"
-	git config filter.crypt.smudge "TRANSCRYPT_PASS=$password_cmd openssl enc -$cipher_cmd -pass env:TRANSCRYPT_PASS -d -a 2> /dev/null || strings"
+	git config filter.crypt.clean '$(git rev-parse --show-toplevel)/.git/crypt/clean %f'
+	git config filter.crypt.smudge '$(git rev-parse --show-toplevel)/.git/crypt/smudge %f'
 	git config filter.crypt.required 'true'
-	git config diff.crypt.textconv "TRANSCRYPT_PASS=$password_cmd openssl enc -$cipher_cmd -pass env:TRANSCRYPT_PASS -d -a -in \$1 2> /dev/null || strings"
+	git config diff.crypt.textconv '$(git rev-parse --show-toplevel)/.git/crypt/textconv'
 	git config merge.renormalize 'true'
 
 	# add a git alias for listing encrypted files
@@ -310,6 +344,12 @@ uninstall_transcrypt() {
 	# only uninstall if the user explicitly confirmed
 	if [[ $answer =~ $YES_REGEX ]]; then
 		clean_gitconfig
+
+		# remove helper scripts
+		for script in {clean,smudge,textconv}; do
+			[[ -f "$REPO/.git/crypt/$script" ]] && rm "$REPO/.git/crypt/$script"
+		done
+		[[ -d "$REPO/.git/crypt" ]] && rmdir "$REPO/.git/crypt"
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files=$(git ls-crypt)
