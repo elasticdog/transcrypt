@@ -15,7 +15,7 @@
 ##### Constants
 
 # the release version of this script
-readonly VERSION='0.9.0'
+readonly VERSION='0.9.1'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -197,7 +197,7 @@ stage_rekeyed_files() {
 
 # save helper scripts under the repository's .git/ directory
 save_helper_scripts() {
-	mkdir "$REPO/.git/crypt"
+	[[ ! -d "$REPO/.git/crypt" ]] && mkdir "$REPO/.git/crypt"
 
 	# The `decryption -> encryption` process on an unchanged file must be
 	# deterministic for everything to work transparently. To do that, the same
@@ -212,15 +212,14 @@ save_helper_scripts() {
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
 		salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tail -c 16)
-		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -e -a -S $salt 2> /dev/null
+		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -e -a -S $salt
 	EOF
 
 	cat <<-'EOF' > "$REPO/.git/crypt/smudge"
 		#!/usr/bin/env bash
-		filename=$1
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
-		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null || cat $filename
+		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null
 	EOF
 
 	cat <<-'EOF' > "$REPO/.git/crypt/textconv"
@@ -248,8 +247,7 @@ save_configuration() {
 
 	# write the filter settings
 	git config filter.crypt.clean '$(git rev-parse --show-toplevel)/.git/crypt/clean %f'
-	git config filter.crypt.smudge '$(git rev-parse --show-toplevel)/.git/crypt/smudge %f'
-	git config filter.crypt.required 'true'
+	git config filter.crypt.smudge '$(git rev-parse --show-toplevel)/.git/crypt/smudge'
 	git config diff.crypt.textconv '$(git rev-parse --show-toplevel)/.git/crypt/textconv'
 	git config merge.renormalize 'true'
 
