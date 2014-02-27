@@ -15,7 +15,7 @@
 ##### Constants
 
 # the release version of this script
-readonly VERSION='0.9.2'
+readonly VERSION='0.9.3'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -185,14 +185,15 @@ confirm_rekey() {
 
 # automatically stage rekeyed files in preparation for the user to commit them
 stage_rekeyed_files() {
-	# touch all encrypted files to prevent stale stat info
 	local encrypted_files=$(git ls-crypt)
-	[[ $encrypted_files ]] && touch $encrypted_files
+	if [[ $encrypted_files ]]; then
+		# touch all encrypted files to prevent stale stat info
+		touch $encrypted_files
+		git update-index --add -- $encrypted_files
 
-	git update-index --add -- $(git ls-crypt)
-
-	printf '***  rekeyed files have been staged  ***\n'
-	printf '*** COMMIT THESE CHANGES RIGHT AWAY! ***\n\n'
+		printf '***  rekeyed files have been staged  ***\n'
+		printf '*** COMMIT THESE CHANGES RIGHT AWAY! ***\n\n'
+	fi
 }
 
 # save helper scripts under the repository's .git/ directory
