@@ -7,13 +7,13 @@ _transcrypt() {
 	_arguments \
 		'(- 1 *)'{-v,--version}'[print version]' \
 		'(- 1 *)'{-h,--help}'[view help message]' \
-		'(-c --cipher -d --display -f --flush -u --uninstall)'{-c,--cipher=}'[specify encryption cipher]:cipher:->cipher' \
-		'(-p --password -d --display -f --flush -u --uninstall)'{-p,--password=}'[specify encryption password]:password:' \
+		'(-c --cipher -d --display -f --flush-credentials -u --uninstall)'{-c,--cipher=}'[specify encryption cipher]:cipher:->cipher' \
+		'(-p --password -d --display -f --flush-credentials -u --uninstall)'{-p,--password=}'[specify encryption password]:password:' \
 		'(-y --yes)'{-y,--yes}'[assume yes and accept defaults]' \
 		'(-d --display -p --password -c --cipher -r --rekey -u --uninstall)'{-d,--display}'[display current credentials]' \
-		'(-r --rekey -d --display -f --flush -u --uninstall)'{-r,--rekey}'[rekey all encrypted files]' \
-		'(-f --flush -c --cipher -p --password -r --rekey -u --uninstall)'{-f,--flush}'[flush cached credentials]' \
-		'(-u --uninstall -c --cipher -p --password -d --display -r --rekey -f --flush)'{-u,--uninstall}'[uninstall transcrypt]' \
+		'(-r --rekey -d --display -f --flush-credentials -u --uninstall)'{-r,--rekey}'[rekey all encrypted files]' \
+		'(-f --flush-credentials -c --cipher -p --password -r --rekey -u --uninstall)'{-f,--flush-credentials}'[flush cached credentials]' \
+		'(-u --uninstall -c --cipher -p --password -d --display -r --rekey -f --flush-credentials)'{-u,--uninstall}'[uninstall transcrypt]' \
 		&& return 0
 
 	case $state in
