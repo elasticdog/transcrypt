@@ -262,7 +262,7 @@ display_configuration() {
 	local current_password=$(git config --get --local transcrypt.password)
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
-	printf 'The current repository was configured using transcrypt v%s\n' "$CONFIGURED"
+	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
 	printf 'and has the following configuration:\n\n'
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
