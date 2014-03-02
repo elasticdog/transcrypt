@@ -15,7 +15,7 @@
 ##### Constants
 
 # the release version of this script
-readonly VERSION='0.9.3'
+readonly VERSION='0.9.4'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -394,72 +394,89 @@ help() {
 	     transcrypt -- transparently encrypt files within a git repository
 
 	SYNOPSIS
-	     transcrypt [option...]
+	     transcrypt [options...]
 
 	DESCRIPTION
-	     transcrypt will configure a Git repository to support the transparent
-	     encryption/decryption of files utilizing OpenSSL's symmetric cipher
-	     routines. It will also add a Git alias "ls-crypt" to list all
-	     transparently encrypted files within the repository.
 
-	     transcrypt will prompt the user interactively for all required
-	     information if the corresponding option flags were not given.
+	     transcrypt  will  configure a Git repository to support the transparent
+	     encryption/decryption of files by utilizing OpenSSL's symmetric  cipher
+	     routines  and  Git's  built-in clean/smudge filters. It will also add a
+	     Git alias "ls-crypt" to list all transparently encrypted  files  within
+	     the repository.
+
+	     The  transcrypt  source  code  and full documentation may be downloaded
+	     from https://github.com/elasticdog/transcrypt.
 
 	OPTIONS
 	     -c, --cipher=CIPHER
-	          the symmetric cipher to utilize for encryption;
-	          defaults to aes-256-cbc
+	            the symmetric cipher to utilize for encryption;
+	            defaults to aes-256-cbc
 
 	     -p, --password=PASSWORD
-	          the password to derive the key from;
-	          defaults to 30 random base64 characters
+	            the password to derive the key from;
+	            defaults to 30 random base64 characters
 
 	     -y, --yes
-	          assume yes and accept defaults for non-specified options
+	            assume yes and accept defaults for non-specified options
 
 	     -d, --display
-	          display the current repository's cipher and password
+	            display the current repository's cipher and password
 
 	     -r, --rekey
-	          re-encrypt all encrypted files using new credentials
+	            re-encrypt all encrypted files using new credentials
 
 	     -f, --flush-credentials
-	          remove the locally cached encryption credentials
-	          and re-encrypt any files that had been previously decrypted
+	            remove the locally cached encryption credentials and  re-encrypt
+	            any files that had been previously decrypted
 
 	     -u, --uninstall
-	          remove all transcrypt configuration from the repository
-	          and leave files in the current working copy decrypted
+	            remove  all  transcrypt  configuration  from  the repository and
+	            leave files in the current working copy decrypted
 
 	     -v, --version
-	          print the version information
+	            print the version information
 
 	     -h, --help
-	          view this help message
+	            view this help message
 
-	USAGE
-	      Once a repository has been configured with transcrypt, you can
-	      transparently encrypt files by applying the "crypt" filter and diff
-	      to a pattern in the top-level .gitattributes config. If that pattern
-	      matches a file in your repository, the file will be transparently
-	      encrypted once you stage and commit it:
+	EXAMPLES
 
-	        $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
-	        $ git add .gitattributes sensitive_file
-	        $ git commit -m 'Add encrypted version of a sensitive file'
+	     To initialize a Git repository to support transparent encryption,  just
+	     change  into  the  repo  and run the transcrypt script. transcrypt will
+	     prompt you interactively for all required  information  if  the  corre-
+	     sponding option flags were not given.
 
-	      See the gitattributes(5) man page for more information.
+	         $ cd <path-to-your-repo>/
+	         $ transcrypt
 
-	      If you have just cloned a repository containing files that are
-	      encrypted, you'll want to configure transcrypt with the same cipher
-	      and password as the origin repository. Once transcrypt has stored
-	      the matching credentials, it will force a checkout of any exising
-	      encrypted files in order to decrypt them.
+	     Once  a  repository has been configured with transcrypt, you can trans-
+	     parently encrypt files by applying the "crypt" filter  and  diff  to  a
+	     pattern in the top-level .gitattributes config. If that pattern matches
+	     a file in your repository, the file  will  be  transparently  encrypted
+	     once you stage and commit it:
 
-	      If the origin repository has just rekeyed, all clones should flush
-	      their transcrypt credentials, fetch and merge the new encrypted
-	      files via Git, and then re-configure transcrypt with the new
-	      credentials.
+	         $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
+	         $ git add .gitattributes sensitive_file
+	         $ git commit -m 'Add encrypted version of a sensitive file'
+
+	     See the gitattributes(5) man page for more information.
+
+	     If  you  have  just  cloned  a  repository  containing  files  that are
+	     encrypted, you'll want to configure transcrypt with the same cipher and
+	     password  as  the  origin  repository.  Once  transcrypt has stored the
+	     matching  credentials,  it  will  force  a  checkout  of  any  existing
+	     encrypted files in order to decrypt them.
+
+	     If  the  origin  repository  has  just rekeyed, all clones should flush
+	     their transcrypt credentials, fetch and merge the new  encrypted  files
+	     via Git, and then re-configure transcrypt with the new credentials.
+
+	AUTHOR
+	     Aaron Bull Schaefer <aaron@elasticdog.com>
+
+	SEE ALSO
+	     enc(1), gitattributes(5)
+
 	EOF
 }
 

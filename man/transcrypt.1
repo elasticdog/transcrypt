@@ -1,0 +1,104 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "TRANSCRYPT" "1" "March 2014" "" ""
+.
+.SH "NAME"
+\fBtranscrypt\fR \- transparently encrypt files within a git repository
+.
+.SH "SYNOPSIS"
+\fBtranscrypt\fR [\fIoptions\fR\.\.\.]
+.
+.SH "DESCRIPTION"
+transcrypt will configure a Git repository to support the transparent encryption/decryption of files by utilizing OpenSSL\'s symmetric cipher routines and Git\'s built\-in clean/smudge filters\. It will also add a Git alias "ls\-crypt" to list all transparently encrypted files within the repository\.
+.
+.P
+The transcrypt source code and full documentation may be downloaded from \fIhttps://github\.com/elasticdog/transcrypt\fR\.
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-c\fR, \fB\-\-cipher\fR=\fIcipher\fR
+the symmetric cipher to utilize for encryption;
+.
+.br
+defaults to aes\-256\-cbc
+.
+.TP
+\fB\-p\fR, \fB\-\-password\fR=\fIpassword\fR
+the password to derive the key from;
+.
+.br
+defaults to 30 random base64 characters
+.
+.TP
+\fB\-y\fR, \fB\-\-yes\fR
+assume yes and accept defaults for non\-specified options
+.
+.TP
+\fB\-d\fR, \fB\-\-display\fR
+display the current repository\'s cipher and password
+.
+.TP
+\fB\-r\fR, \fB\-\-rekey\fR
+re\-encrypt all encrypted files using new credentials
+.
+.TP
+\fB\-f\fR, \fB\-\-flush\-credentials\fR
+remove the locally cached encryption credentials and re\-encrypt any files that had been previously decrypted
+.
+.TP
+\fB\-u\fR, \fB\-\-uninstall\fR
+remove all transcrypt configuration from the repository and leave files in the current working copy decrypted
+.
+.TP
+\fB\-v\fR, \fB\-\-version\fR
+print the version information
+.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+view this help message
+.
+.SH "EXAMPLES"
+To initialize a Git repository to support transparent encryption, just change into the repo and run the transcrypt script\. transcrypt will prompt you interactively for all required information if the corresponding option flags were not given\.
+.
+.IP "" 4
+.
+.nf
+
+$ cd <path\-to\-your\-repo>/
+$ transcrypt
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Once a repository has been configured with transcrypt, you can transparently encrypt files by applying the "crypt" filter and diff to a pattern in the top\-level \fI\.gitattributes\fR config\. If that pattern matches a file in your repository, the file will be transparently encrypted once you stage and commit it:
+.
+.IP "" 4
+.
+.nf
+
+$ echo \'sensitive_file  filter=crypt diff=crypt\' >> \.gitattributes
+$ git add \.gitattributes sensitive_file
+$ git commit \-m \'Add encrypted version of a sensitive file\'
+.
+.fi
+.
+.IP "" 0
+.
+.P
+See the gitattributes(5) man page for more information\.
+.
+.P
+If you have just cloned a repository containing files that are encrypted, you\'ll want to configure transcrypt with the same cipher and password as the origin repository\. Once transcrypt has stored the matching credentials, it will force a checkout of any existing encrypted files in order to decrypt them\.
+.
+.P
+If the origin repository has just rekeyed, all clones should flush their transcrypt credentials, fetch and merge the new encrypted files via Git, and then re\-configure transcrypt with the new credentials\.
+.
+.SH "AUTHOR"
+Aaron Bull Schaefer <aaron@elasticdog\.com>
+.
+.SH "SEE ALSO"
+enc(1), gitattributes(5)
