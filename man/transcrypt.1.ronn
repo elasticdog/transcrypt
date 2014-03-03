@@ -18,11 +18,11 @@ The transcrypt source code and full documentation may be downloaded from
 ## OPTIONS
 
   * `-c`, `--cipher`=<cipher>:
-    the symmetric cipher to utilize for encryption;  
+    the symmetric cipher to utilize for encryption;
     defaults to aes-256-cbc
 
   * `-p`, `--password`=<password>:
-    the password to derive the key from;  
+    the password to derive the key from;
     defaults to 30 random base64 characters
 
   * `-y`, `--yes`:
