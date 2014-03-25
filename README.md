@@ -85,8 +85,6 @@ be transparently encrypted once you stage and commit it:
     $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
     $ git add .gitattributes sensitive_file
     $ git commit -m 'Add encrypted version of a sensitive file'
-    $ git ls-crypt
-    sensitive_file
 
 The _.gitattributes_ file should be committed and tracked along with
 everything else in your repository so clones will be aware of what is
@@ -95,6 +93,24 @@ this file :-)
 
 > For your reference, if you find the above description confusing, you'll find
 > that this repository has been configured following these exact steps.
+
+### Listing the Currently Encrypted Files
+
+For convenience, transcrypt also adds a Git alias to allow you to list all
+of the currently encrypted files in a repository:
+
+    $ git ls-crypt
+    sensitive_file
+
+You can also use this to verify your _.gitattributes_ patterns when
+designating new files to be encrypted, as the alias will list pattern
+matches as long as everything has been staged (via `git add`).
+
+After committing things, but before you push to a remote repository, you
+can validate that files are encrypted as expected by viewing them in their
+raw form:
+
+    $ git show HEAD:<path-to-file> --no-textconv
 
 ### Initialize a Clone of a Configured Repository
 
