@@ -85,6 +85,8 @@ be transparently encrypted once you stage and commit it:
     $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
     $ git add .gitattributes sensitive_file
     $ git commit -m 'Add encrypted version of a sensitive file'
+    $ git ls-crypt
+    sensitive_file
 
 The _.gitattributes_ file should be committed and tracked along with
 everything else in your repository so clones will be aware of what is
