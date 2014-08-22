@@ -15,7 +15,7 @@
 ##### Constants
 
 # the release version of this script
-readonly VERSION='0.9.4'
+readonly VERSION='0.9.5'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -247,9 +247,9 @@ save_configuration() {
 	git config transcrypt.password "$password"
 
 	# write the filter settings
-	git config filter.crypt.clean '$(git rev-parse --show-toplevel)/.git/crypt/clean %f'
-	git config filter.crypt.smudge '$(git rev-parse --show-toplevel)/.git/crypt/smudge'
-	git config diff.crypt.textconv '$(git rev-parse --show-toplevel)/.git/crypt/textconv'
+	git config filter.crypt.clean '"$(git rev-parse --show-toplevel)"/.git/crypt/clean %f'
+	git config filter.crypt.smudge '"$(git rev-parse --show-toplevel)"/.git/crypt/smudge'
+	git config diff.crypt.textconv '"$(git rev-parse --show-toplevel)"/.git/crypt/textconv'
 	git config merge.renormalize 'true'
 
 	# add a git alias for listing encrypted files
