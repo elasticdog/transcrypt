@@ -413,7 +413,7 @@ usage() {
 	EOF
 }
 
-# print this script's help message to sdtout
+# print this script's help message to stdout
 help() {
 	cat <<-EOF
 
@@ -648,7 +648,7 @@ else
 	force_checkout
 fi
 
-# ensure the gitattributes file exists
+# ensure the git attributes file exists
 if [[ ! -f "$REPO/.gitattributes" ]]; then
 	printf '#pattern  filter=crypt diff=crypt\n' > "$REPO/.gitattributes"
 fi
