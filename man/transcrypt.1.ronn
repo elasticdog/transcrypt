@@ -42,6 +42,10 @@ The transcrypt source code and full documentation may be downloaded from
     remove all transcrypt configuration from the repository
     and leave files in the current working copy decrypted
 
+  * `-l`, `--list`:
+    list all of the transparently encrypted files in the repository,
+    relative to the top-level directory
+
   * `-v`, `--version`:
     print the version information
 

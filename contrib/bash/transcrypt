@@ -5,8 +5,8 @@ _transcrypt() {
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts="-c -p -y -d -r -f -u -v -h \
-	      --cipher --password --yes --display --rekey --flush-credentials --uninstall --version --help"
+	opts="-c -p -y -d -r -f -u -l -v -h \
+	      --cipher --password --yes --display --rekey --flush-credentials --uninstall --list --version --help"
 
 	case "${prev}" in
 		-c | --cipher)

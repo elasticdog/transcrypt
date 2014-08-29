@@ -5,6 +5,7 @@ _transcrypt() {
 	typeset -A opt_args
 
 	_arguments \
+		'(- 1 *)'{-l,--list}'[list encrypted files]' \
 		'(- 1 *)'{-v,--version}'[print version]' \
 		'(- 1 *)'{-h,--help}'[view help message]' \
 		'(-c --cipher -d --display -f --flush-credentials -u --uninstall)'{-c,--cipher=}'[specify encryption cipher]:cipher:->cipher' \

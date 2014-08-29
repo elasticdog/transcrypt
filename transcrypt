@@ -384,6 +384,12 @@ uninstall_transcrypt() {
 	fi
 }
 
+# list all of the currently encrypted files in the repository
+list_files() {
+	cd "$REPO"
+	git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+}
+
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
@@ -437,6 +443,10 @@ help() {
 	     -u, --uninstall
 	            remove  all  transcrypt  configuration  from  the repository and
 	            leave files in the current working copy decrypted
+
+	     -l, --list
+	            list all of the transparently encrypted files in the repository,
+	            relative to the top-level directory
 
 	     -v, --version
 	            print the version information
@@ -539,6 +549,10 @@ do
 			uninstall='true'
 			requires_existing_config='true'
 			unset requires_clean_repo
+			;;
+		-l | --list)
+			list_files
+			exit 0
 			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"

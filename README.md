@@ -102,6 +102,11 @@ of the currently encrypted files in a repository:
     $ git ls-crypt
     sensitive_file
 
+Alternatively, you can use the `--list` command line option:
+
+    $ transcrypt --list
+    sensitive_file
+
 You can also use this to verify your _.gitattributes_ patterns when
 designating new files to be encrypted, as the alias will list pattern
 matches as long as everything has been staged (via `git add`).
@@ -188,6 +193,10 @@ directory.
       -u, --uninstall
            remove all transcrypt configuration from the repository
            and leave files in the current working copy decrypted
+
+      -l, --list
+           list all of the transparently encrypted files in the repository,
+           relative to the top-level directory
 
       -v, --version
            print the version information
