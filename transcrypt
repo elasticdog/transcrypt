@@ -390,6 +390,22 @@ list_files() {
 	git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
 }
 
+# show the raw file as stored in the git commit object
+show_raw_file() {
+	if [[ ! -f "$show_file" ]]; then
+		die 1 'the file "%s" does not exist' "$show_file"
+	fi
+
+	# ensure the file is currently being tracked
+	local escaped_show_file=${show_file//\//\\\/}
+	if $(git ls-files --others -- "$show_file" | awk "/$escaped_show_file/{ exit 1 }"); then
+		local file_path=$(git ls-tree --name-only --full-name HEAD "$show_file")
+		git show HEAD:"$file_path" --no-textconv
+	else
+		die 1 'the file "%s" is not currently being tracked by git' "$show_file"
+	fi
+}
+
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
@@ -447,6 +463,10 @@ help() {
 	     -l, --list
 	            list all of the transparently encrypted files in the repository,
 	            relative to the top-level directory
+
+	     -s, --show-raw=FILE
+	            show  the  raw file as stored in the git commit object; use this
+	            to check if files are encrypted as expected
 
 	     -v, --version
 	            print the version information
@@ -506,6 +526,7 @@ display_config=''
 rekey=''
 flush_creds=''
 uninstall=''
+show_file=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -552,6 +573,16 @@ do
 			;;
 		-l | --list)
 			list_files
+			exit 0
+			;;
+		-s | --show-raw)
+			show_file=$2
+			show_raw_file
+			exit 0
+			;;
+		--show-raw=*)
+			show_file=${1#*=}
+			show_raw_file
 			exit 0
 			;;
 		-v | --version)

@@ -46,6 +46,10 @@ The transcrypt source code and full documentation may be downloaded from
     list all of the transparently encrypted files in the repository,
     relative to the top-level directory
 
+  * `-s`, `--show-raw`=<file>:
+    show the raw file as stored in the git commit object;
+    use this to check if files are encrypted as expected
+
   * `-v`, `--version`:
     print the version information
 

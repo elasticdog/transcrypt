@@ -117,6 +117,13 @@ raw form:
 
     $ git show HEAD:<path-to-file> --no-textconv
 
+The `<path-to-file>` in the above command must be relative to the
+_top-level_ of the repository. Alternatively, you can use the
+`--show-raw` command line option and provide a path relative to your
+current directory:
+
+    $ transcrypt --show-raw sensitive_file
+
 ### Initialize a Clone of a Configured Repository
 
 If you have just cloned a repository containing files that are encrypted,
@@ -197,6 +204,10 @@ directory.
       -l, --list
            list all of the transparently encrypted files in the repository,
            relative to the top-level directory
+
+     -s, --show-raw=FILE
+           show the raw file as stored in the git commit object;
+           use this to check if files are encrypted as expected
 
       -v, --version
            print the version information

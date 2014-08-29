@@ -6,6 +6,7 @@ _transcrypt() {
 
 	_arguments \
 		'(- 1 *)'{-l,--list}'[list encrypted files]' \
+		'(- 1 *)'{-s,--show-raw=}'[show raw file]:file:->file' \
 		'(- 1 *)'{-v,--version}'[print version]' \
 		'(- 1 *)'{-h,--help}'[view help message]' \
 		'(-c --cipher -d --display -f --flush-credentials -u --uninstall)'{-c,--cipher=}'[specify encryption cipher]:cipher:->cipher' \
@@ -21,6 +22,9 @@ _transcrypt() {
 		cipher)
 			ciphers=( ${(f)"$(_call_program available-ciphers openssl list-cipher-commands)"} )
 			_describe -t available-ciphers 'available ciphers' ciphers
+			;;
+		file)
+			_path_files
 			;;
 	esac
 }
