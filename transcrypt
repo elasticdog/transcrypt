@@ -292,6 +292,7 @@ force_checkout() {
 	if [[ $HEAD_EXISTS ]]; then
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
+		cd "$REPO"
 		git checkout --force HEAD -- $(git ls-crypt) > /dev/null
 	fi
 }
