@@ -188,6 +188,7 @@ stage_rekeyed_files() {
 	local encrypted_files=$(git ls-crypt)
 	if [[ $encrypted_files ]]; then
 		# touch all encrypted files to prevent stale stat info
+		cd "$REPO"
 		touch $encrypted_files
 		git update-index --add -- $encrypted_files
 
@@ -353,7 +354,10 @@ uninstall_transcrypt() {
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files=$(git ls-crypt)
-		[[ $encrypted_files ]] && touch $encrypted_files
+		if [[ $encrypted_files ]]; then
+			cd "$REPO"
+			touch $encrypted_files
+		fi
 
 		# remove the `git ls-crypt` alias
 		git config --unset alias.ls-crypt
