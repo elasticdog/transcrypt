@@ -61,6 +61,11 @@ directly to your repository, or just put it somewhere in your $PATH:
     $ cd transcrypt/
     $ sudo ln -s ${PWD}/transcrypt /usr/local/bin/transcrypt
 
+If you're on OS X, you can install transcrypt directly via
+[Homebrew](http://brew.sh/):
+
+    $ brew install transcrypt
+
 ### Initialize an Unconfigured Repository
 
 transcrypt will interactively prompt you for the required information, all you
