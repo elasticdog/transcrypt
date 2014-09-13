@@ -36,17 +36,16 @@ declare -r  TOPLEVEL=$( git rev-parse --show-toplevel 2>/dev/null )
 declare -rx GIT_DIR=$( git rev-parse --git-dir 2>/dev/null )
 
 # is this a vcsh repo?
-declare -r  FLG_VCSH
 git config --get vcsh.vcsh 2>/dev/null |
     grep -qiw true \
         && FLG_VCSH=1 \
         || FLG_VCSH=0
+declare -r  FLG_VCSH
 
 # if vcsh repo, then store/retrieve attributes using local core.attributesfile.
 # if vcsh repo and core.attributesfile is not set,
 # then use git-dir (non-revisioned) <git-dir>/info/attributes.
 # otherwise, use .gitattributes.
-declare -r  ATTRIBUTES
 if [ "${FLG_VCSH}" -ne 0 ]
 then
     ATTRIBUTES="$( git config --local --get core.attributesfile )"
@@ -55,6 +54,7 @@ then
 else
     ATTRIBUTES="${TOPLEVEL}/.gitattributes"
 fi
+declare -r  ATTRIBUTES
 
 ##### Functions
 
