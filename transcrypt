@@ -15,23 +15,46 @@
 ##### Constants
 
 # the release version of this script
-readonly VERSION='0.9.4'
+declare -r  VERSION='0.9.5'
 
 # the default cipher to utilize
-readonly DEFAULT_CIPHER='aes-256-cbc'
-
-# the current git repository's git directory
-declare -rx GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
-
-# whether or not transcrypt is already configured
-readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
-
-# whether or not a HEAD revision exists
-readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2> /dev/null)
+declare -r  DEFAULT_CIPHER='aes-256-cbc'
 
 # regular expression used to test user input
-readonly YES_REGEX='^[Yy]$'
+declare -r  YES_REGEX='^[Yy]$'
 
+# whether or not transcrypt is already configured
+declare -r  CONFIGURED=$( git config --get --local transcrypt.version 2>/dev/null )
+
+# whether or not a HEAD revision exists
+declare -r  HEAD_EXISTS=$( git rev-parse --verify --quiet HEAD 2>/dev/null )
+
+# the current git repository's top level dir
+declare -r  TOPLEVEL=$( git rev-parse --show-toplevel 2>/dev/null )
+
+# the current git repository's git directory
+declare -rx GIT_DIR=$( git rev-parse --git-dir 2>/dev/null )
+
+# is this a vcsh repo?
+declare -r  FLG_VCSH
+git config --get vcsh.vcsh 2>/dev/null |
+    grep -qiw true \
+        && FLG_VCSH=1 \
+        || FLG_VCSH=0
+
+# if vcsh repo, then store/retrieve attributes using local core.attributesfile.
+# if vcsh repo and core.attributesfile is not set,
+# then use git-dir (non-revisioned) <git-dir>/info/attributes.
+# otherwise, use .gitattributes.
+declare -r  ATTRIBUTES
+if [ "${FLG_VCSH}" -ne 0 ]
+then
+    ATTRIBUTES="$( git config --local --get core.attributesfile )"
+    [ "${?}" -eq 0 ] || \
+    ATTRIBUTES="${GIT_DIR}/info/attributes"
+else
+    ATTRIBUTES="${TOPLEVEL}/.gitattributes"
+fi
 
 ##### Functions
 
@@ -363,13 +386,13 @@ uninstall_transcrypt() {
 			git config --remove-section alias
 		fi
 
-		# remove any defined crypt patterns in info/attributes
+		# remove any defined crypt patterns in attributes file
 		case $OSTYPE in
 			darwin*)
-				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_DIR/info/attributes"
+				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "${ATTRIBUTES}"
 				;;
 			linux*)
-				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_DIR/info/attributes"
+				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "${ATTRIBUTES}"
 				;;
 		esac
 
@@ -451,12 +474,12 @@ help() {
 
 	     Once  a  repository has been configured with transcrypt, you can trans-
 	     parently encrypt files by applying the "crypt" filter  and  diff  to  a
-	     pattern in the git-dir info/attributes config.  If that pattern matches
-	     a file in your repository, the file  will  be  transparently  encrypted
-	     once you stage and commit it:
+	     pattern in the attributes config.  If that  pattern  matches  a file in
+             your repository, the file  will  be  transparently  encrypted  once you
+             stage and commit it:
 
-	         $ echo 'sensitive_file  filter=crypt diff=crypt' >> .git/info/attributes
-	         $ git add .git/info/attributes sensitive_file
+	         $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
+	         $ git add .gitattributes sensitive_file
 	         $ git commit -m 'Add encrypted version of a sensitive file'
 
 	     See the gitattributes(5) man page for more information.
@@ -599,8 +622,8 @@ else
 fi
 
 # ensure the gitattributes file exists
-if [[ ! -f "$GIT_DIR/info/attributes" ]]; then
-	printf '#pattern  filter=crypt diff=crypt\n' > "$GIT_DIR/info/attributes"
+if [[ ! -f "${ATTRIBUTES}" ]]; then
+	printf '#pattern  filter=crypt diff=crypt\n' > "${ATTRIBUTES}"
 fi
 
 printf 'The repository has been successfully configured by transcrypt.\n'
