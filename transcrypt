@@ -270,10 +270,10 @@ save_configuration() {
 	git config transcrypt.password "$password"
 
 	# write the filter settings
-	git config filter.crypt.clean '$(git rev-parse --git-dir)/crypt/clean %f'
-	git config filter.crypt.smudge '$(git rev-parse --git-dir)/crypt/smudge'
-	git config diff.crypt.textconv '$(git rev-parse --git-dir)/crypt/textconv'
-	git config merge.renormalize 'true'
+	git config filter.crypt.clean  "${GIT_DIR}/crypt/clean %f"
+	git config filter.crypt.smudge "${GIT_DIR}/crypt/smudge"
+	git config diff.crypt.textconv "${GIT_DIR}/crypt/textconv"
+	git config merge.renormalize   'true'
 
 	# add a git alias for listing encrypted files
 	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
