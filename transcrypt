@@ -456,6 +456,10 @@ help() {
 	            remove the locally cached encryption credentials and  re-encrypt
 	            any files that had been previously decrypted
 
+	     -F, --force
+	            ignore whether the git directory is clean, proceed with the
+	            possibility that uncommitted changes are overwritten
+
 	     -u, --uninstall
 	            remove  all  transcrypt  configuration  from  the repository and
 	            leave files in the current working copy decrypted
@@ -565,6 +569,9 @@ do
 		-f | --flush-credentials)
 			flush_creds='true'
 			requires_existing_config='true'
+			;;
+		-F | --force)
+			unset requires_clean_repo
 			;;
 		-u | --uninstall)
 			uninstall='true'

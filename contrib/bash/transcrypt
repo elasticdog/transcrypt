@@ -21,8 +21,8 @@ _transcrypt() {
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts="-c -p -y -d -r -f -u -l -s -v -h \
-	      --cipher --password --yes --display --rekey --flush-credentials --uninstall --list --show-raw --version --help"
+	opts="-c -p -y -d -r -f -F -u -l -s -v -h \
+	      --cipher --password --yes --display --rekey --flush-credentials --force --uninstall --list --show-raw --version --help"
 
 	case "${prev}" in
 		-c | --cipher)
