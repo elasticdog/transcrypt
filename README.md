@@ -202,6 +202,10 @@ directory.
            remove the locally cached encryption credentials
            and re-encrypt any files that had been previously decrypted
 
+      -F, --force
+           ignore whether the git directory is clean, proceed with the
+           possibility that uncommitted changes are overwritten
+
       -u, --uninstall
            remove all transcrypt configuration from the repository
            and leave files in the current working copy decrypted
