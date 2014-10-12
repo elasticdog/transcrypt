@@ -15,7 +15,8 @@ _transcrypt() {
 		'(-d --display -p --password -c --cipher -r --rekey -u --uninstall)'{-d,--display}'[display current credentials]' \
 		'(-r --rekey -d --display -f --flush-credentials -u --uninstall)'{-r,--rekey}'[rekey all encrypted files]' \
 		'(-f --flush-credentials -c --cipher -p --password -r --rekey -u --uninstall)'{-f,--flush-credentials}'[flush cached credentials]' \
-		'(-u --uninstall -c --cipher -p --password -d --display -r --rekey -f --flush-credentials)'{-u,--uninstall}'[uninstall transcrypt]' \
+		'(-F --force -d --display -u --uninstall)'{-F,--force}'[ignore repository clean state]' \
+		'(-u --uninstall -c --cipher -d --display -f --flush-credentials -p --password -r --rekey)'{-u,--uninstall}'[uninstall transcrypt]' \
 		&& return 0
 
 	case $state in

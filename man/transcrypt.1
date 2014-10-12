@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "TRANSCRYPT" "1" "August 2014" "" ""
+.TH "TRANSCRYPT" "1" "October 2014" "" ""
 .
 .SH "NAME"
 \fBtranscrypt\fR \- transparently encrypt files within a git repository
@@ -40,6 +40,10 @@ re\-encrypt all encrypted files using new credentials
 .TP
 \fB\-f\fR, \fB\-\-flush\-credentials\fR
 remove the locally cached encryption credentials and re\-encrypt any files that had been previously decrypted
+.
+.TP
+\fB\-F\fR, \fB\-\-force\fR
+ignore whether the git directory is clean, proceed with the possibility that uncommitted changes are overwritten
 .
 .TP
 \fB\-u\fR, \fB\-\-uninstall\fR
