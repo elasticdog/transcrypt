@@ -15,32 +15,32 @@
 ##### Constants
 
 # the release version of this script
-declare -r  VERSION='0.9.5'
+readonly  VERSION='0.9.5'
 
 # the default cipher to utilize
-declare -r  DEFAULT_CIPHER='aes-256-cbc'
-
-# regular expression used to test user input
-declare -r  YES_REGEX='^[Yy]$'
+readonly  DEFAULT_CIPHER='aes-256-cbc'
 
 # whether or not transcrypt is already configured
-declare -r  CONFIGURED=$( git config --get --local transcrypt.version 2>/dev/null )
+readonly  CONFIGURED=$( git config --get --local transcrypt.version 2>/dev/null )
 
 # whether or not a HEAD revision exists
-declare -r  HEAD_EXISTS=$( git rev-parse --verify --quiet HEAD 2>/dev/null )
+readonly  HEAD_EXISTS=$( git rev-parse --verify --quiet HEAD 2>/dev/null )
+
+# regular expression used to test user input
+readonly  YES_REGEX='^[Yy]$'
 
 # the current git repository's top level dir
-declare -r  TOPLEVEL=$( git rev-parse --show-toplevel 2>/dev/null )
+readonly  TOPLEVEL=$( git rev-parse --show-toplevel 2>/dev/null )
 
 # the current git repository's git directory
-declare -rx GIT_DIR=$( git rev-parse --git-dir 2>/dev/null )
+readonly  GIT_DIR=$( git rev-parse --git-dir 2>/dev/null )
 
 # is this a vcsh repo?
 git config --get vcsh.vcsh 2>/dev/null |
     grep -qiw true \
         && FLG_VCSH=1 \
         || FLG_VCSH=0
-declare -r  FLG_VCSH
+readonly  FLG_VCSH
 
 # if vcsh repo, then store/retrieve attributes using local core.attributesfile.
 # if vcsh repo and core.attributesfile is not set,
@@ -54,7 +54,7 @@ then
 else
     ATTRIBUTES="${TOPLEVEL}/.gitattributes"
 fi
-declare -r  ATTRIBUTES
+readonly  ATTRIBUTES
 
 ##### Functions
 
@@ -270,9 +270,9 @@ save_configuration() {
 	git config transcrypt.password "$password"
 
 	# write the filter settings
-	git config filter.crypt.clean  "${GIT_DIR}/crypt/clean %f"
-	git config filter.crypt.smudge "${GIT_DIR}/crypt/smudge"
-	git config diff.crypt.textconv "${GIT_DIR}/crypt/textconv"
+        git config filter.crypt.clean  '"$( git rev-parse --git-dir )"/crypt/clean %f'
+        git config filter.crypt.smudge '"$( git rev-parse --git-dir )"/crypt/smudge'
+        git config diff.crypt.textconv '"$( git rev-parse --git-dir )"/crypt/textconv'
 	git config merge.renormalize   'true'
 
 	# add a git alias for listing encrypted files
