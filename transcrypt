@@ -15,7 +15,7 @@
 ##### Constants
 
 # the release version of this script
-readonly  VERSION='0.9.5'
+readonly VERSION='0.9.6'
 
 # the default cipher to utilize
 readonly  DEFAULT_CIPHER='aes-256-cbc'
@@ -95,7 +95,7 @@ run_safety_checks() {
 	done
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
-	# checkout files without the distruction of uncommitted changes
+	# checkout files without the destruction of uncommitted changes
 	if [[ $requires_clean_repo ]] && [[ $HEAD_EXISTS ]]; then
 		# check if the repo is dirty
 		if ! git diff-index --quiet HEAD --; then
@@ -211,6 +211,7 @@ stage_rekeyed_files() {
 	local encrypted_files=$(git ls-crypt)
 	if [[ $encrypted_files ]]; then
 		# touch all encrypted files to prevent stale stat info
+		cd "$REPO"
 		touch $encrypted_files
 		git update-index --add -- $encrypted_files
 
@@ -315,6 +316,7 @@ force_checkout() {
 	if [[ $HEAD_EXISTS ]]; then
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
+		cd "$REPO"
 		git checkout --force HEAD -- $(git ls-crypt) > /dev/null
 	fi
 }
@@ -375,7 +377,10 @@ uninstall_transcrypt() {
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files=$(git ls-crypt)
-		[[ $encrypted_files ]] && touch $encrypted_files
+		if [[ $encrypted_files ]]; then
+			cd "$REPO"
+			touch $encrypted_files
+		fi
 
 		# remove the `git ls-crypt` alias
 		git config --unset alias.ls-crypt
@@ -402,6 +407,28 @@ uninstall_transcrypt() {
 	fi
 }
 
+# list all of the currently encrypted files in the repository
+list_files() {
+	cd "$REPO"
+	git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+}
+
+# show the raw file as stored in the git commit object
+show_raw_file() {
+	if [[ ! -f "$show_file" ]]; then
+		die 1 'the file "%s" does not exist' "$show_file"
+	fi
+
+	# ensure the file is currently being tracked
+	local escaped_show_file=${show_file//\//\\\/}
+	if $(git ls-files --others -- "$show_file" | awk "/$escaped_show_file/{ exit 1 }"); then
+		local file_path=$(git ls-tree --name-only --full-name HEAD "$show_file")
+		git show HEAD:"$file_path" --no-textconv
+	else
+		die 1 'the file "%s" is not currently being tracked by git' "$show_file"
+	fi
+}
+
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
@@ -409,7 +436,7 @@ usage() {
 	EOF
 }
 
-# print this script's help message to sdtout
+# print this script's help message to stdout
 help() {
 	cat <<-EOF
 
@@ -452,9 +479,21 @@ help() {
 	            remove the locally cached encryption credentials and  re-encrypt
 	            any files that had been previously decrypted
 
+	     -F, --force
+	            ignore whether the git directory is clean, proceed with the
+	            possibility that uncommitted changes are overwritten
+
 	     -u, --uninstall
 	            remove  all  transcrypt  configuration  from  the repository and
 	            leave files in the current working copy decrypted
+
+	     -l, --list
+	            list all of the transparently encrypted files in the repository,
+	            relative to the top-level directory
+
+	     -s, --show-raw=FILE
+	            show  the  raw file as stored in the git commit object; use this
+	            to check if files are encrypted as expected
 
 	     -v, --version
 	            print the version information
@@ -514,6 +553,7 @@ display_config=''
 rekey=''
 flush_creds=''
 uninstall=''
+show_file=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -553,10 +593,27 @@ do
 			flush_creds='true'
 			requires_existing_config='true'
 			;;
+		-F | --force)
+			unset requires_clean_repo
+			;;
 		-u | --uninstall)
 			uninstall='true'
 			requires_existing_config='true'
 			unset requires_clean_repo
+			;;
+		-l | --list)
+			list_files
+			exit 0
+			;;
+		-s | --show-raw)
+			show_file=$2
+			show_raw_file
+			exit 0
+			;;
+		--show-raw=*)
+			show_file=${1#*=}
+			show_raw_file
+			exit 0
 			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"
@@ -621,7 +678,7 @@ else
 	force_checkout
 fi
 
-# ensure the gitattributes file exists
+# ensure the git attributes file exists
 if [[ ! -f "${ATTRIBUTES}" ]]; then
 	printf '#pattern  filter=crypt diff=crypt\n' > "${ATTRIBUTES}"
 fi

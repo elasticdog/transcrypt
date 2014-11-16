@@ -38,9 +38,21 @@ The transcrypt source code and full documentation may be downloaded from
     remove the locally cached encryption credentials
     and re-encrypt any files that had been previously decrypted
 
+  * `-F`, `--force`:
+    ignore whether the git directory is clean, proceed with the
+    possibility that uncommitted changes are overwritten
+
   * `-u`, `--uninstall`:
     remove all transcrypt configuration from the repository
     and leave files in the current working copy decrypted
+
+  * `-l`, `--list`:
+    list all of the transparently encrypted files in the repository,
+    relative to the top-level directory
+
+  * `-s`, `--show-raw`=<file>:
+    show the raw file as stored in the git commit object;
+    use this to check if files are encrypted as expected
 
   * `-v`, `--version`:
     print the version information

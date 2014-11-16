@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "TRANSCRYPT" "1" "March 2014" "" ""
+.TH "TRANSCRYPT" "1" "October 2014" "" ""
 .
 .SH "NAME"
 \fBtranscrypt\fR \- transparently encrypt files within a git repository
@@ -42,8 +42,20 @@ re\-encrypt all encrypted files using new credentials
 remove the locally cached encryption credentials and re\-encrypt any files that had been previously decrypted
 .
 .TP
+\fB\-F\fR, \fB\-\-force\fR
+ignore whether the git directory is clean, proceed with the possibility that uncommitted changes are overwritten
+.
+.TP
 \fB\-u\fR, \fB\-\-uninstall\fR
 remove all transcrypt configuration from the repository and leave files in the current working copy decrypted
+.
+.TP
+\fB\-l\fR, \fB\-\-list\fR
+list all of the transparently encrypted files in the repository, relative to the top\-level directory
+.
+.TP
+\fB\-s\fR, \fB\-\-show\-raw\fR=\fIfile\fR
+show the raw file as stored in the git commit object; use this to check if files are encrypted as expected
 .
 .TP
 \fB\-v\fR, \fB\-\-version\fR

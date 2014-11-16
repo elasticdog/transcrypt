@@ -1,12 +1,28 @@
 # completion script for transcrypt
 
+_files_and_dirs() {
+	local IFS=$'\n'
+	local LASTCHAR=' '
+
+	COMPREPLY=( $(compgen -o plusdirs -f -- "${COMP_WORDS[COMP_CWORD]}") )
+
+	if [[ ${#COMPREPLY[@]} -eq 1 ]]; then
+		[[ -d "$COMPREPLY" ]] && LASTCHAR='/'
+		COMPREPLY=$(printf '%q%s' "$COMPREPLY" "$LASTCHAR")
+	else
+		for ((i=0; i < ${#COMPREPLY[@]}; i++)); do
+			[[ -d "${COMPREPLY[$i]}" ]] && COMPREPLY[$i]=${COMPREPLY[$i]}/
+		done
+	fi
+}
+
 _transcrypt() {
 	local cur prev opts
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts="-c -p -y -d -r -f -u -v -h \
-	      --cipher --password --yes --display --rekey --flush-credentials --uninstall --version --help"
+	opts="-c -p -y -d -r -f -F -u -l -s -v -h \
+	      --cipher --password --yes --display --rekey --flush-credentials --force --uninstall --list --show-raw --version --help"
 
 	case "${prev}" in
 		-c | --cipher)
@@ -17,10 +33,16 @@ _transcrypt() {
 		-p | --password)
 			return 0
 			;;
+		-s | --show-raw)
+			_files_and_dirs
+			return 0
+			;;
 		*)
 			;;
 	esac
 
 	COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+	COMPREPLY=$(printf '%q%s' "$COMPREPLY" ' ')
 }
-complete -F _transcrypt transcrypt
+
+complete -o nospace -F _transcrypt transcrypt

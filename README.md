@@ -61,6 +61,11 @@ directly to your repository, or just put it somewhere in your $PATH:
     $ cd transcrypt/
     $ sudo ln -s ${PWD}/transcrypt /usr/local/bin/transcrypt
 
+If you're on OS X, you can install transcrypt directly via
+[Homebrew](http://brew.sh/):
+
+    $ brew install transcrypt
+
 ### Initialize an Unconfigured Repository
 
 transcrypt will interactively prompt you for the required information, all you
@@ -102,6 +107,11 @@ of the currently encrypted files in a repository:
     $ git ls-crypt
     sensitive_file
 
+Alternatively, you can use the `--list` command line option:
+
+    $ transcrypt --list
+    sensitive_file
+
 You can also use this to verify your _.gitattributes_ patterns when
 designating new files to be encrypted, as the alias will list pattern
 matches as long as everything has been staged (via `git add`).
@@ -111,6 +121,13 @@ can validate that files are encrypted as expected by viewing them in their
 raw form:
 
     $ git show HEAD:<path-to-file> --no-textconv
+
+The `<path-to-file>` in the above command must be relative to the
+_top-level_ of the repository. Alternatively, you can use the
+`--show-raw` command line option and provide a path relative to your
+current directory:
+
+    $ transcrypt --show-raw sensitive_file
 
 ### Initialize a Clone of a Configured Repository
 
@@ -185,9 +202,21 @@ directory.
            remove the locally cached encryption credentials
            and re-encrypt any files that had been previously decrypted
 
+      -F, --force
+           ignore whether the git directory is clean, proceed with the
+           possibility that uncommitted changes are overwritten
+
       -u, --uninstall
            remove all transcrypt configuration from the repository
            and leave files in the current working copy decrypted
+
+      -l, --list
+           list all of the transparently encrypted files in the repository,
+           relative to the top-level directory
+
+     -s, --show-raw=FILE
+           show the raw file as stored in the git commit object;
+           use this to check if files are encrypted as expected
 
       -v, --version
            print the version information

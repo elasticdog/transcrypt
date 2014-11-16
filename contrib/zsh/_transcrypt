@@ -5,6 +5,8 @@ _transcrypt() {
 	typeset -A opt_args
 
 	_arguments \
+		'(- 1 *)'{-l,--list}'[list encrypted files]' \
+		'(- 1 *)'{-s,--show-raw=}'[show raw file]:file:->file' \
 		'(- 1 *)'{-v,--version}'[print version]' \
 		'(- 1 *)'{-h,--help}'[view help message]' \
 		'(-c --cipher -d --display -f --flush-credentials -u --uninstall)'{-c,--cipher=}'[specify encryption cipher]:cipher:->cipher' \
@@ -13,13 +15,17 @@ _transcrypt() {
 		'(-d --display -p --password -c --cipher -r --rekey -u --uninstall)'{-d,--display}'[display current credentials]' \
 		'(-r --rekey -d --display -f --flush-credentials -u --uninstall)'{-r,--rekey}'[rekey all encrypted files]' \
 		'(-f --flush-credentials -c --cipher -p --password -r --rekey -u --uninstall)'{-f,--flush-credentials}'[flush cached credentials]' \
-		'(-u --uninstall -c --cipher -p --password -d --display -r --rekey -f --flush-credentials)'{-u,--uninstall}'[uninstall transcrypt]' \
+		'(-F --force -d --display -u --uninstall)'{-F,--force}'[ignore repository clean state]' \
+		'(-u --uninstall -c --cipher -d --display -f --flush-credentials -p --password -r --rekey)'{-u,--uninstall}'[uninstall transcrypt]' \
 		&& return 0
 
 	case $state in
 		cipher)
 			ciphers=( ${(f)"$(_call_program available-ciphers openssl list-cipher-commands)"} )
 			_describe -t available-ciphers 'available ciphers' ciphers
+			;;
+		file)
+			_path_files
 			;;
 	esac
 }
