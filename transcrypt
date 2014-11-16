@@ -18,29 +18,29 @@
 readonly VERSION='0.9.6'
 
 # the default cipher to utilize
-readonly  DEFAULT_CIPHER='aes-256-cbc'
+readonly DEFAULT_CIPHER='aes-256-cbc'
+
+# the current git repository's top-level directory
+readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
 
 # whether or not transcrypt is already configured
-readonly  CONFIGURED=$( git config --get --local transcrypt.version 2>/dev/null )
+readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
 
 # whether or not a HEAD revision exists
-readonly  HEAD_EXISTS=$( git rev-parse --verify --quiet HEAD 2>/dev/null )
+readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2> /dev/null)
 
 # regular expression used to test user input
-readonly  YES_REGEX='^[Yy]$'
-
-# the current git repository's top level dir
-readonly  TOPLEVEL=$( git rev-parse --show-toplevel 2>/dev/null )
+readonly YES_REGEX='^[Yy]$'
 
 # the current git repository's git directory
-readonly  GIT_DIR=$( git rev-parse --git-dir 2>/dev/null )
+readonly GIT_DIR=$( git rev-parse --git-dir 2>/dev/null )
 
 # is this a vcsh repo?
 git config --get vcsh.vcsh 2>/dev/null |
     grep -qiw true \
         && FLG_VCSH=1 \
         || FLG_VCSH=0
-readonly  FLG_VCSH
+readonly FLG_VCSH
 
 # if vcsh repo, then store/retrieve attributes using local core.attributesfile.
 # if vcsh repo and core.attributesfile is not set,
@@ -48,13 +48,13 @@ readonly  FLG_VCSH
 # otherwise, use .gitattributes.
 if [ "${FLG_VCSH}" -ne 0 ]
 then
-    ATTRIBUTES="${TOPLEVEL}/$( git config --local --get core.attributesfile )"
+    ATTRIBUTES="${REPO}/$( git config --local --get core.attributesfile )"
     [ "${?}" -eq 0 ] || \
     ATTRIBUTES="${GIT_DIR}/info/attributes"
 else
-    ATTRIBUTES="${TOPLEVEL}/.gitattributes"
+    ATTRIBUTES="${REPO}/.gitattributes"
 fi
-readonly  ATTRIBUTES
+readonly ATTRIBUTES
 
 ##### Functions
 
