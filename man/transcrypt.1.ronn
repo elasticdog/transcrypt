@@ -72,8 +72,8 @@ were not given.
 
 Once a repository has been configured with transcrypt, you can transparently
 encrypt files by applying the "crypt" filter and diff to a pattern in the
-git attributes config. If that pattern matches a file in your repository,
-the file will be transparently encrypted once you stage and commit
+top-level _.gitattributes_ config. If that pattern matches a file in your
+repository, the file will be transparently encrypted once you stage and commit
 it:
 
     $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
