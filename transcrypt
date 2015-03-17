@@ -294,6 +294,9 @@ force_checkout() {
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
 		cd "$REPO"
+		for file in $(git ls-crypt); do
+			rm "$file"
+		done
 		git checkout --force HEAD -- $(git ls-crypt) > /dev/null
 	fi
 }
