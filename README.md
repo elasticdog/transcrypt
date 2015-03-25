@@ -24,7 +24,7 @@ In comparison to those other projects, transcrypt makes substantial
 improvements in the areas of usability and safety.
 
 * transcrypt is just a Bash script and does not require compilation
-* transcrypt uses OpenSSL's symmetric cipher routines rather then implementing its own crypto
+* transcrypt uses OpenSSL's symmetric cipher routines rather than implementing its own crypto
 * transcrypt does not have to remain installed after the initial repository configuration
 * transcrypt generates a unique salt for each encrypted file
 * transcrypt uses safety checks to avoid clobbering or duplicating configuration data
