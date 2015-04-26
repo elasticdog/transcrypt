@@ -395,18 +395,25 @@ list_files() {
 
 # show the raw file as stored in the git commit object
 show_raw_file() {
-	if [[ ! -f "$show_file" ]]; then
+	if [[ -f $show_file ]]; then
+		# ensure the file is currently being tracked
+		local escaped_file=${show_file//\//\\\/}
+		if $(git ls-files --others -- "$show_file" | awk "/$escaped_file/{ exit 1 }"); then
+			file_paths=$(git ls-tree --name-only --full-name HEAD "$show_file")
+		else
+			die 1 'the file "%s" is not currently being tracked by git' "$show_file"
+		fi
+	elif [[ $show_file == '*' ]]; then
+		file_paths=$(git ls-crypt)
+	else
 		die 1 'the file "%s" does not exist' "$show_file"
 	fi
 
-	# ensure the file is currently being tracked
-	local escaped_show_file=${show_file//\//\\\/}
-	if $(git ls-files --others -- "$show_file" | awk "/$escaped_show_file/{ exit 1 }"); then
-		local file_path=$(git ls-tree --name-only --full-name HEAD "$show_file")
-		git show HEAD:"$file_path" --no-textconv
-	else
-		die 1 'the file "%s" is not currently being tracked by git' "$show_file"
-	fi
+	for file in $file_paths; do
+		printf '==> %s <==\n' "$file" >&2
+		git --no-pager show HEAD:"$file" --no-textconv
+		printf '\n' >&2
+	done
 }
 
 # print this script's usage message to stderr
