@@ -397,7 +397,7 @@ export_gpg() {
 	local key_exists
 	key_exists=$(gpg --with-colons --list-keys | grep $gpg_recipient)
 	if [[ ! $key_exists ]]; then
-		die 1 'GPG recipient key "$gpg_recipient" does not exist'
+		die 1 "GPG recipient key '$gpg_recipient' does not exist"
 	fi
 
 	local encrypted_config 
