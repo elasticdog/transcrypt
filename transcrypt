@@ -592,8 +592,6 @@ uninstall=''
 show_file=''
 gpg_recipient=''
 gpg_config_file=''
-export_to_gpg='false'
-import_from_gpg='false'
 
 # used to bypass certain safety checks
 requires_existing_config=''
