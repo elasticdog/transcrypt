@@ -412,14 +412,14 @@ import_gpg() {
 	[[ ! $gpg_config_file ]] && die 1 "no file passed and no '.asc' file found in '$REPO/.git/crypt/'"
 
 	local settings
-	local saftey_counter = 0
+	local saftey_counter
 	# Fix for MacGPG / GPG having intermittent decryption failures stating 'No secret key' when there is
 	while [[ ! $settings ]]
 	do
 		settings=$(gpg --batch -qd "$gpg_config_file")
 
 		saftey_counter=$((saftey_counter+1))
-		if [[ $saftey_counter == 5 ]]; then
+		if [[ $saftey_counter == 3 ]]; then
 			die 1 "unable to decrypt '$gpg_config_file'"
 		fi
 	done
