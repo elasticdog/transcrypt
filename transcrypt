@@ -405,6 +405,27 @@ export_gpg() {
 	echo "$encrypted_config" > "$REPO/.git/crypt/$gpg_recipient.asc"
 }
 
+# import password and cipher from a GPG encrypted file
+import_gpg() {
+	[[ ! $gpg_config_file ]] && gpg_config_file=$(ls -1 $REPO/.git/crypt/*.asc | sort | head -n1)
+	[[ ! $gpg_config_file ]] && die 1 "no file passed and no '.asc' file found in '$REPO/.git/crypt/'"
+
+	local settings
+	local saftey_counter = 0
+	# Fix for MacGPG / GPG having intermittent decryption failures stating 'No secret key' when there is
+	while [[ ! $settings ]]
+	do
+		settings=$(gpg --batch -qd "$gpg_config_file")
+
+		saftey_counter=$((saftey_counter+1))
+		if [[ $saftey_counter == 5 ]]; then
+			die 1 "unable to decrypt '$gpg_config_file'"
+		fi
+	done
+
+	eval "$settings"
+}
+
 # list all of the currently encrypted files in the repository
 list_files() {
 	cd "$REPO"
@@ -505,6 +526,11 @@ help() {
 	            to KEYID. Exported file can be found in:
 	                      '<repo>/.git/crypt/<KEYID>.asc'
 
+	     -i, --import-gpg=FILE
+	            import password and cipher from gpg encrypted file. Defaults to
+	            the first .asc file in: '<repo>/.git/crypt/'. Runs a force
+	            checkout after import.
+
 	     -v, --version
 	            print the version information
 
@@ -565,7 +591,9 @@ flush_creds=''
 uninstall=''
 show_file=''
 gpg_recipient=''
+gpg_config_file=''
 export_to_gpg='false'
+import_from_gpg='false'
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -640,6 +668,15 @@ do
 			requires_existing_config='true'
 			unset requires_clean_repo
 			;;
+		-i | --import-gpg)
+			import_from_gpg='true'
+			gpg_config_file=$2
+			shift
+			;;
+		--import-gpg=*)
+			import_from_gpg='true'
+			gpg_config_file=${1#*=}
+			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"
 			exit 0
@@ -686,6 +723,8 @@ elif [[ $cipher ]]; then
 elif [[ $export_to_gpg ]]; then
 	export_gpg
 	exit 0
+elif [[ $import_from_gpg ]]; then
+	import_gpg
 fi
 
 # perform function calls to configure transcrypt
