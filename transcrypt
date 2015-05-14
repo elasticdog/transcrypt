@@ -525,13 +525,11 @@ help() {
 
 	     -e, --export-gpg=KEYID
 	            export password and cipher to file encrypted with recipient set
-	            to KEYID. Exported file can be found in:
-	                      '<repo>/.git/crypt/<KEYID>.asc'
+	            to KEYID.
 
 	     -i, --import-gpg=FILE
 	            import password and cipher from gpg encrypted file. Defaults to
-	            the first .asc file in: '<repo>/.git/crypt/'. Runs a force
-	            checkout after import.
+	            the first .asc file in: '<repo>/.git/crypt/'.
 
 	     -v, --version
 	            print the version information
