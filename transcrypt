@@ -403,6 +403,7 @@ export_gpg() {
 	local encrypted_config 
 	encrypted_config=$(echo -e "password='$current_password'\ncipher='$current_cipher'" | gpg --batch -r $gpg_recipient --always-trust --yes -aqe -)
 	echo "$encrypted_config" > "$REPO/.git/crypt/$gpg_recipient.asc"
+	printf "Successfully exported cipher and password to:\n\t\t'$REPO/.git/crypt/$gpg_recipient.asc'\n"
 }
 
 # import password and cipher from a GPG encrypted file
@@ -424,6 +425,7 @@ import_gpg() {
 	done
 
 	eval "$settings"
+	printf "Successfully imported cipher and password from '$gpg_config_file'\n"
 }
 
 # list all of the currently encrypted files in the repository
