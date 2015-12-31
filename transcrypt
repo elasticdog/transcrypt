@@ -387,6 +387,47 @@ uninstall_transcrypt() {
 	fi
 }
 
+# export password and cipher to a GPG encrypted file
+export_gpg() {
+	local current_cipher=$(git config --get --local transcrypt.cipher)
+	local current_password=$(git config --get --local transcrypt.password)
+
+	[[ ! -d "$REPO/.git/crypt" ]] && mkdir "$REPO/.git/crypt"
+
+	local key_exists
+	key_exists=$(gpg --with-colons --list-keys | grep $gpg_recipient)
+	if [[ ! $key_exists ]]; then
+		die 1 "GPG recipient key '$gpg_recipient' does not exist"
+	fi
+
+	local encrypted_config 
+	encrypted_config=$(echo -e "password='$current_password'\ncipher='$current_cipher'" | gpg --batch -r $gpg_recipient --always-trust --yes -aqe -)
+	echo "$encrypted_config" > "$REPO/.git/crypt/$gpg_recipient.asc"
+	printf "Successfully exported cipher and password to:\n\n\t'$REPO/.git/crypt/$gpg_recipient.asc'\n"
+}
+
+# import password and cipher from a GPG encrypted file
+import_gpg() {
+	[[ ! $gpg_config_file ]] && gpg_config_file=$(ls -1 $REPO/.git/crypt/*.asc | sort | head -n1)
+	[[ ! $gpg_config_file ]] && die 1 "no file passed and no '.asc' file found in '$REPO/.git/crypt/'"
+
+	local settings
+	local saftey_counter
+	# Fix for MacGPG / GPG having intermittent decryption failures stating 'No secret key' when there is
+	while [[ ! $settings ]]
+	do
+		settings=$(gpg --batch -qd "$gpg_config_file")
+
+		saftey_counter=$((saftey_counter+1))
+		if [[ $saftey_counter == 3 ]]; then
+			die 1 "unable to decrypt '$gpg_config_file'"
+		fi
+	done
+
+	eval "$settings"
+	printf "Successfully imported cipher and password from '$gpg_config_file'\n"
+}
+
 # list all of the currently encrypted files in the repository
 list_files() {
 	cd "$REPO"
@@ -482,6 +523,14 @@ help() {
 	            show  the  raw file as stored in the git commit object; use this
 	            to check if files are encrypted as expected
 
+	     -e, --export-gpg=KEYID
+	            export password and cipher to file encrypted with recipient set
+	            to KEYID.
+
+	     -i, --import-gpg=FILE
+	            import password and cipher from gpg encrypted file. Defaults to
+	            the first .asc file in: '<repo>/.git/crypt/'.
+
 	     -v, --version
 	            print the version information
 
@@ -541,6 +590,8 @@ rekey=''
 flush_creds=''
 uninstall=''
 show_file=''
+gpg_recipient=''
+gpg_config_file=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -602,6 +653,28 @@ do
 			show_raw_file
 			exit 0
 			;;
+		-e | --export-gpg)
+			export_to_gpg='true'
+			gpg_recipient=$2
+			requires_existing_config='true'
+			unset requires_clean_repo
+			shift
+			;;
+		--export-gpg=*)
+			export_to_gpg='true'
+			gpg_recipient=${1#*=}
+			requires_existing_config='true'
+			unset requires_clean_repo
+			;;
+		-i | --import-gpg)
+			import_from_gpg='true'
+			gpg_config_file=$2
+			shift
+			;;
+		--import-gpg=*)
+			import_from_gpg='true'
+			gpg_config_file=${1#*=}
+			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"
 			exit 0
@@ -645,6 +718,11 @@ elif [[ $flush_creds ]]; then
 	exit 0
 elif [[ $cipher ]]; then
 	validate_cipher
+elif [[ $export_to_gpg ]]; then
+	export_gpg
+	exit 0
+elif [[ $import_from_gpg ]]; then
+	import_gpg
 fi
 
 # perform function calls to configure transcrypt
