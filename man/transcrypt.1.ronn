@@ -54,6 +54,13 @@ The transcrypt source code and full documentation may be downloaded from
     show the raw file as stored in the git commit object;
     use this to check if files are encrypted as expected
 
+  * `-e`, `--export-gpg`=<recipient>:
+    export the repository's ciper and password to a file encrypted
+    for a gpg recipient
+
+  * `-i`, `--import-gpg`=<file>:
+    import the password and cipher from a gpg encrypted file
+
   * `-v`, `--version`:
     print the version information
 

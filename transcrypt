@@ -416,10 +416,55 @@ show_raw_file() {
 	done
 }
 
+# export password and cipher to a gpg encrypted file
+export_gpg() {
+	# ensure the recipient key exists
+	if ! gpg --list-keys $gpg_recipient 2> /dev/null; then
+		die 1 'GPG recipient key "%s" does not exist' "$gpg_recipient"
+	fi
+
+	local current_cipher=$(git config --get --local transcrypt.cipher)
+	local current_password=$(git config --get --local transcrypt.password)
+	[[ ! -d "$REPO/.git/crypt" ]] && mkdir "$REPO/.git/crypt"
+
+	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
+	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd > "$REPO/.git/crypt/$gpg_recipient.asc"
+	printf "The transcrypt configuration has been encrypted and exported to:\n%s/.git/crypt/%s.asc\n" "$REPO" "$gpg_recipient"
+}
+
+# import password and cipher from a gpg encrypted file
+import_gpg() {
+	local path
+	if [[ -f "${REPO}/.git/crypt/${gpg_import_file}" ]]; then
+		path="${REPO}/.git/crypt/${gpg_import_file}"
+	elif [[ -f "${REPO}/.git/crypt/${gpg_import_file}.asc" ]]; then
+		path="${REPO}/.git/crypt/${gpg_import_file}.asc"
+	elif [[ ! -f $gpg_import_file ]]; then
+		die 1 'the file "%s" does not exist' "$gpg_import_file"
+	else
+		path="$gpg_import_file"
+	fi
+
+	local configuration
+	local saftey_counter  # fix for intermittent 'no secret key' decryption failures
+	while [[ ! $configuration ]]
+	do
+		configuration=$(gpg --batch --quiet --decrypt "$path")
+
+		saftey_counter=$((saftey_counter + 1))
+		if [[ $saftey_counter -eq 3 ]]; then
+			die 1 'unable to decrypt the file "%s"' "$path"
+		fi
+	done
+
+	cipher=$(printf '%s' "$configuration" | grep '^cipher' | cut -d'=' -f 2-)
+	password=$(printf '%s' "$configuration" | grep '^password' | cut -d'=' -f 2-)
+}
+
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
-	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-r] [-f] [-u] [-v] [-h]
+	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-h]
 	EOF
 }
 
@@ -482,6 +527,13 @@ help() {
 	            show  the  raw file as stored in the git commit object; use this
 	            to check if files are encrypted as expected
 
+	     -e, --export-gpg=RECIPIENT
+	            export  the  repository's ciper and password to a file encrypted
+	            for a gpg recipient
+
+	     -i, --import-gpg=FILE
+	            import the password and cipher from a gpg encrypted file
+
 	     -v, --version
 	            print the version information
 
@@ -541,6 +593,8 @@ rekey=''
 flush_creds=''
 uninstall=''
 show_file=''
+gpg_recipient=''
+gpg_import_file=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -602,6 +656,24 @@ do
 			show_raw_file
 			exit 0
 			;;
+		-e | --export-gpg)
+			gpg_recipient=$2
+			requires_existing_config='true'
+			unset requires_clean_repo
+			shift
+			;;
+		--export-gpg=*)
+			gpg_recipient=${1#*=}
+			requires_existing_config='true'
+			unset requires_clean_repo
+			;;
+		-i | --import-gpg)
+			gpg_import_file=$2
+			shift
+			;;
+		--import-gpg=*)
+			gpg_import_file=${1#*=}
+			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"
 			exit 0
@@ -643,6 +715,11 @@ elif [[ $display_config ]]; then
 elif [[ $flush_creds ]]; then
 	flush_credentials
 	exit 0
+elif [[ $gpg_recipient ]]; then
+	export_gpg
+	exit 0
+elif [[ $gpg_import_file ]]; then
+	import_gpg
 elif [[ $cipher ]]; then
 	validate_cipher
 fi

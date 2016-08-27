@@ -21,8 +21,8 @@ _transcrypt() {
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts="-c -p -y -d -r -f -F -u -l -s -v -h \
-	      --cipher --password --yes --display --rekey --flush-credentials --force --uninstall --list --show-raw --version --help"
+	opts="-c -p -y -d -r -f -F -u -l -s -e -i -v -h \
+	      --cipher --password --yes --display --rekey --flush-credentials --force --uninstall --list --show-raw --export-gpg --import-gpg --version --help"
 
 	case "${prev}" in
 		-c | --cipher)
@@ -34,6 +34,13 @@ _transcrypt() {
 			return 0
 			;;
 		-s | --show-raw)
+			_files_and_dirs
+			return 0
+			;;
+		-e | --export-gpg)
+			return 0
+			;;
+		-i | --import-gpg)
 			_files_and_dirs
 			return 0
 			;;
