@@ -405,24 +405,31 @@ export_gpg() {
 
 # import password and cipher from a gpg encrypted file
 import_gpg() {
-	if [[ ! -f $gpg_import_file ]]; then
+	local path
+	if [[ -f "${REPO}/.git/crypt/${gpg_import_file}" ]]; then
+		path="${REPO}/.git/crypt/${gpg_import_file}"
+	elif [[ -f "${REPO}/.git/crypt/${gpg_import_file}.asc" ]]; then
+		path="${REPO}/.git/crypt/${gpg_import_file}.asc"
+	elif [[ ! -f $gpg_import_file ]]; then
 		die 1 'the file "%s" does not exist' "$gpg_import_file"
+	else
+		path="$gpg_import_file"
 	fi
 
-	local settings
-	local saftey_counter  # fix for intermittent decryption 'no secret key' failures
-	while [[ ! $settings ]]
+	local configuration
+	local saftey_counter  # fix for intermittent 'no secret key' decryption failures
+	while [[ ! $configuration ]]
 	do
-		settings=$(gpg --batch --quiet --decrypt "$gpg_import_file")
+		configuration=$(gpg --batch --quiet --decrypt "$path")
 
 		saftey_counter=$((saftey_counter + 1))
 		if [[ $saftey_counter -eq 3 ]]; then
-			die 1 'unable to decrypt the file "%s"' "$gpg_import_file"
+			die 1 'unable to decrypt the file "%s"' "$path"
 		fi
 	done
 
-	cipher=$(printf '%s' "$settings" | grep '^cipher' | cut -d'=' -f 2-)
-	password=$(printf '%s' "$settings" | grep '^password' | cut -d'=' -f 2-)
+	cipher=$(printf '%s' "$configuration" | grep '^cipher' | cut -d'=' -f 2-)
+	password=$(printf '%s' "$configuration" | grep '^password' | cut -d'=' -f 2-)
 }
 
 # list all of the currently encrypted files in the repository
