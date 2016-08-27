@@ -403,26 +403,26 @@ export_gpg() {
 	printf "The transcrypt configuration has been encrypted and exported to:\n%s/.git/crypt/%s.asc\n" "$REPO" "$gpg_recipient"
 }
 
-# import password and cipher from a GPG encrypted file
+# import password and cipher from a gpg encrypted file
 import_gpg() {
-	[[ ! $gpg_config_file ]] && gpg_config_file=$(ls -1 $REPO/.git/crypt/*.asc | sort | head -n1)
-	[[ ! $gpg_config_file ]] && die 1 "no file passed and no '.asc' file found in '$REPO/.git/crypt/'"
+	if [[ ! -f $gpg_import_file ]]; then
+		die 1 'the file "%s" does not exist' "$gpg_import_file"
+	fi
 
 	local settings
-	local saftey_counter
-	# Fix for MacGPG / GPG having intermittent decryption failures stating 'No secret key' when there is
+	local saftey_counter  # fix for intermittent decryption 'no secret key' failures
 	while [[ ! $settings ]]
 	do
-		settings=$(gpg --batch -qd "$gpg_config_file")
+		settings=$(gpg --batch --quiet --decrypt "$gpg_import_file")
 
-		saftey_counter=$((saftey_counter+1))
-		if [[ $saftey_counter == 3 ]]; then
-			die 1 "unable to decrypt '$gpg_config_file'"
+		saftey_counter=$((saftey_counter + 1))
+		if [[ $saftey_counter -eq 3 ]]; then
+			die 1 'unable to decrypt the file "%s"' "$gpg_import_file"
 		fi
 	done
 
-	eval "$settings"
-	printf "Successfully imported cipher and password from '$gpg_config_file'\n"
+	cipher=$(printf '%s' "$settings" | grep '^cipher' | cut -d'=' -f 2-)
+	password=$(printf '%s' "$settings" | grep '^password' | cut -d'=' -f 2-)
 }
 
 # list all of the currently encrypted files in the repository
@@ -525,8 +525,7 @@ help() {
 	            for a gpg recipient
 
 	     -i, --import-gpg=FILE
-	            import password and cipher from gpg encrypted file. Defaults to
-	            the first .asc file in: '<repo>/.git/crypt/'.
+	            import the password and cipher from a gpg encrypted file
 
 	     -v, --version
 	            print the version information
@@ -588,7 +587,7 @@ flush_creds=''
 uninstall=''
 show_file=''
 gpg_recipient=''
-gpg_config_file=''
+gpg_import_file=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -662,13 +661,11 @@ do
 			unset requires_clean_repo
 			;;
 		-i | --import-gpg)
-			import_from_gpg='true'
-			gpg_config_file=$2
+			gpg_import_file=$2
 			shift
 			;;
 		--import-gpg=*)
-			import_from_gpg='true'
-			gpg_config_file=${1#*=}
+			gpg_import_file=${1#*=}
 			;;
 		-v | --version)
 			printf "transcrypt $VERSION\n"
@@ -711,13 +708,13 @@ elif [[ $display_config ]]; then
 elif [[ $flush_creds ]]; then
 	flush_credentials
 	exit 0
-elif [[ $cipher ]]; then
-	validate_cipher
 elif [[ $gpg_recipient ]]; then
 	export_gpg
 	exit 0
-elif [[ $import_from_gpg ]]; then
+elif [[ $gpg_import_file ]]; then
 	import_gpg
+elif [[ $cipher ]]; then
+	validate_cipher
 fi
 
 # perform function calls to configure transcrypt
