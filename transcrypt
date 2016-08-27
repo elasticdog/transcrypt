@@ -457,7 +457,7 @@ show_raw_file() {
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
-	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-y] [-d] [-r] [-f] [-u] [-v] [-h]
+	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-h]
 	EOF
 }
 
