@@ -387,23 +387,20 @@ uninstall_transcrypt() {
 	fi
 }
 
-# export password and cipher to a GPG encrypted file
+# export password and cipher to a gpg encrypted file
 export_gpg() {
-	local current_cipher=$(git config --get --local transcrypt.cipher)
-	local current_password=$(git config --get --local transcrypt.password)
-
-	[[ ! -d "$REPO/.git/crypt" ]] && mkdir "$REPO/.git/crypt"
-
-	local key_exists
-	key_exists=$(gpg --with-colons --list-keys | grep $gpg_recipient)
-	if [[ ! $key_exists ]]; then
-		die 1 "GPG recipient key '$gpg_recipient' does not exist"
+	# ensure the recipient key exists
+	if ! gpg --list-keys $gpg_recipient 2> /dev/null; then
+		die 1 'GPG recipient key "%s" does not exist' "$gpg_recipient"
 	fi
 
-	local encrypted_config 
-	encrypted_config=$(echo -e "password='$current_password'\ncipher='$current_cipher'" | gpg --batch -r $gpg_recipient --always-trust --yes -aqe -)
-	echo "$encrypted_config" > "$REPO/.git/crypt/$gpg_recipient.asc"
-	printf "Successfully exported cipher and password to:\n\n\t'$REPO/.git/crypt/$gpg_recipient.asc'\n"
+	local current_cipher=$(git config --get --local transcrypt.cipher)
+	local current_password=$(git config --get --local transcrypt.password)
+	[[ ! -d "$REPO/.git/crypt" ]] && mkdir "$REPO/.git/crypt"
+
+	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
+	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd > "$REPO/.git/crypt/$gpg_recipient.asc"
+	printf "The transcrypt configuration has been encrypted and exported to:\n%s/.git/crypt/%s.asc\n" "$REPO" "$gpg_recipient"
 }
 
 # import password and cipher from a GPG encrypted file
@@ -523,9 +520,9 @@ help() {
 	            show  the  raw file as stored in the git commit object; use this
 	            to check if files are encrypted as expected
 
-	     -e, --export-gpg=KEYID
-	            export password and cipher to file encrypted with recipient set
-	            to KEYID.
+	     -e, --export-gpg=RECIPIENT
+	            export the repository's ciper and password to a file encrypted
+	            for a gpg recipient
 
 	     -i, --import-gpg=FILE
 	            import password and cipher from gpg encrypted file. Defaults to
@@ -654,14 +651,12 @@ do
 			exit 0
 			;;
 		-e | --export-gpg)
-			export_to_gpg='true'
 			gpg_recipient=$2
 			requires_existing_config='true'
 			unset requires_clean_repo
 			shift
 			;;
 		--export-gpg=*)
-			export_to_gpg='true'
 			gpg_recipient=${1#*=}
 			requires_existing_config='true'
 			unset requires_clean_repo
@@ -718,7 +713,7 @@ elif [[ $flush_creds ]]; then
 	exit 0
 elif [[ $cipher ]]; then
 	validate_cipher
-elif [[ $export_to_gpg ]]; then
+elif [[ $gpg_recipient ]]; then
 	export_gpg
 	exit 0
 elif [[ $import_from_gpg ]]; then
