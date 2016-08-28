@@ -250,6 +250,7 @@ save_configuration() {
 	# write the filter settings
 	git config filter.crypt.clean '"$(git rev-parse --show-toplevel)"/.git/crypt/clean %f'
 	git config filter.crypt.smudge '"$(git rev-parse --show-toplevel)"/.git/crypt/smudge'
+	git config filter.crypt.required 'true'
 	git config diff.crypt.textconv '"$(git rev-parse --show-toplevel)"/.git/crypt/textconv'
 	git config merge.renormalize 'true'
 
