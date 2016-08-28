@@ -211,10 +211,13 @@ save_helper_scripts() {
 	cat <<-'EOF' > "${REPO}/.git/crypt/clean"
 		#!/usr/bin/env bash
 		filename=$1
-		cipher=$(git config --get --local transcrypt.cipher)
-		password=$(git config --get --local transcrypt.password)
-		salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tail -c 16)
-		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -e -a -S "$salt"
+		# ignore empty files
+		if [[ -s $filename ]]; then
+		  cipher=$(git config --get --local transcrypt.cipher)
+		  password=$(git config --get --local transcrypt.password)
+		  salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tail -c 16)
+		  ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -e -a -S "$salt"
+		fi
 	EOF
 
 	cat <<-'EOF' > "${REPO}/.git/crypt/smudge"
@@ -229,9 +232,12 @@ save_helper_scripts() {
 	cat <<-'EOF' > "${REPO}/.git/crypt/textconv"
 		#!/usr/bin/env bash
 		filename=$1
-		cipher=$(git config --get --local transcrypt.cipher)
-		password=$(git config --get --local transcrypt.password)
-		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null || cat "$filename"
+		# ignore empty files
+		if [[ -s $filename ]]; then
+		  cipher=$(git config --get --local transcrypt.cipher)
+		  password=$(git config --get --local transcrypt.password)
+		  ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null || cat "$filename"
+		fi
 	EOF
 
 	# make scripts executable
