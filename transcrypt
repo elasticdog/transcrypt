@@ -270,6 +270,8 @@ save_configuration() {
 	git config filter.crypt.smudge '"$(git rev-parse --show-toplevel)"/.git/crypt/smudge'
 	git config filter.crypt.required 'true'
 	git config diff.crypt.textconv '"$(git rev-parse --show-toplevel)"/.git/crypt/textconv'
+	git config diff.crypt.cachetextconv 'true'
+	git config diff.crypt.binary 'true'
 	git config merge.renormalize 'true'
 
 	# add a git alias for listing encrypted files
