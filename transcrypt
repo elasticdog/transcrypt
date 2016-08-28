@@ -219,9 +219,11 @@ save_helper_scripts() {
 
 	cat <<-'EOF' > "${REPO}/.git/crypt/smudge"
 		#!/usr/bin/env bash
+		tempfile=$(mktemp /tmp/transcrypt.XXXXXX)
+		trap 'rm -f "$tempfile"' EXIT
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
-		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null
+		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null || cat "$tempfile"
 	EOF
 
 	cat <<-'EOF' > "${REPO}/.git/crypt/textconv"
