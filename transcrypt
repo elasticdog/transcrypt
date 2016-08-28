@@ -224,7 +224,7 @@ save_helper_scripts() {
 		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null
 	EOF
 
-	cat <<-'EOF' > "$REPO/.git/crypt/textconv"
+	cat <<-'EOF' > "${REPO}/.git/crypt/textconv"
 		#!/usr/bin/env bash
 		filename=$1
 		cipher=$(git config --get --local transcrypt.cipher)
