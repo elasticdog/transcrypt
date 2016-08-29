@@ -190,47 +190,54 @@ directory.
     transcrypt [option...]
 
       -c, --cipher=CIPHER
-           the symmetric cipher to utilize for encryption;
-           defaults to aes-256-cbc
+             the symmetric cipher to utilize for encryption;
+             defaults to aes-256-cbc
 
       -p, --password=PASSWORD
-           the password to derive the key from;
-           defaults to 30 random base64 characters
+             the password to derive the key from;
+             defaults to 30 random base64 characters
 
       -y, --yes
-           assume yes and accept defaults for non-specified options
+             assume yes and accept defaults for non-specified options
 
       -d, --display
-           display the current repository's cipher and password
+             display the current repository's cipher and password
 
       -r, --rekey
-           re-encrypt all encrypted files using new credentials
+             re-encrypt all encrypted files using new credentials
 
       -f, --flush-credentials
-           remove the locally cached encryption credentials
-           and re-encrypt any files that had been previously decrypted
+             remove the locally cached encryption credentials and  re-encrypt
+             any files that had been previously decrypted
 
       -F, --force
-           ignore whether the git directory is clean, proceed with the
-           possibility that uncommitted changes are overwritten
+             ignore whether the git directory is clean, proceed with the
+             possibility that uncommitted changes are overwritten
 
       -u, --uninstall
-           remove all transcrypt configuration from the repository
-           and leave files in the current working copy decrypted
+             remove  all  transcrypt  configuration  from  the repository and
+             leave files in the current working copy decrypted
 
       -l, --list
-           list all of the transparently encrypted files in the repository,
-           relative to the top-level directory
+             list all of the transparently encrypted files in the repository,
+             relative to the top-level directory
 
-     -s, --show-raw=FILE
-           show the raw file as stored in the git commit object;
-           use this to check if files are encrypted as expected
+      -s, --show-raw=FILE
+             show  the  raw file as stored in the git commit object; use this
+             to check if files are encrypted as expected
+
+      -e, --export-gpg=RECIPIENT
+             export  the  repository's ciper and password to a file encrypted
+             for a gpg recipient
+
+      -i, --import-gpg=FILE
+             import the password and cipher from a gpg encrypted file
 
       -v, --version
-           print the version information
+             print the version information
 
       -h, --help
-           view the help message
+             view this help message
 
 Caveats
 -------
