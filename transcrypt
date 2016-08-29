@@ -20,8 +20,16 @@ readonly VERSION='0.9.7'
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
 
+# regular expression used to test user input
+readonly YES_REGEX='^[Yy]$'
+
+# repository metadata
+
 # whether or not transcrypt is already configured
 readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
+
+# the current git repository's top-level directory
+readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
 
 # the current git repository's .git directory
 readonly GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
@@ -29,11 +37,15 @@ readonly GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
 # whether or not a HEAD revision exists
 readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2> /dev/null)
 
-# the current git repository's top-level directory
-readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
+# whether or not the git repository is bare
+readonly IS_BARE=$(git rev-parse --is-bare-repository)
 
-# regular expression used to test user input
-readonly YES_REGEX='^[Yy]$'
+# the current git repository's gitattributes file
+if [[ $IS_BARE == 'true' ]]; then
+	readonly GIT_ATTRIBUTES="${GIT_DIR}/info/attributes"
+else
+	readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
+fi
 
 
 ##### Functions
@@ -76,7 +88,7 @@ run_safety_checks() {
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
 	# checkout files without the destruction of uncommitted changes
-	if [[ $requires_clean_repo ]] && [[ $HEAD_EXISTS ]]; then
+	if [[ $requires_clean_repo ]] && [[ $HEAD_EXISTS ]] && [[ $IS_BARE == 'false' ]]; then
 		# check if the repo is dirty
 		if ! git diff-index --quiet HEAD; then
 			die 1 'the repo is dirty; commit or stash your changes before running transcrypt'
@@ -189,7 +201,7 @@ confirm_rekey() {
 # automatically stage rekeyed files in preparation for the user to commit them
 stage_rekeyed_files() {
 	local encrypted_files=$(git ls-crypt)
-	if [[ $encrypted_files ]]; then
+	if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
 		# touch all encrypted files to prevent stale stat info
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 		touch $encrypted_files
@@ -314,7 +326,7 @@ clean_gitconfig() {
 # or it will encrypt locally decrypted files if you've just flushed the credentials
 force_checkout() {
 	# make sure a HEAD revision exists
-	if [[ $HEAD_EXISTS ]]; then
+	if [[ $HEAD_EXISTS ]] && [[ $IS_BARE == 'false' ]]; then
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
@@ -381,7 +393,7 @@ uninstall_transcrypt() {
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files=$(git ls-crypt)
-		if [[ $encrypted_files ]]; then
+		if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
 			cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 			touch $encrypted_files
 		fi
@@ -395,13 +407,13 @@ uninstall_transcrypt() {
 			git config --remove-section alias
 		fi
 
-		# remove any defined crypt patterns in .gitattributes
+		# remove any defined crypt patterns in gitattributes
 		case $OSTYPE in
 			darwin*)
-				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "${REPO}/.gitattributes"
+				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
 				;;
 			linux*)
-				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "${REPO}/.gitattributes"
+				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
 				;;
 		esac
 
@@ -413,8 +425,10 @@ uninstall_transcrypt() {
 
 # list all of the currently encrypted files in the repository
 list_files() {
-	cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-	git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+	if [[ $IS_BARE == 'false' ]]; then
+		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
+		git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+	fi
 }
 
 # show the raw file as stored in the git commit object
@@ -767,8 +781,9 @@ else
 fi
 
 # ensure the git attributes file exists
-if [[ ! -f "${REPO}/.gitattributes" ]]; then
-	printf '#pattern  filter=crypt diff=crypt\n' > "${REPO}/.gitattributes"
+if [[ ! -f $GIT_ATTRIBUTES ]]; then
+	[[ $IS_BARE == 'true' ]] && mkdir -p "${GIT_DIR}/info"
+	printf '#pattern  filter=crypt diff=crypt\n' > "$GIT_ATTRIBUTES"
 fi
 
 printf 'The repository has been successfully configured by transcrypt.\n'
