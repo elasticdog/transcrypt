@@ -67,7 +67,7 @@ run_safety_checks() {
 	fi
 
 	# check for dependencies
-	for cmd in {grep,openssl,sed}; do
+	for cmd in {grep,mktemp,openssl,sed,tee}; do
 		command -v $cmd > /dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 
