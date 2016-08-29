@@ -67,7 +67,7 @@ run_safety_checks() {
 	fi
 
 	# check for dependencies
-	for cmd in {grep,openssl,sed}; do
+	for cmd in {grep,mktemp,openssl,sed,tee}; do
 		command -v $cmd > /dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 
@@ -211,25 +211,43 @@ save_helper_scripts() {
 	cat <<-'EOF' > "${REPO}/.git/crypt/clean"
 		#!/usr/bin/env bash
 		filename=$1
-		cipher=$(git config --get --local transcrypt.cipher)
-		password=$(git config --get --local transcrypt.password)
-		salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tail -c 16)
-		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -e -a -S "$salt"
+		# ignore empty files
+		if [[ -s $filename ]]; then
+		  # cache STDIN to test if it's already encrypted
+		  tempfile=$(mktemp /tmp/transcrypt.XXXXXX)
+		  trap 'rm -f "$tempfile"' EXIT
+		  tee "$tempfile" &> /dev/null
+		  # the first bytes of an encrypted file are always "Salted" in Base64
+		  read -n 8 firstbytes < "$tempfile"
+		  if [[ $firstbytes == "U2FsdGVk" ]]; then
+		    cat "$tempfile"
+		  else
+		    cipher=$(git config --get --local transcrypt.cipher)
+		    password=$(git config --get --local transcrypt.password)
+		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tail -c 16)
+		    ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		  fi
+		fi
 	EOF
 
 	cat <<-'EOF' > "${REPO}/.git/crypt/smudge"
 		#!/usr/bin/env bash
+		tempfile=$(mktemp /tmp/transcrypt.XXXXXX)
+		trap 'rm -f "$tempfile"' EXIT
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
-		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null
+		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null || cat "$tempfile"
 	EOF
 
 	cat <<-'EOF' > "${REPO}/.git/crypt/textconv"
 		#!/usr/bin/env bash
 		filename=$1
-		cipher=$(git config --get --local transcrypt.cipher)
-		password=$(git config --get --local transcrypt.password)
-		ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null || cat "$filename"
+		# ignore empty files
+		if [[ -s $filename ]]; then
+		  cipher=$(git config --get --local transcrypt.cipher)
+		  password=$(git config --get --local transcrypt.password)
+		  ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null || cat "$filename"
+		fi
 	EOF
 
 	# make scripts executable
@@ -252,6 +270,8 @@ save_configuration() {
 	git config filter.crypt.smudge '"$(git rev-parse --show-toplevel)"/.git/crypt/smudge'
 	git config filter.crypt.required 'true'
 	git config diff.crypt.textconv '"$(git rev-parse --show-toplevel)"/.git/crypt/textconv'
+	git config diff.crypt.cachetextconv 'true'
+	git config diff.crypt.binary 'true'
 	git config merge.renormalize 'true'
 
 	# add a git alias for listing encrypted files
