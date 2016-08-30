@@ -194,6 +194,7 @@ confirm_configuration() {
 	local answer
 
 	printf '\nThe following configuration will be saved:\n\n'
+	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$cipher"
@@ -215,6 +216,7 @@ confirm_rekey() {
 	local answer
 
 	printf '\nThe following configuration will be saved:\n\n'
+	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$cipher"
@@ -335,6 +337,7 @@ display_configuration() {
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
 	printf 'and has the following configuration:\n\n'
+	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$current_cipher"
