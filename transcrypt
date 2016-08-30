@@ -193,10 +193,11 @@ get_password() {
 confirm_configuration() {
 	local answer
 
-	printf '\nThe following configuration will be saved:\n\n'
+	printf '\nRepository metadata:\n\n'
 	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	printf 'The following configuration will be saved:\n\n'
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'Does this look correct? [Y/n] '
@@ -215,10 +216,11 @@ confirm_configuration() {
 confirm_rekey() {
 	local answer
 
-	printf '\nThe following configuration will be saved:\n\n'
+	printf '\nRepository metadata:\n\n'
 	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	printf 'The following configuration will be saved:\n\n'
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'You are about to re-encrypt all encrypted files using new credentials.\n'
