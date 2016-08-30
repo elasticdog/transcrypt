@@ -12,7 +12,7 @@
 # that can be be found in the LICENSE file.
 #
 
-##### Constants
+##### CONSTANTS
 
 # the release version of this script
 readonly VERSION='0.9.7'
@@ -23,7 +23,7 @@ readonly DEFAULT_CIPHER='aes-256-cbc'
 # regular expression used to test user input
 readonly YES_REGEX='^[Yy]$'
 
-# repository metadata
+## Repository Metadata
 
 # whether or not transcrypt is already configured
 readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
@@ -31,24 +31,56 @@ readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
 # the current git repository's top-level directory
 readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
 
-# the current git repository's .git directory
-readonly GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
-
 # whether or not a HEAD revision exists
 readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2> /dev/null)
+
+# https://github.com/RichiH/vcsh
+# whether or not the git repository is running under vcsh
+readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh)
 
 # whether or not the git repository is bare
 readonly IS_BARE=$(git rev-parse --is-bare-repository)
 
+## Git Directory Handling
+
+# print a canonicalized absolute pathname
+realpath() {
+	local path=$1
+	local dirname=$(cd "${path%/*}" 2> /dev/null; pwd -P)
+	local basename=${path##*/}
+	local abspath=$(printf '%s/%s\n' "$dirname" "$basename")
+	if [[ -d $abspath ]]; then
+		printf '%s\n' "$(cd "$abspath"; pwd -P)"
+	elif [[ -d $path ]]; then
+		printf '%s\n' "$dirname"
+	elif [[ -e $abspath ]]; then
+		printf '%s\n' "$abspath"
+	else
+		printf 'invalid path: %s\n' "$path" >&2
+		exit 1
+	fi
+}
+
+# the current git repository's .git directory
+RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
+readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR")
+
 # the current git repository's gitattributes file
-if [[ $IS_BARE == 'true' ]]; then
+if [[ $IS_VCSH == 'true' ]]; then
+	VCSH_ATTRIBUTES=$(git config --get --local core.attributesfile)
+	if [[ $VCSH_ATTRIBUTES ]]; then
+		readonly GIT_ATTRIBUTES=$VCSH_ATTRIBUTES
+	else
+		readonly GIT_ATTRIBUTES="${GIT_DIR}/info/attributes"
+	fi
+elif [[ $IS_BARE == 'true' ]]; then
 	readonly GIT_ATTRIBUTES="${GIT_DIR}/info/attributes"
 else
 	readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
 fi
 
 
-##### Functions
+##### FUNCTIONS
 
 # print a message to stderr
 warn() {
@@ -90,7 +122,7 @@ run_safety_checks() {
 	# checkout files without the destruction of uncommitted changes
 	if [[ $requires_clean_repo ]] && [[ $HEAD_EXISTS ]] && [[ $IS_BARE == 'false' ]]; then
 		# check if the repo is dirty
-		if ! git diff-index --quiet HEAD; then
+		if ! git diff-index --quiet HEAD --; then
 			die 1 'the repo is dirty; commit or stash your changes before running transcrypt'
 		fi
 	fi
@@ -329,11 +361,12 @@ force_checkout() {
 	if [[ $HEAD_EXISTS ]] && [[ $IS_BARE == 'false' ]]; then
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
+		local encrypted_files=$(git ls-crypt)
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-		for file in $(git ls-crypt); do
+		for file in $encrypted_files; do
 			rm "$file"
 		done
-		git checkout --force HEAD -- $(git ls-crypt) > /dev/null
+		git checkout --force HEAD -- $encrypted_files > /dev/null
 	fi
 }
 
@@ -620,7 +653,7 @@ help() {
 }
 
 
-##### Main
+##### MAIN
 
 # reset all variables that might be set
 cipher=''
@@ -782,7 +815,7 @@ fi
 
 # ensure the git attributes file exists
 if [[ ! -f $GIT_ATTRIBUTES ]]; then
-	[[ $IS_BARE == 'true' ]] && mkdir -p "${GIT_DIR}/info"
+	mkdir -p "${GIT_ATTRIBUTES%/*}"
 	printf '#pattern  filter=crypt diff=crypt\n' > "$GIT_ATTRIBUTES"
 fi
 
