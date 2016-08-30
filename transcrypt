@@ -194,7 +194,8 @@ confirm_configuration() {
 	local answer
 
 	printf '\nThe following configuration will be saved:\n\n'
-	[[ $REPO ]] && printf '  REPO:     %s\n' "$REPO"
+	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'Does this look correct? [Y/n] '
@@ -214,7 +215,8 @@ confirm_rekey() {
 	local answer
 
 	printf '\nThe following configuration will be saved:\n\n'
-	[[ $REPO ]] && printf '  REPO:     %s\n' "$REPO"
+	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'You are about to re-encrypt all encrypted files using new credentials.\n'
@@ -333,6 +335,8 @@ display_configuration() {
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
 	printf 'and has the following configuration:\n\n'
+	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
