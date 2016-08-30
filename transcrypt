@@ -66,14 +66,10 @@ RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
 readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR")
 
 # the current git repository's gitattributes file
-if [[ $IS_VCSH == 'true' ]]; then
-	VCSH_ATTRIBUTES=$(git config --get --local core.attributesfile)
-	if [[ $VCSH_ATTRIBUTES ]]; then
-		readonly GIT_ATTRIBUTES=$VCSH_ATTRIBUTES
-	else
-		readonly GIT_ATTRIBUTES="${GIT_DIR}/info/attributes"
-	fi
-elif [[ $IS_BARE == 'true' ]]; then
+readonly CORE_ATTRIBUTES=$(git config --get --local --path core.attributesFile)
+if [[ $CORE_ATTRIBUTES ]]; then
+	readonly GIT_ATTRIBUTES=$CORE_ATTRIBUTES
+elif [[ $IS_BARE == 'true' ]] || [[ $IS_VCSH == 'true' ]]; then
 	readonly GIT_ATTRIBUTES="${GIT_DIR}/info/attributes"
 else
 	readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
