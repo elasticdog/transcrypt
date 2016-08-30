@@ -319,10 +319,18 @@ save_configuration() {
 	git config transcrypt.password "$password"
 
 	# write the filter settings
-	git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/clean %f'
-	git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge'
+	if [[ -d $(git rev-parse --git-common-dir) ]]; then
+		# this allows us to support multiple working trees via git-worktree
+		# ...but the --git-common-dir flag was only added in November 2014
+		git config filter.crypt.clean '"$(git rev-parse --git-common-dir)"/crypt/clean %f'
+		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge'
+		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv'
+	else
+		git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/clean %f'
+		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge'
+		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
+	fi
 	git config filter.crypt.required 'true'
-	git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
 	git config diff.crypt.cachetextconv 'true'
 	git config diff.crypt.binary 'true'
 	git config merge.renormalize 'true'
