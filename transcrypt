@@ -502,6 +502,9 @@ show_raw_file() {
 
 # export password and cipher to a gpg encrypted file
 export_gpg() {
+	# check for dependencies
+	command -v gpg > /dev/null || die 'required command "gpg" was not found'
+
 	# ensure the recipient key exists
 	if ! gpg --list-keys "$gpg_recipient" 2> /dev/null; then
 		die 1 'GPG recipient key "%s" does not exist' "$gpg_recipient"
@@ -518,6 +521,9 @@ export_gpg() {
 
 # import password and cipher from a gpg encrypted file
 import_gpg() {
+	# check for dependencies
+	command -v gpg > /dev/null || die 'required command "gpg" was not found'
+
 	local path
 	if [[ -f "${GIT_DIR}/crypt/${gpg_import_file}" ]]; then
 		path="${GIT_DIR}/crypt/${gpg_import_file}"
