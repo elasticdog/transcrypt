@@ -12,7 +12,7 @@
 # that can be be found in the LICENSE file.
 #
 
-##### Constants
+##### CONSTANTS
 
 # the release version of this script
 readonly VERSION='0.9.7'
@@ -20,20 +20,63 @@ readonly VERSION='0.9.7'
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
 
-# the current git repository's top-level directory
-readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
+# regular expression used to test user input
+readonly YES_REGEX='^[Yy]$'
+
+## Repository Metadata
 
 # whether or not transcrypt is already configured
 readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
 
+# the current git repository's top-level directory
+readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
+
 # whether or not a HEAD revision exists
 readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2> /dev/null)
 
-# regular expression used to test user input
-readonly YES_REGEX='^[Yy]$'
+# https://github.com/RichiH/vcsh
+# whether or not the git repository is running under vcsh
+readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh)
+
+# whether or not the git repository is bare
+readonly IS_BARE=$(git rev-parse --is-bare-repository)
+
+## Git Directory Handling
+
+# print a canonicalized absolute pathname
+realpath() {
+	local path=$1
+	local dirname=$(cd "${path%/*}" 2> /dev/null; pwd -P)
+	local basename=${path##*/}
+	local abspath=$(printf '%s/%s\n' "$dirname" "$basename")
+	if [[ -d $abspath ]]; then
+		printf '%s\n' "$(cd "$abspath"; pwd -P)"
+	elif [[ -d $path ]]; then
+		printf '%s\n' "$dirname"
+	elif [[ -e $abspath ]]; then
+		printf '%s\n' "$abspath"
+	else
+		printf 'invalid path: %s\n' "$path" >&2
+		exit 1
+	fi
+}
+
+# the current git repository's .git directory
+RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
+readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR")
+
+# the current git repository's gitattributes file
+readonly CORE_ATTRIBUTES=$(git config --get --local --path core.attributesFile)
+if [[ $CORE_ATTRIBUTES ]]; then
+	readonly GIT_ATTRIBUTES=$CORE_ATTRIBUTES
+elif [[ $IS_BARE == 'true' ]] || [[ $IS_VCSH == 'true' ]]; then
+	readonly GIT_ATTRIBUTES="${GIT_DIR}/info/attributes"
+else
+	readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
+fi
 
 
-##### Functions
+##### FUNCTIONS
 
 # print a message to stderr
 warn() {
@@ -57,7 +100,7 @@ die() {
 # verify that all requirements have been met
 run_safety_checks() {
 	# validate that we're in a git repository
-	[[ $REPO ]] || die 'you are not currently in a git repository; did you forget to run "git init"?'
+	[[ $GIT_DIR ]] || die 'you are not currently in a git repository; did you forget to run "git init"?'
 
 	# exit if transcrypt is not in the required state
 	if [[ $requires_existing_config ]] && [[ ! $CONFIGURED ]]; then
@@ -73,9 +116,9 @@ run_safety_checks() {
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
 	# checkout files without the destruction of uncommitted changes
-	if [[ $requires_clean_repo ]] && [[ $HEAD_EXISTS ]]; then
+	if [[ $requires_clean_repo ]] && [[ $HEAD_EXISTS ]] && [[ $IS_BARE == 'false' ]]; then
 		# check if the repo is dirty
-		if ! git diff-index --quiet HEAD; then
+		if ! git diff-index --quiet HEAD --; then
 			die 1 'the repo is dirty; commit or stash your changes before running transcrypt'
 		fi
 	fi
@@ -146,8 +189,11 @@ get_password() {
 confirm_configuration() {
 	local answer
 
-	printf '\nThe following configuration will be saved:\n\n'
-	printf '  REPO:     %s\n' "$REPO"
+	printf '\nRepository metadata:\n\n'
+	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
+	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	printf 'The following configuration will be saved:\n\n'
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'Does this look correct? [Y/n] '
@@ -166,8 +212,11 @@ confirm_configuration() {
 confirm_rekey() {
 	local answer
 
-	printf '\nThe following configuration will be saved:\n\n'
-	printf '  REPO:     %s\n' "$REPO"
+	printf '\nRepository metadata:\n\n'
+	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
+	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	printf 'The following configuration will be saved:\n\n'
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'You are about to re-encrypt all encrypted files using new credentials.\n'
@@ -186,7 +235,7 @@ confirm_rekey() {
 # automatically stage rekeyed files in preparation for the user to commit them
 stage_rekeyed_files() {
 	local encrypted_files=$(git ls-crypt)
-	if [[ $encrypted_files ]]; then
+	if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
 		# touch all encrypted files to prevent stale stat info
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 		touch $encrypted_files
@@ -197,9 +246,9 @@ stage_rekeyed_files() {
 	fi
 }
 
-# save helper scripts under the repository's .git/ directory
+# save helper scripts under the repository's git directory
 save_helper_scripts() {
-	[[ ! -d "${REPO}/.git/crypt" ]] && mkdir "${REPO}/.git/crypt"
+	[[ ! -d "${GIT_DIR}/crypt" ]] && mkdir "${GIT_DIR}/crypt"
 
 	# The `decryption -> encryption` process on an unchanged file must be
 	# deterministic for everything to work transparently. To do that, the same
@@ -208,7 +257,7 @@ save_helper_scripts() {
 	# (keyed with a combination of the filename and transcrypt password), and
 	# then use the last 16 bytes of that HMAC for the file's unique salt.
 
-	cat <<-'EOF' > "${REPO}/.git/crypt/clean"
+	cat <<-'EOF' > "${GIT_DIR}/crypt/clean"
 		#!/usr/bin/env bash
 		filename=$1
 		# ignore empty files
@@ -230,7 +279,7 @@ save_helper_scripts() {
 		fi
 	EOF
 
-	cat <<-'EOF' > "${REPO}/.git/crypt/smudge"
+	cat <<-'EOF' > "${GIT_DIR}/crypt/smudge"
 		#!/usr/bin/env bash
 		tempfile=$(mktemp /tmp/transcrypt.XXXXXX)
 		trap 'rm -f "$tempfile"' EXIT
@@ -239,7 +288,7 @@ save_helper_scripts() {
 		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -pass env:ENC_PASS -d -a 2> /dev/null || cat "$tempfile"
 	EOF
 
-	cat <<-'EOF' > "${REPO}/.git/crypt/textconv"
+	cat <<-'EOF' > "${GIT_DIR}/crypt/textconv"
 		#!/usr/bin/env bash
 		filename=$1
 		# ignore empty files
@@ -252,11 +301,11 @@ save_helper_scripts() {
 
 	# make scripts executable
 	for script in {clean,smudge,textconv}; do
-		chmod 0755 "${REPO}/.git/crypt/${script}"
+		chmod 0755 "${GIT_DIR}/crypt/${script}"
 	done
 }
 
-# write the configuration to the repository's .git/config
+# write the configuration to the repository's git config
 save_configuration() {
 	save_helper_scripts
 
@@ -266,10 +315,18 @@ save_configuration() {
 	git config transcrypt.password "$password"
 
 	# write the filter settings
-	git config filter.crypt.clean '"$(git rev-parse --show-toplevel)"/.git/crypt/clean %f'
-	git config filter.crypt.smudge '"$(git rev-parse --show-toplevel)"/.git/crypt/smudge'
+	if [[ -d $(git rev-parse --git-common-dir) ]]; then
+		# this allows us to support multiple working trees via git-worktree
+		# ...but the --git-common-dir flag was only added in November 2014
+		git config filter.crypt.clean '"$(git rev-parse --git-common-dir)"/crypt/clean %f'
+		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge'
+		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv'
+	else
+		git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/clean %f'
+		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge'
+		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
+	fi
 	git config filter.crypt.required 'true'
-	git config diff.crypt.textconv '"$(git rev-parse --show-toplevel)"/.git/crypt/textconv'
 	git config diff.crypt.cachetextconv 'true'
 	git config diff.crypt.binary 'true'
 	git config merge.renormalize 'true'
@@ -286,13 +343,16 @@ display_configuration() {
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
 	printf 'and has the following configuration:\n\n'
+	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
+	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
 	printf "  transcrypt -c %s -p '%s'\n" "$current_cipher" "$escaped_password"
 }
 
-# remove transcrypt-related settings from the repository's .git/config
+# remove transcrypt-related settings from the repository's git config
 clean_gitconfig() {
 	git config --remove-section transcrypt
 	git config --remove-section filter.crypt
@@ -311,14 +371,15 @@ clean_gitconfig() {
 # or it will encrypt locally decrypted files if you've just flushed the credentials
 force_checkout() {
 	# make sure a HEAD revision exists
-	if [[ $HEAD_EXISTS ]]; then
+	if [[ $HEAD_EXISTS ]] && [[ $IS_BARE == 'false' ]]; then
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
+		local encrypted_files=$(git ls-crypt)
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-		for file in $(git ls-crypt); do
+		for file in $encrypted_files; do
 			rm "$file"
 		done
-		git checkout --force HEAD -- $(git ls-crypt) > /dev/null
+		git checkout --force HEAD -- $encrypted_files > /dev/null
 	fi
 }
 
@@ -372,13 +433,13 @@ uninstall_transcrypt() {
 
 		# remove helper scripts
 		for script in {clean,smudge,textconv}; do
-			[[ -f "${REPO}/.git/crypt/${script}" ]] && rm "${REPO}/.git/crypt/${script}"
+			[[ -f "${GIT_DIR}/crypt/${script}" ]] && rm "${GIT_DIR}/crypt/${script}"
 		done
-		[[ -d "${REPO}/.git/crypt" ]] && rmdir "${REPO}/.git/crypt"
+		[[ -d "${GIT_DIR}/crypt" ]] && rmdir "${GIT_DIR}/crypt"
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files=$(git ls-crypt)
-		if [[ $encrypted_files ]]; then
+		if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
 			cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 			touch $encrypted_files
 		fi
@@ -392,13 +453,13 @@ uninstall_transcrypt() {
 			git config --remove-section alias
 		fi
 
-		# remove any defined crypt patterns in .gitattributes
+		# remove any defined crypt patterns in gitattributes
 		case $OSTYPE in
 			darwin*)
-				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "${REPO}/.gitattributes"
+				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
 				;;
 			linux*)
-				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "${REPO}/.gitattributes"
+				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
 				;;
 		esac
 
@@ -410,8 +471,10 @@ uninstall_transcrypt() {
 
 # list all of the currently encrypted files in the repository
 list_files() {
-	cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-	git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+	if [[ $IS_BARE == 'false' ]]; then
+		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
+		git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+	fi
 }
 
 # show the raw file as stored in the git commit object
@@ -446,20 +509,20 @@ export_gpg() {
 
 	local current_cipher=$(git config --get --local transcrypt.cipher)
 	local current_password=$(git config --get --local transcrypt.password)
-	[[ ! -d "${REPO}/.git/crypt" ]] && mkdir "${REPO}/.git/crypt"
+	[[ ! -d "${GIT_DIR}/crypt" ]] && mkdir "${GIT_DIR}/crypt"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
-	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd > "${REPO}/.git/crypt/${gpg_recipient}.asc"
-	printf "The transcrypt configuration has been encrypted and exported to:\n%s/.git/crypt/%s.asc\n" "$REPO" "$gpg_recipient"
+	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd > "${GIT_DIR}/crypt/${gpg_recipient}.asc"
+	printf "The transcrypt configuration has been encrypted and exported to:\n%s/crypt/%s.asc\n" "$GIT_DIR" "$gpg_recipient"
 }
 
 # import password and cipher from a gpg encrypted file
 import_gpg() {
 	local path
-	if [[ -f "${REPO}/.git/crypt/${gpg_import_file}" ]]; then
-		path="${REPO}/.git/crypt/${gpg_import_file}"
-	elif [[ -f "${REPO}/.git/crypt/${gpg_import_file}.asc" ]]; then
-		path="${REPO}/.git/crypt/${gpg_import_file}.asc"
+	if [[ -f "${GIT_DIR}/crypt/${gpg_import_file}" ]]; then
+		path="${GIT_DIR}/crypt/${gpg_import_file}"
+	elif [[ -f "${GIT_DIR}/crypt/${gpg_import_file}.asc" ]]; then
+		path="${GIT_DIR}/crypt/${gpg_import_file}.asc"
 	elif [[ ! -f $gpg_import_file ]]; then
 		die 1 'the file "%s" does not exist' "$gpg_import_file"
 	else
@@ -603,7 +666,7 @@ help() {
 }
 
 
-##### Main
+##### MAIN
 
 # reset all variables that might be set
 cipher=''
@@ -764,8 +827,9 @@ else
 fi
 
 # ensure the git attributes file exists
-if [[ ! -f "${REPO}/.gitattributes" ]]; then
-	printf '#pattern  filter=crypt diff=crypt\n' > "${REPO}/.gitattributes"
+if [[ ! -f $GIT_ATTRIBUTES ]]; then
+	mkdir -p "${GIT_ATTRIBUTES%/*}"
+	printf '#pattern  filter=crypt diff=crypt\n' > "$GIT_ATTRIBUTES"
 fi
 
 printf 'The repository has been successfully configured by transcrypt.\n'
