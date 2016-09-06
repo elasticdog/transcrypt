@@ -54,6 +54,10 @@ The requirements to run transcrypt are minimal:
 * Git
 * OpenSSL
 
+...and optionally:
+
+* GnuPG - for secure configuration import/export
+
 You also need access to the _transcrypt_ script itself. You can add it
 directly to your repository, or just put it somewhere in your $PATH:
 
