@@ -110,7 +110,7 @@ run_safety_checks() {
 	fi
 
 	# check for dependencies
-	for cmd in {grep,mktemp,openssl,sed,tee}; do
+	for cmd in {column,grep,mktemp,openssl,sed,tee}; do
 		command -v $cmd > /dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 
@@ -281,7 +281,7 @@ save_helper_scripts() {
 
 	cat <<-'EOF' > "${GIT_DIR}/crypt/smudge"
 		#!/usr/bin/env bash
-		tempfile=$(mktemp /tmp/transcrypt.XXXXXX)
+		tempfile=$(mktemp)
 		trap 'rm -f "$tempfile"' EXIT
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
