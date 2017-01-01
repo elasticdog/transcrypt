@@ -36,10 +36,10 @@ readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2> /dev/null)
 
 # https://github.com/RichiH/vcsh
 # whether or not the git repository is running under vcsh
-readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh)
+readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh 2> /dev/null)
 
 # whether or not the git repository is bare
-readonly IS_BARE=$(git rev-parse --is-bare-repository)
+readonly IS_BARE=$(git rev-parse --is-bare-repository 2> /dev/null)
 
 ## Git Directory Handling
 
