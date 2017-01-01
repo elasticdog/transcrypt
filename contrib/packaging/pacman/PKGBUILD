@@ -1,6 +1,6 @@
 # Maintainer: Aaron Bull Schaefer <aaron@elasticdog.com>
 pkgname=transcrypt
-pkgver=0.9.9
+pkgver=1.0.0
 pkgrel=1
 pkgdesc='A script to configure transparent encryption of files within a Git repository'
 arch=('any')
@@ -9,7 +9,7 @@ license=('MIT')
 depends=('git' 'openssl')
 optdepends=('gnupg: config import/export support')
 source=("https://github.com/elasticdog/${pkgname}/archive/v${pkgver}.tar.gz")
-sha256sums=('ff8ec9227b2d5a881b31c5ed9f7d8190e507f0f0ad80751a29a8d8aa8272ece2')
+sha256sums=('7acbab62a24483decbb998bdf629fe7713c8e319d416b42e08a5a85df01f4b1c')
 
 package() {
   cd "${pkgname}-${pkgver}/"
