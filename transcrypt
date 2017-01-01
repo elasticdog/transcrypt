@@ -7,7 +7,7 @@
 # a Git repository. It utilizes OpenSSL's symmetric cipher routines and follows
 # the gitattributes(5) man page regarding the use of filters.
 #
-# Copyright (c) 2014-2016 Aaron Bull Schaefer <aaron@elasticdog.com>
+# Copyright (c) 2014-2017 Aaron Bull Schaefer <aaron@elasticdog.com>
 # This source code is provided under the terms of the MIT License
 # that can be be found in the LICENSE file.
 #
@@ -15,7 +15,7 @@
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='0.9.9'
+readonly VERSION='1.0.0'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
