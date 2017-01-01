@@ -263,7 +263,7 @@ save_helper_scripts() {
 		# ignore empty files
 		if [[ -s $filename ]]; then
 		  # cache STDIN to test if it's already encrypted
-		  tempfile=$(mktemp /tmp/transcrypt.XXXXXX)
+		  tempfile=$(mktemp)
 		  trap 'rm -f "$tempfile"' EXIT
 		  tee "$tempfile" &> /dev/null
 		  # the first bytes of an encrypted file are always "Salted" in Base64
