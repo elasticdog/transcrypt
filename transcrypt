@@ -263,7 +263,7 @@ save_helper_scripts() {
 		# ignore empty files
 		if [[ -s $filename ]]; then
 		  # cache STDIN to test if it's already encrypted
-		  tempfile=$(mktemp)
+		  tempfile=$(mktemp "${GIT_DIR}/crypt/tmp.XXXXXXXXXX")
 		  trap 'rm -f "$tempfile"' EXIT
 		  tee "$tempfile" &> /dev/null
 		  # the first bytes of an encrypted file are always "Salted" in Base64
@@ -281,7 +281,7 @@ save_helper_scripts() {
 
 	cat <<-'EOF' > "${GIT_DIR}/crypt/smudge"
 		#!/usr/bin/env bash
-		tempfile=$(mktemp)
+		tempfile=$(mktemp "${GIT_DIR}/crypt/tmp.XXXXXXXXXX")
 		trap 'rm -f "$tempfile"' EXIT
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
