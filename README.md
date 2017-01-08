@@ -231,7 +231,7 @@ directory.
              to check if files are encrypted as expected
 
       -e, --export-gpg=RECIPIENT
-             export  the  repository's ciper and password to a file encrypted
+             export  the  repository's cipher and password to a file encrypted
              for a gpg recipient
 
       -i, --import-gpg=FILE
