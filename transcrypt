@@ -46,14 +46,24 @@ readonly IS_BARE=$(git rev-parse --is-bare-repository 2> /dev/null)
 # print a canonicalized absolute pathname
 realpath() {
 	local path=$1
-	local dirname=$(cd "${path%/*}" 2> /dev/null; pwd -P)
-	local basename=${path##*/}
-	local abspath=$(printf '%s/%s\n' "$dirname" "$basename")
+
+	# make path absolute
+	local abspath=$path
+	if [[ -n ${abspath##/*} ]]; then
+		abspath=$(pwd -P)/$abspath
+	fi
+
+	# canonicalize path
+	local dirname=
 	if [[ -d $abspath ]]; then
-		printf '%s\n' "$(cd "$abspath"; pwd -P)"
-	elif [[ -d $path ]]; then
-		printf '%s\n' "$dirname"
+		dirname=$(cd "$abspath" && pwd -P)
+		abspath=$dirname
 	elif [[ -e $abspath ]]; then
+		dirname=$(cd "${abspath%/*}/" 2> /dev/null && pwd -P)
+		abspath=$dirname/${abspath##*/}
+	fi
+
+	if [[ -d $dirname && -e $abspath ]]; then
 		printf '%s\n' "$abspath"
 	else
 		printf 'invalid path: %s\n' "$path" >&2
@@ -63,7 +73,7 @@ realpath() {
 
 # the current git repository's .git directory
 RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
-readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR")
+readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2> /dev/null)
 
 # the current git repository's gitattributes file
 readonly CORE_ATTRIBUTES=$(git config --get --local --path core.attributesFile)
