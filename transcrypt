@@ -18,7 +18,7 @@
 readonly VERSION='1.0.2'
 
 # the default cipher to utilize
-readonly DEFAULT_CIPHER='aes-256-cbc'
+readonly DEFAULT_CIPHER='id-aes256-GCM'
 
 # regular expression used to test user input
 readonly YES_REGEX='^[Yy]$'
