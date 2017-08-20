@@ -15,7 +15,7 @@
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='1.0.2'
+readonly VERSION='1.0.3'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
