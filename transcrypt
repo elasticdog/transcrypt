@@ -550,13 +550,13 @@ import_gpg() {
 	fi
 
 	local configuration
-	local saftey_counter  # fix for intermittent 'no secret key' decryption failures
+	local safety_counter  # fix for intermittent 'no secret key' decryption failures
 	while [[ ! $configuration ]]
 	do
 		configuration=$(gpg --batch --quiet --decrypt "$path")
 
-		saftey_counter=$((saftey_counter + 1))
-		if [[ $saftey_counter -eq 3 ]]; then
+		safety_counter=$((safety_counter + 1))
+		if [[ $safety_counter -eq 3 ]]; then
 			die 1 'unable to decrypt the file "%s"' "$path"
 		fi
 	done
