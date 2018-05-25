@@ -300,4 +300,4 @@ License
 transcrypt is provided under the terms of the
 [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
-Copyright &copy; 2014-2017, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
+Copyright &copy; 2014-2018, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
