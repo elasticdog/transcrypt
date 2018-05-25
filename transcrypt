@@ -136,14 +136,16 @@ run_safety_checks() {
 
 # unset the cipher variable if it is not supported by openssl
 validate_cipher() {
-	# Support for OpenSSL versions after and before 1.1.0
-	local list_cipher_commands="openssl list-cipher-commands"
-	if [[ $($list_cipher_commands 2> /dev/null) ]]; then
-		local supported=$(openssl list-cipher-commands | grep --line-regexp "$cipher")
+	local list_cipher_commands
+	if openssl list-cipher-commands &> /dev/null; then
+		# OpenSSL < v1.1.0
+		list_cipher_commands='openssl list-cipher-commands'
 	else
-		list_cipher_commands="openssl list -cipher-commands"
-		local supported=$(openssl list -cipher-commands | tr -s ' ' '\n' | grep --line-regexp "$cipher")
+		# OpenSSL >= v1.1.0
+		list_cipher_commands='openssl list -cipher-commands'
 	fi
+
+	local supported=$($list_cipher_commands | tr -s ' ' '\n' | grep --line-regexp "$cipher")
 	if [[ ! $supported ]]; then
 		if [[ $interactive ]]; then
 			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
