@@ -373,15 +373,15 @@ display_configuration() {
 
 # remove transcrypt-related settings from the repository's git config
 clean_gitconfig() {
-	git config --remove-section transcrypt
-	git config --remove-section filter.crypt
-	git config --remove-section diff.crypt
+	git config --remove-section transcrypt 2> /dev/null
+	git config --remove-section filter.crypt 2> /dev/null
+	git config --remove-section diff.crypt 2> /dev/null
 	git config --unset merge.renormalize
 
 	# remove the merge section if it's now empty
 	local merge_values=$(git config --get-regex --local 'merge\..*')
 	if [[ ! $merge_values ]]; then
-		git config --remove-section merge
+		git config --remove-section merge 2> /dev/null
 	fi
 }
 
@@ -471,7 +471,7 @@ uninstall_transcrypt() {
 		# remove the alias section if it's now empty
 		local alias_values=$(git config --get-regex --local 'alias\..*')
 		if [[ ! $alias_values ]]; then
-			git config --remove-section alias
+			git config --remove-section alias 2> /dev/null
 		fi
 
 		# remove any defined crypt patterns in gitattributes
