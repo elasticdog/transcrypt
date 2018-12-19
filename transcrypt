@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 #
 # transcrypt - https://github.com/elasticdog/transcrypt
@@ -151,7 +152,7 @@ validate_cipher() {
 			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
 			$list_cipher_commands | column -c 80
 			printf '\n'
-			unset cipher
+			cipher=''
 		else
 			die 1 '"%s" is not a valid cipher; see `%s`' "$cipher" "$list_cipher_commands"
 		fi
@@ -199,7 +200,7 @@ get_password() {
 		else
 			printf 'Password: '
 			read -r password
-			[[ ! $password ]] && printf 'no password was specified\n'
+			[[ $password ]] || printf 'no password was specified\n'
 		fi
 	done
 }
@@ -209,7 +210,7 @@ confirm_configuration() {
 	local answer
 
 	printf '\nRepository metadata:\n\n'
-	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
+	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
@@ -232,7 +233,7 @@ confirm_rekey() {
 	local answer
 
 	printf '\nRepository metadata:\n\n'
-	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
+	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
@@ -267,7 +268,7 @@ stage_rekeyed_files() {
 
 # save helper scripts under the repository's git directory
 save_helper_scripts() {
-	[[ ! -d "${GIT_DIR}/crypt" ]] && mkdir "${GIT_DIR}/crypt"
+	mkdir -p "${GIT_DIR}/crypt"
 
 	# The `decryption -> encryption` process on an unchanged file must be
 	# deterministic for everything to work transparently. To do that, the same
@@ -362,7 +363,7 @@ display_configuration() {
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
 	printf 'and has the following configuration:\n\n'
-	[[ $REPO ]] && printf '  GIT_WORK_TREE:  %s\n' "$REPO"
+	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$current_cipher"
@@ -373,15 +374,15 @@ display_configuration() {
 
 # remove transcrypt-related settings from the repository's git config
 clean_gitconfig() {
-	git config --remove-section transcrypt 2> /dev/null
-	git config --remove-section filter.crypt 2> /dev/null
-	git config --remove-section diff.crypt 2> /dev/null
+	git config --remove-section transcrypt 2> /dev/null || true
+	git config --remove-section filter.crypt 2> /dev/null || true
+	git config --remove-section diff.crypt 2> /dev/null || true
 	git config --unset merge.renormalize
 
 	# remove the merge section if it's now empty
 	local merge_values=$(git config --get-regex --local 'merge\..*')
 	if [[ ! $merge_values ]]; then
-		git config --remove-section merge 2> /dev/null
+		git config --remove-section merge 2> /dev/null || true
 	fi
 }
 
@@ -454,9 +455,9 @@ uninstall_transcrypt() {
 
 		# remove helper scripts
 		for script in {clean,smudge,textconv}; do
-			[[ -f "${GIT_DIR}/crypt/${script}" ]] && rm "${GIT_DIR}/crypt/${script}"
+			[[ ! -f "${GIT_DIR}/crypt/${script}" ]] || rm "${GIT_DIR}/crypt/${script}"
 		done
-		[[ -d "${GIT_DIR}/crypt" ]] && rmdir "${GIT_DIR}/crypt"
+		[[ ! -d "${GIT_DIR}/crypt" ]] || rmdir "${GIT_DIR}/crypt"
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files=$(git ls-crypt)
@@ -471,7 +472,7 @@ uninstall_transcrypt() {
 		# remove the alias section if it's now empty
 		local alias_values=$(git config --get-regex --local 'alias\..*')
 		if [[ ! $alias_values ]]; then
-			git config --remove-section alias 2> /dev/null
+			git config --remove-section alias 2> /dev/null || true
 		fi
 
 		# remove any defined crypt patterns in gitattributes
@@ -535,7 +536,7 @@ export_gpg() {
 
 	local current_cipher=$(git config --get --local transcrypt.cipher)
 	local current_password=$(git config --get --local transcrypt.password)
-	[[ ! -d "${GIT_DIR}/crypt" ]] && mkdir "${GIT_DIR}/crypt"
+	mkdir -p "${GIT_DIR}/crypt"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
 	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd > "${GIT_DIR}/crypt/${gpg_recipient}.asc"
@@ -558,8 +559,8 @@ import_gpg() {
 		path="$gpg_import_file"
 	fi
 
-	local configuration
-	local safety_counter  # fix for intermittent 'no secret key' decryption failures
+	local configuration=''
+	local safety_counter=0  # fix for intermittent 'no secret key' decryption failures
 	while [[ ! $configuration ]]
 	do
 		configuration=$(gpg --batch --quiet --decrypt "$path")
@@ -714,7 +715,7 @@ requires_existing_config=''
 requires_clean_repo='true'
 
 # parse command line options
-while [[ "$1" != '' ]]
+while [[ "${1:-}" != '' ]]
 do
 	case $1 in
 		-c | --cipher)
@@ -732,12 +733,12 @@ do
 			password=${1#*=}
 			;;
 		-y | --yes)
-			unset interactive
+			interactive=''
 			;;
 		-d | --display)
 			display_config='true'
 			requires_existing_config='true'
-			unset requires_clean_repo
+			requires_clean_repo=''
 			;;
 		-r | --rekey)
 			rekey='true'
@@ -748,12 +749,12 @@ do
 			requires_existing_config='true'
 			;;
 		-F | --force)
-			unset requires_clean_repo
+			requires_clean_repo=''
 			;;
 		-u | --uninstall)
 			uninstall='true'
 			requires_existing_config='true'
-			unset requires_clean_repo
+			requires_clean_repo=''
 			;;
 		-l | --list)
 			list_files
@@ -772,13 +773,13 @@ do
 		-e | --export-gpg)
 			gpg_recipient=$2
 			requires_existing_config='true'
-			unset requires_clean_repo
+			requires_clean_repo=''
 			shift
 			;;
 		--export-gpg=*)
 			gpg_recipient=${1#*=}
 			requires_existing_config='true'
-			unset requires_clean_repo
+			requires_clean_repo=''
 			;;
 		-i | --import-gpg)
 			gpg_import_file=$2
