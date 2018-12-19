@@ -477,7 +477,7 @@ uninstall_transcrypt() {
 		# remove any defined crypt patterns in gitattributes
 		case $OSTYPE in
 			darwin*)
-				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
+				/usr/bin/sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
 				;;
 			linux*)
 				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
