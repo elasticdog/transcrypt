@@ -293,7 +293,7 @@ save_helper_scripts() {
 		    cipher=$(git config --get --local transcrypt.cipher)
 		    password=$(git config --get --local transcrypt.password)
 		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tail -c 16)
-		    ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		    ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile" 2> /dev/null
 		  fi
 		fi
 	EOF
