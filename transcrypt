@@ -293,7 +293,7 @@ save_helper_scripts() {
 		    cipher=$(git config --get --local transcrypt.cipher)
 		    password=$(git config --get --local transcrypt.password)
 		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tail -c 16)
-		    ENC_PASS=$password openssl enc -$cipher -iter 128 -md sha-1 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		    ENC_PASS=$password openssl enc -$cipher -iter 128 -md sha1 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
 		  fi
 		fi
 	EOF
@@ -304,7 +304,7 @@ save_helper_scripts() {
 		trap 'rm -f "$tempfile"' EXIT
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
-		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -iter 128 -md sha-1 -pass env:ENC_PASS -d -a 2> /dev/null ||
+		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -iter 128 -md sha1 -pass env:ENC_PASS -d -a 2> /dev/null ||
 		cat "$tempfile"
 	EOF
 
@@ -315,7 +315,7 @@ save_helper_scripts() {
 		if [[ -s $filename ]]; then
 		  cipher=$(git config --get --local transcrypt.cipher)
 		  password=$(git config --get --local transcrypt.password)
-		  ENC_PASS=$password openssl enc -$cipher -iter 128-md sha-1 -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null ||
+		  ENC_PASS=$password openssl enc -$cipher -iter 128-md sha1 -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null ||
 		  cat "$filename"
 		fi
 	EOF
