@@ -305,7 +305,7 @@ save_helper_scripts() {
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
 		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -iter 128 -md sha1 -pass env:ENC_PASS -d -a 2> /dev/null ||
-		cat "$tempfile"
+		 cat "$tempfile"
 	EOF
 
 	cat <<-'EOF' > "${GIT_DIR}/crypt/textconv"
@@ -316,7 +316,7 @@ save_helper_scripts() {
 		  cipher=$(git config --get --local transcrypt.cipher)
 		  password=$(git config --get --local transcrypt.password)
 		  ENC_PASS=$password openssl enc -$cipher -iter 128-md sha1 -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null ||
-		  cat "$filename"
+		   cat "$filename"
 		fi
 	EOF
 
