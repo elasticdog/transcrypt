@@ -193,7 +193,7 @@ get_password() {
 		# generate a random password if the user answered yes;
 		# otherwise prompt the user for a password
 		if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
-			local password_length=30
+			local password_length=32
 			local random_base64=$(openssl rand -base64 $password_length)
 			password=$random_base64
 		else
