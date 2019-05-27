@@ -27,20 +27,20 @@ readonly YES_REGEX='^[Yy]$'
 ## Repository Metadata
 
 # whether or not transcrypt is already configured
-readonly CONFIGURED=$(git config --get --local transcrypt.version 2> /dev/null)
+readonly CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
 
 # the current git repository's top-level directory
-readonly REPO=$(git rev-parse --show-toplevel 2> /dev/null)
+readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
 
 # whether or not a HEAD revision exists
-readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2> /dev/null)
+readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2>/dev/null)
 
 # https://github.com/RichiH/vcsh
 # whether or not the git repository is running under vcsh
-readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh 2> /dev/null)
+readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh 2>/dev/null)
 
 # whether or not the git repository is bare
-readonly IS_BARE=$(git rev-parse --is-bare-repository 2> /dev/null)
+readonly IS_BARE=$(git rev-parse --is-bare-repository 2>/dev/null)
 
 ## Git Directory Handling
 
@@ -60,7 +60,7 @@ realpath() {
 		dirname=$(cd "$abspath" && pwd -P)
 		abspath=$dirname
 	elif [[ -e $abspath ]]; then
-		dirname=$(cd "${abspath%/*}/" 2> /dev/null && pwd -P)
+		dirname=$(cd "${abspath%/*}/" 2>/dev/null && pwd -P)
 		abspath=$dirname/${abspath##*/}
 	fi
 
@@ -73,8 +73,8 @@ realpath() {
 }
 
 # the current git repository's .git directory
-RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2> /dev/null)
-readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2> /dev/null)
+RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
 
 # the current git repository's gitattributes file
 readonly CORE_ATTRIBUTES=$(git config --get --local --path core.attributesFile)
@@ -85,7 +85,6 @@ elif [[ $IS_BARE == 'true' ]] || [[ $IS_VCSH == 'true' ]]; then
 else
 	readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
 fi
-
 
 ##### FUNCTIONS
 
@@ -122,7 +121,7 @@ run_safety_checks() {
 
 	# check for dependencies
 	for cmd in {column,grep,mktemp,openssl,sed,tee}; do
-		command -v $cmd > /dev/null || die 'required command "%s" was not found' "$cmd"
+		command -v $cmd >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
@@ -138,7 +137,7 @@ run_safety_checks() {
 # unset the cipher variable if it is not supported by openssl
 validate_cipher() {
 	local list_cipher_commands
-	if openssl list-cipher-commands &> /dev/null; then
+	if openssl list-cipher-commands &>/dev/null; then
 		# OpenSSL < v1.1.0
 		list_cipher_commands='openssl list-cipher-commands'
 	else
@@ -161,8 +160,7 @@ validate_cipher() {
 
 # ensure we have a cipher to encrypt with
 get_cipher() {
-	while [[ ! $cipher ]]
-	do
+	while [[ ! $cipher ]]; do
 		local answer=
 		if [[ $interactive ]]; then
 			printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER"
@@ -182,8 +180,7 @@ get_cipher() {
 
 # ensure we have a password to encrypt with
 get_password() {
-	while [[ ! $password ]]
-	do
+	while [[ ! $password ]]; do
 		local answer=
 		if [[ $interactive ]]; then
 			printf 'Generate a random password? [Y/n] '
@@ -277,45 +274,45 @@ save_helper_scripts() {
 	# (keyed with a combination of the filename and transcrypt password), and
 	# then use the last 16 bytes of that HMAC for the file's unique salt.
 
-	cat <<-'EOF' > "${GIT_DIR}/crypt/clean"
+	cat <<-'EOF' >"${GIT_DIR}/crypt/clean"
 		#!/usr/bin/env bash
 		filename=$1
 		# ignore empty files
 		if [[ -s $filename ]]; then
-		  # cache STDIN to test if it's already encrypted
-		  tempfile=$(mktemp 2> /dev/null || mktemp -t tmp)
-		  trap 'rm -f "$tempfile"' EXIT
-		  tee "$tempfile" &> /dev/null
-		  # the first bytes of an encrypted file are always "Salted" in Base64
-		  read -n 8 firstbytes < "$tempfile"
-		  if [[ $firstbytes == "U2FsdGVk" ]]; then
-		    cat "$tempfile"
-		  else
-		    cipher=$(git config --get --local transcrypt.cipher)
-		    password=$(git config --get --local transcrypt.password)
-		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
-		    ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
-		  fi
+			# cache STDIN to test if it's already encrypted
+			tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
+			trap 'rm -f "$tempfile"' EXIT
+			tee "$tempfile" &>/dev/null
+			# the first bytes of an encrypted file are always "Salted" in Base64
+			read -n 8 firstbytes <"$tempfile"
+			if [[ $firstbytes == "U2FsdGVk" ]]; then
+				cat "$tempfile"
+			else
+				cipher=$(git config --get --local transcrypt.cipher)
+				password=$(git config --get --local transcrypt.password)
+				salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
+				ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+			fi
 		fi
 	EOF
 
-	cat <<-'EOF' > "${GIT_DIR}/crypt/smudge"
+	cat <<-'EOF' >"${GIT_DIR}/crypt/smudge"
 		#!/usr/bin/env bash
-		tempfile=$(mktemp 2> /dev/null || mktemp -t tmp)
+		tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 		trap 'rm -f "$tempfile"' EXIT
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
-		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a 2> /dev/null || cat "$tempfile"
+		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
 	EOF
 
-	cat <<-'EOF' > "${GIT_DIR}/crypt/textconv"
+	cat <<-'EOF' >"${GIT_DIR}/crypt/textconv"
 		#!/usr/bin/env bash
 		filename=$1
 		# ignore empty files
 		if [[ -s $filename ]]; then
-		  cipher=$(git config --get --local transcrypt.cipher)
-		  password=$(git config --get --local transcrypt.password)
-		  ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2> /dev/null || cat "$filename"
+			cipher=$(git config --get --local transcrypt.cipher)
+			password=$(git config --get --local transcrypt.password)
+			ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
 		fi
 	EOF
 
@@ -374,15 +371,15 @@ display_configuration() {
 
 # remove transcrypt-related settings from the repository's git config
 clean_gitconfig() {
-	git config --remove-section transcrypt 2> /dev/null || true
-	git config --remove-section filter.crypt 2> /dev/null || true
-	git config --remove-section diff.crypt 2> /dev/null || true
+	git config --remove-section transcrypt 2>/dev/null || true
+	git config --remove-section filter.crypt 2>/dev/null || true
+	git config --remove-section diff.crypt 2>/dev/null || true
 	git config --unset merge.renormalize
 
 	# remove the merge section if it's now empty
 	local merge_values=$(git config --get-regex --local 'merge\..*')
 	if [[ ! $merge_values ]]; then
-		git config --remove-section merge 2> /dev/null || true
+		git config --remove-section merge 2>/dev/null || true
 	fi
 }
 
@@ -399,7 +396,7 @@ force_checkout() {
 		IFS=$'\n'
 		for file in $encrypted_files; do
 			rm "$file"
-			git checkout --force HEAD -- "$file" > /dev/null
+			git checkout --force HEAD -- "$file" >/dev/null
 		done
 		unset IFS
 	fi
@@ -472,17 +469,17 @@ uninstall_transcrypt() {
 		# remove the alias section if it's now empty
 		local alias_values=$(git config --get-regex --local 'alias\..*')
 		if [[ ! $alias_values ]]; then
-			git config --remove-section alias 2> /dev/null || true
+			git config --remove-section alias 2>/dev/null || true
 		fi
 
 		# remove any defined crypt patterns in gitattributes
 		case $OSTYPE in
-			darwin*)
-				/usr/bin/sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
-				;;
-			linux*)
-				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
-				;;
+		darwin*)
+			/usr/bin/sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
+			;;
+		linux*)
+			sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
+			;;
 		esac
 
 		printf 'The transcrypt configuration has been completely removed from the repository.\n'
@@ -527,10 +524,10 @@ show_raw_file() {
 # export password and cipher to a gpg encrypted file
 export_gpg() {
 	# check for dependencies
-	command -v gpg > /dev/null || die 'required command "gpg" was not found'
+	command -v gpg >/dev/null || die 'required command "gpg" was not found'
 
 	# ensure the recipient key exists
-	if ! gpg --list-keys "$gpg_recipient" 2> /dev/null; then
+	if ! gpg --list-keys "$gpg_recipient" 2>/dev/null; then
 		die 1 'GPG recipient key "%s" does not exist' "$gpg_recipient"
 	fi
 
@@ -539,14 +536,14 @@ export_gpg() {
 	mkdir -p "${GIT_DIR}/crypt"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
-	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd > "${GIT_DIR}/crypt/${gpg_recipient}.asc"
+	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd >"${GIT_DIR}/crypt/${gpg_recipient}.asc"
 	printf "The transcrypt configuration has been encrypted and exported to:\n%s/crypt/%s.asc\n" "$GIT_DIR" "$gpg_recipient"
 }
 
 # import password and cipher from a gpg encrypted file
 import_gpg() {
 	# check for dependencies
-	command -v gpg > /dev/null || die 'required command "gpg" was not found'
+	command -v gpg >/dev/null || die 'required command "gpg" was not found'
 
 	local path
 	if [[ -f "${GIT_DIR}/crypt/${gpg_import_file}" ]]; then
@@ -560,9 +557,8 @@ import_gpg() {
 	fi
 
 	local configuration=''
-	local safety_counter=0  # fix for intermittent 'no secret key' decryption failures
-	while [[ ! $configuration ]]
-	do
+	local safety_counter=0 # fix for intermittent 'no secret key' decryption failures
+	while [[ ! $configuration ]]; do
 		configuration=$(gpg --batch --quiet --decrypt "$path")
 
 		safety_counter=$((safety_counter + 1))
@@ -578,123 +574,120 @@ import_gpg() {
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
-	usage: transcrypt [-c CIPHER] [-p PASSWORD] [-h]
+		usage: transcrypt [-c CIPHER] [-p PASSWORD] [-h]
 	EOF
 }
 
 # print this script's help message to stdout
 help() {
 	cat <<-EOF
+		NAME
+		     transcrypt -- transparently encrypt files within a git repository
 
-	NAME
-	     transcrypt -- transparently encrypt files within a git repository
+		SYNOPSIS
+		     transcrypt [options...]
 
-	SYNOPSIS
-	     transcrypt [options...]
+		DESCRIPTION
 
-	DESCRIPTION
+		     transcrypt  will  configure a Git repository to support the transparent
+		     encryption/decryption of files by utilizing OpenSSL's symmetric  cipher
+		     routines  and  Git's  built-in clean/smudge filters. It will also add a
+		     Git alias "ls-crypt" to list all transparently encrypted  files  within
+		     the repository.
 
-	     transcrypt  will  configure a Git repository to support the transparent
-	     encryption/decryption of files by utilizing OpenSSL's symmetric  cipher
-	     routines  and  Git's  built-in clean/smudge filters. It will also add a
-	     Git alias "ls-crypt" to list all transparently encrypted  files  within
-	     the repository.
+		     The  transcrypt  source  code  and full documentation may be downloaded
+		     from https://github.com/elasticdog/transcrypt.
 
-	     The  transcrypt  source  code  and full documentation may be downloaded
-	     from https://github.com/elasticdog/transcrypt.
+		OPTIONS
+		     -c, --cipher=CIPHER
+		            the symmetric cipher to utilize for encryption;
+		            defaults to aes-256-cbc
 
-	OPTIONS
-	     -c, --cipher=CIPHER
-	            the symmetric cipher to utilize for encryption;
-	            defaults to aes-256-cbc
+		     -p, --password=PASSWORD
+		            the password to derive the key from;
+		            defaults to 30 random base64 characters
 
-	     -p, --password=PASSWORD
-	            the password to derive the key from;
-	            defaults to 30 random base64 characters
+		     -y, --yes
+		            assume yes and accept defaults for non-specified options
 
-	     -y, --yes
-	            assume yes and accept defaults for non-specified options
+		     -d, --display
+		            display the current repository's cipher and password
 
-	     -d, --display
-	            display the current repository's cipher and password
+		     -r, --rekey
+		            re-encrypt all encrypted files using new credentials
 
-	     -r, --rekey
-	            re-encrypt all encrypted files using new credentials
+		     -f, --flush-credentials
+		            remove the locally cached encryption credentials and  re-encrypt
+		            any files that had been previously decrypted
 
-	     -f, --flush-credentials
-	            remove the locally cached encryption credentials and  re-encrypt
-	            any files that had been previously decrypted
+		     -F, --force
+		            ignore whether the git directory is clean, proceed with the
+		            possibility that uncommitted changes are overwritten
 
-	     -F, --force
-	            ignore whether the git directory is clean, proceed with the
-	            possibility that uncommitted changes are overwritten
+		     -u, --uninstall
+		            remove  all  transcrypt  configuration  from  the repository and
+		            leave files in the current working copy decrypted
 
-	     -u, --uninstall
-	            remove  all  transcrypt  configuration  from  the repository and
-	            leave files in the current working copy decrypted
+		     -l, --list
+		            list all of the transparently encrypted files in the repository,
+		            relative to the top-level directory
 
-	     -l, --list
-	            list all of the transparently encrypted files in the repository,
-	            relative to the top-level directory
+		     -s, --show-raw=FILE
+		            show  the  raw file as stored in the git commit object; use this
+		            to check if files are encrypted as expected
 
-	     -s, --show-raw=FILE
-	            show  the  raw file as stored in the git commit object; use this
-	            to check if files are encrypted as expected
+		     -e, --export-gpg=RECIPIENT
+		            export  the  repository's cipher and password to a file encrypted
+		            for a gpg recipient
 
-	     -e, --export-gpg=RECIPIENT
-	            export  the  repository's cipher and password to a file encrypted
-	            for a gpg recipient
+		     -i, --import-gpg=FILE
+		            import the password and cipher from a gpg encrypted file
 
-	     -i, --import-gpg=FILE
-	            import the password and cipher from a gpg encrypted file
+		     -v, --version
+		            print the version information
 
-	     -v, --version
-	            print the version information
+		     -h, --help
+		            view this help message
 
-	     -h, --help
-	            view this help message
+		EXAMPLES
 
-	EXAMPLES
+		     To initialize a Git repository to support transparent encryption,  just
+		     change  into  the  repo  and run the transcrypt script. transcrypt will
+		     prompt you interactively for all required  information  if  the  corre-
+		     sponding option flags were not given.
 
-	     To initialize a Git repository to support transparent encryption,  just
-	     change  into  the  repo  and run the transcrypt script. transcrypt will
-	     prompt you interactively for all required  information  if  the  corre-
-	     sponding option flags were not given.
+		         $ cd <path-to-your-repo>/
+		         $ transcrypt
 
-	         $ cd <path-to-your-repo>/
-	         $ transcrypt
+		     Once  a  repository has been configured with transcrypt, you can trans-
+		     parently encrypt files by applying the "crypt" filter  and  diff  to  a
+		     pattern in the top-level .gitattributes config. If that pattern matches
+		     a file in your repository, the file  will  be  transparently  encrypted
+		     once you stage and commit it:
 
-	     Once  a  repository has been configured with transcrypt, you can trans-
-	     parently encrypt files by applying the "crypt" filter  and  diff  to  a
-	     pattern in the top-level .gitattributes config. If that pattern matches
-	     a file in your repository, the file  will  be  transparently  encrypted
-	     once you stage and commit it:
+		         $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
+		         $ git add .gitattributes sensitive_file
+		         $ git commit -m 'Add encrypted version of a sensitive file'
 
-	         $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
-	         $ git add .gitattributes sensitive_file
-	         $ git commit -m 'Add encrypted version of a sensitive file'
+		     See the gitattributes(5) man page for more information.
 
-	     See the gitattributes(5) man page for more information.
+		     If  you  have  just  cloned  a  repository  containing  files  that are
+		     encrypted, you'll want to configure transcrypt with the same cipher and
+		     password  as  the  origin  repository.  Once  transcrypt has stored the
+		     matching  credentials,  it  will  force  a  checkout  of  any  existing
+		     encrypted files in order to decrypt them.
 
-	     If  you  have  just  cloned  a  repository  containing  files  that are
-	     encrypted, you'll want to configure transcrypt with the same cipher and
-	     password  as  the  origin  repository.  Once  transcrypt has stored the
-	     matching  credentials,  it  will  force  a  checkout  of  any  existing
-	     encrypted files in order to decrypt them.
+		     If  the  origin  repository  has  just rekeyed, all clones should flush
+		     their transcrypt credentials, fetch and merge the new  encrypted  files
+		     via Git, and then re-configure transcrypt with the new credentials.
 
-	     If  the  origin  repository  has  just rekeyed, all clones should flush
-	     their transcrypt credentials, fetch and merge the new  encrypted  files
-	     via Git, and then re-configure transcrypt with the new credentials.
+		AUTHOR
+		     Aaron Bull Schaefer <aaron@elasticdog.com>
 
-	AUTHOR
-	     Aaron Bull Schaefer <aaron@elasticdog.com>
-
-	SEE ALSO
-	     enc(1), gitattributes(5)
-
+		SEE ALSO
+		     enc(1), gitattributes(5)
 	EOF
 }
-
 
 ##### MAIN
 
@@ -715,97 +708,96 @@ requires_existing_config=''
 requires_clean_repo='true'
 
 # parse command line options
-while [[ "${1:-}" != '' ]]
-do
+while [[ "${1:-}" != '' ]]; do
 	case $1 in
-		-c | --cipher)
-			cipher=$2
-			shift
-			;;
-		--cipher=*)
-			cipher=${1#*=}
-			;;
-		-p | --password)
-			password=$2
-			shift
-			;;
-		--password=*)
-			password=${1#*=}
-			;;
-		-y | --yes)
-			interactive=''
-			;;
-		-d | --display)
-			display_config='true'
-			requires_existing_config='true'
-			requires_clean_repo=''
-			;;
-		-r | --rekey)
-			rekey='true'
-			requires_existing_config='true'
-			;;
-		-f | --flush-credentials)
-			flush_creds='true'
-			requires_existing_config='true'
-			;;
-		-F | --force)
-			requires_clean_repo=''
-			;;
-		-u | --uninstall)
-			uninstall='true'
-			requires_existing_config='true'
-			requires_clean_repo=''
-			;;
-		-l | --list)
-			list_files
-			exit 0
-			;;
-		-s | --show-raw)
-			show_file=$2
-			show_raw_file
-			exit 0
-			;;
-		--show-raw=*)
-			show_file=${1#*=}
-			show_raw_file
-			exit 0
-			;;
-		-e | --export-gpg)
-			gpg_recipient=$2
-			requires_existing_config='true'
-			requires_clean_repo=''
-			shift
-			;;
-		--export-gpg=*)
-			gpg_recipient=${1#*=}
-			requires_existing_config='true'
-			requires_clean_repo=''
-			;;
-		-i | --import-gpg)
-			gpg_import_file=$2
-			shift
-			;;
-		--import-gpg=*)
-			gpg_import_file=${1#*=}
-			;;
-		-v | --version)
-			printf 'transcrypt %s\n' "$VERSION"
-			exit 0
-			;;
-		-h | --help | -\?)
-			help
-			exit 0
-			;;
-		--*)
-			warn 'unknown option -- %s' "${1#--}"
-			usage
-			exit 1
-			;;
-		*)
-			warn 'unknown option -- %s' "${1#-}"
-			usage
-			exit 1
-			;;
+	-c | --cipher)
+		cipher=$2
+		shift
+		;;
+	--cipher=*)
+		cipher=${1#*=}
+		;;
+	-p | --password)
+		password=$2
+		shift
+		;;
+	--password=*)
+		password=${1#*=}
+		;;
+	-y | --yes)
+		interactive=''
+		;;
+	-d | --display)
+		display_config='true'
+		requires_existing_config='true'
+		requires_clean_repo=''
+		;;
+	-r | --rekey)
+		rekey='true'
+		requires_existing_config='true'
+		;;
+	-f | --flush-credentials)
+		flush_creds='true'
+		requires_existing_config='true'
+		;;
+	-F | --force)
+		requires_clean_repo=''
+		;;
+	-u | --uninstall)
+		uninstall='true'
+		requires_existing_config='true'
+		requires_clean_repo=''
+		;;
+	-l | --list)
+		list_files
+		exit 0
+		;;
+	-s | --show-raw)
+		show_file=$2
+		show_raw_file
+		exit 0
+		;;
+	--show-raw=*)
+		show_file=${1#*=}
+		show_raw_file
+		exit 0
+		;;
+	-e | --export-gpg)
+		gpg_recipient=$2
+		requires_existing_config='true'
+		requires_clean_repo=''
+		shift
+		;;
+	--export-gpg=*)
+		gpg_recipient=${1#*=}
+		requires_existing_config='true'
+		requires_clean_repo=''
+		;;
+	-i | --import-gpg)
+		gpg_import_file=$2
+		shift
+		;;
+	--import-gpg=*)
+		gpg_import_file=${1#*=}
+		;;
+	-v | --version)
+		printf 'transcrypt %s\n' "$VERSION"
+		exit 0
+		;;
+	-h | --help | -\?)
+		help
+		exit 0
+		;;
+	--*)
+		warn 'unknown option -- %s' "${1#--}"
+		usage
+		exit 1
+		;;
+	*)
+		warn 'unknown option -- %s' "${1#-}"
+		usage
+		exit 1
+		;;
 	esac
 	shift
 done
@@ -859,7 +851,7 @@ fi
 # ensure the git attributes file exists
 if [[ ! -f $GIT_ATTRIBUTES ]]; then
 	mkdir -p "${GIT_ATTRIBUTES%/*}"
-	printf '#pattern  filter=crypt diff=crypt\n' > "$GIT_ATTRIBUTES"
+	printf '#pattern  filter=crypt diff=crypt\n' >"$GIT_ATTRIBUTES"
 fi
 
 printf 'The repository has been successfully configured by transcrypt.\n'
