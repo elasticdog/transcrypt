@@ -163,7 +163,7 @@ validate_cipher() {
 get_cipher() {
 	while [[ ! $cipher ]]
 	do
-		local answer
+		local answer=
 		if [[ $interactive ]]; then
 			printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER"
 			read -r answer
@@ -184,7 +184,7 @@ get_cipher() {
 get_password() {
 	while [[ ! $password ]]
 	do
-		local answer
+		local answer=
 		if [[ $interactive ]]; then
 			printf 'Generate a random password? [Y/n] '
 			read -r -n 1 -s answer
@@ -207,7 +207,7 @@ get_password() {
 
 # confirm the transcrypt configuration
 confirm_configuration() {
-	local answer
+	local answer=
 
 	printf '\nRepository metadata:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
@@ -230,7 +230,7 @@ confirm_configuration() {
 
 # confirm the rekey configuration
 confirm_rekey() {
-	local answer
+	local answer=
 
 	printf '\nRepository metadata:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
@@ -408,7 +408,7 @@ force_checkout() {
 # remove the locally cached encryption credentials and
 # re-encrypt any files that had been previously decrypted
 flush_credentials() {
-	local answer
+	local answer=
 
 	if [[ $interactive ]]; then
 		printf 'You are about to flush the local credentials; make sure you have saved them elsewhere.\n'
@@ -436,7 +436,7 @@ flush_credentials() {
 
 # remove all transcrypt configuration from the repository
 uninstall_transcrypt() {
-	local answer
+	local answer=
 
 	if [[ $interactive ]]; then
 		printf 'You are about to remove all transcrypt configuration from your repository.\n'
