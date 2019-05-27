@@ -293,4 +293,4 @@ complexity here would be worth it given transcrypt's use case.
 transcrypt is provided under the terms of the
 [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
-Copyright &copy; 2014-2018, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
+Copyright &copy; 2014-2019, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
