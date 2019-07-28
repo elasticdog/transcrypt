@@ -16,7 +16,7 @@ set -euo pipefail
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='1.1.0'
+readonly VERSION='2.0.0'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -92,6 +92,7 @@ fi
 warn() {
 	local fmt="$1"
 	shift
+	# shellcheck disable=SC2059
 	printf "transcrypt: $fmt\n" "$@" >&2
 }
 
@@ -145,7 +146,8 @@ validate_cipher() {
 		list_cipher_commands='openssl list -cipher-commands'
 	fi
 
-	local supported=$($list_cipher_commands | tr -s ' ' '\n' | grep --line-regexp "$cipher")
+	local supported
+	supported=$($list_cipher_commands | tr -s ' ' '\n' | grep --line-regexp "$cipher") || true
 	if [[ ! $supported ]]; then
 		if [[ $interactive ]]; then
 			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
@@ -153,6 +155,7 @@ validate_cipher() {
 			printf '\n'
 			cipher=''
 		else
+			# shellcheck disable=SC2016
 			die 1 '"%s" is not a valid cipher; see `%s`' "$cipher" "$list_cipher_commands"
 		fi
 	fi
@@ -192,7 +195,8 @@ get_password() {
 		# otherwise prompt the user for a password
 		if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
 			local password_length=30
-			local random_base64=$(openssl rand -base64 $password_length)
+			local random_base64
+			random_base64=$(openssl rand -base64 $password_length)
 			password=$random_base64
 		else
 			printf 'Password: '
@@ -251,11 +255,14 @@ confirm_rekey() {
 
 # automatically stage rekeyed files in preparation for the user to commit them
 stage_rekeyed_files() {
-	local encrypted_files=$(git ls-crypt)
+	local encrypted_files
+	encrypted_files=$(git ls-crypt)
 	if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
 		# touch all encrypted files to prevent stale stat info
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
+		# shellcheck disable=SC2086
 		touch $encrypted_files
+		# shellcheck disable=SC2086
 		git update-index --add -- $encrypted_files
 
 		printf '***  rekeyed files have been staged  ***\n'
@@ -335,12 +342,18 @@ save_configuration() {
 	if [[ -d $(git rev-parse --git-common-dir) ]]; then
 		# this allows us to support multiple working trees via git-worktree
 		# ...but the --git-common-dir flag was only added in November 2014
+		# shellcheck disable=SC2016
 		git config filter.crypt.clean '"$(git rev-parse --git-common-dir)"/crypt/clean %f'
+		# shellcheck disable=SC2016
 		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge'
+		# shellcheck disable=SC2016
 		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv'
 	else
+		# shellcheck disable=SC2016
 		git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/clean %f'
+		# shellcheck disable=SC2016
 		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge'
+		# shellcheck disable=SC2016
 		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
 	fi
 	git config filter.crypt.required 'true'
@@ -354,8 +367,10 @@ save_configuration() {
 
 # display the current configuration settings
 display_configuration() {
-	local current_cipher=$(git config --get --local transcrypt.cipher)
-	local current_password=$(git config --get --local transcrypt.password)
+	local current_cipher
+	current_cipher=$(git config --get --local transcrypt.cipher)
+	local current_password
+	current_password=$(git config --get --local transcrypt.password)
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
@@ -377,7 +392,8 @@ clean_gitconfig() {
 	git config --unset merge.renormalize
 
 	# remove the merge section if it's now empty
-	local merge_values=$(git config --get-regex --local 'merge\..*')
+	local merge_values
+	merge_values=$(git config --get-regex --local 'merge\..*') || true
 	if [[ ! $merge_values ]]; then
 		git config --remove-section merge 2>/dev/null || true
 	fi
@@ -391,7 +407,8 @@ force_checkout() {
 	if [[ $HEAD_EXISTS ]] && [[ $IS_BARE == 'false' ]]; then
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
-		local encrypted_files=$(git ls-crypt)
+		local encrypted_files
+		encrypted_files=$(git ls-crypt)
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 		IFS=$'\n'
 		for file in $encrypted_files; do
@@ -457,9 +474,11 @@ uninstall_transcrypt() {
 		[[ ! -d "${GIT_DIR}/crypt" ]] || rmdir "${GIT_DIR}/crypt"
 
 		# touch all encrypted files to prevent stale stat info
-		local encrypted_files=$(git ls-crypt)
+		local encrypted_files
+		encrypted_files=$(git ls-crypt)
 		if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
 			cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
+			# shellcheck disable=SC2086
 			touch $encrypted_files
 		fi
 
@@ -467,7 +486,8 @@ uninstall_transcrypt() {
 		git config --unset alias.ls-crypt
 
 		# remove the alias section if it's now empty
-		local alias_values=$(git config --get-regex --local 'alias\..*')
+		local alias_values
+		alias_values=$(git config --get-regex --local 'alias\..*') || true
 		if [[ ! $alias_values ]]; then
 			git config --remove-section alias 2>/dev/null || true
 		fi
@@ -531,8 +551,10 @@ export_gpg() {
 		die 1 'GPG recipient key "%s" does not exist' "$gpg_recipient"
 	fi
 
-	local current_cipher=$(git config --get --local transcrypt.cipher)
-	local current_password=$(git config --get --local transcrypt.password)
+	local current_cipher
+	current_cipher=$(git config --get --local transcrypt.cipher)
+	local current_password
+	current_password=$(git config --get --local transcrypt.password)
 	mkdir -p "${GIT_DIR}/crypt"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
