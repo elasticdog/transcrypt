@@ -574,7 +574,7 @@ uninstall_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-		git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+		git ls-crypt-all
 	fi
 }
 
