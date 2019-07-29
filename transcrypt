@@ -225,6 +225,9 @@ confirm_configuration() {
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
+	if [[ $CONTEXT != 'default' ]]; then
+		printf '  CONTEXT:  %s\n' "$CONTEXT"
+	fi
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'Does this look correct? [Y/n] '
@@ -248,6 +251,9 @@ confirm_rekey() {
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
+	if [[ $CONTEXT != 'default' ]]; then
+		printf '  CONTEXT:  %s\n' "$CONTEXT"
+	fi
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'You are about to re-encrypt all encrypted files using new credentials.\n'
@@ -398,10 +404,9 @@ display_configuration() {
 	current_password=$(git config --get --local $CONTEXT_TRANSCRYPT_PASSWORD)
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
-	current_context_desc=''
-	if [[ $CONTEXT != 'default' ]]; then
-		current_context_desc=" for context '$CONTEXT'"
-	fi
+	contexts=$(get_contexts)
+	contexts_array=($contexts)  # Convert list to bash array so we can count elements
+	current_context_desc=" for context '$CONTEXT'"
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
 	printf "and has the following configuration${current_context_desc}:\n\n"
@@ -413,7 +418,11 @@ display_configuration() {
 	fi
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
-	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
+	if [[ "${#contexts_array[@]}" -gt "1" ]]; then
+		printf 'The repository has %s contexts: %s\n\n' "${#contexts_array[@]}" "$contexts"
+	fi
+	printf 'Copy and paste the following command to initialize a cloned\n'
+	printf "repository${current_context_desc}:\n\n"
 	if [[ $CONTEXT != 'default' ]]; then
 		printf "  transcrypt -C $CONTEXT -c %s -p '%s'\n" "$current_cipher" "$escaped_password"
 	else
@@ -621,7 +630,12 @@ export_gpg() {
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
 	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd >"${GIT_DIR}/crypt/${gpg_recipient}.asc"
-	printf "The transcrypt configuration has been encrypted and exported to:\n%s/crypt/%s.asc\n" "$GIT_DIR" "$gpg_recipient"
+
+	current_context_desc=''
+	if [[ $CONTEXT != 'default' ]]; then
+		current_context_desc=" for context '$CONTEXT'"
+	fi
+	printf "The transcrypt configuration${current_context_desc} has been encrypted and exported to:\n%s/crypt/%s.asc\n" "$GIT_DIR" "$gpg_recipient"
 }
 
 # import password and cipher from a gpg encrypted file
@@ -655,6 +669,7 @@ import_gpg() {
 	password=$(printf '%s' "$configuration" | grep '^password' | cut -d'=' -f 2-)
 }
 
+# Echo array of context names as defined in the git config
 get_contexts_from_git_config() {
 	contexts=()
 	config_name=$(git config --local --name-only --list)
@@ -670,6 +685,7 @@ get_contexts_from_git_config() {
 	echo ${contexts[@]+"${contexts[@]}"}
 }
 
+# Echo array of context names as defined in the .gitattributes file
 get_contexts_from_git_attributes() {
 	if [[ ! -f $GIT_ATTRIBUTES ]]; then
 		return 0
@@ -689,11 +705,15 @@ get_contexts_from_git_attributes() {
 	echo ${contexts[@]+"${contexts[@]}"}
 }
 
+# Echo all context names, sorted and distinct, as defined in the git config or .gitattributes file
 get_contexts() {
 	combined_contexts="$(get_contexts_from_git_config) $(get_contexts_from_git_attributes)"
-	echo $(printf '%s\n' $combined_contexts | sort -u | tr '\n' ' ')
+	sorted_contexts=$(printf '%s\n' $combined_contexts | sort -u | tr '\n' ' ')
+	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
+	echo ${sorted_contexts[@]+"${sorted_contexts[@]}"}
 }
 
+# Utility function returns a truthy value if value $1 is in bash array $2
 is_item_in_array() {
 	# Based on https://stackoverflow.com/a/47541882/4970
 	return $(printf '%s\n' $2 | grep -q "^${1}$")
@@ -703,15 +723,15 @@ list_contexts() {
 	in_git_config=$(get_contexts_from_git_config)
 	in_git_attributes=$(get_contexts_from_git_attributes)
 	for context in $(get_contexts); do
-		config_desc='not configured'
+		config_status='not configured'
 		if is_item_in_array $context "${in_git_config[@]}"; then
-			config_desc='configured'
+			config_status='configured'
 		fi
-		attr_desc='not in .gitattributes'
+		attr_status='not in .gitattributes'
 		if is_item_in_array $context "${in_git_attributes[@]}"; then
-			attr_desc='in .gitattributes'
+			attr_status='in .gitattributes'
 		fi
-		echo "$context ($config_desc, $attr_desc)"
+		echo "$context ($config_status, $attr_status)"
 	done
 }
 
@@ -788,9 +808,9 @@ help() {
 		            import the password and cipher from a gpg encrypted file
 
 		     -C, --context=CONTEXT
-		            name for a context that can use a different passphrase
-		            and cipher from the "default" context. Use this to encrypt
-		            files with more than one passphrase in the same repository.
+		            name for a context that can use a different passphrase and cipher
+		            from the "default" context;  use this advanced option, to permit
+		            encrypting different files with different passphrases
 
 		     --list-contexts
 		            list all contexts configured in the repository
@@ -832,6 +852,24 @@ help() {
 		     If  the  origin  repository  has  just rekeyed, all clones should flush
 		     their transcrypt credentials, fetch and merge the new  encrypted  files
 		     via Git, and then re-configure transcrypt with the new credentials.
+
+		     To use multiple passphrases for files with different security contexts,
+		     specify a new  context name  when you initialise  transcrypt or display
+		     credentials. You can list all the contexts configured in the repository
+			 and their status. For example:
+
+		         # Initialise a new context "ts" for top-secret files
+		         $ transcrypt --context=ts
+
+		         # Use context name as a prefix to 'crypt' in .gitattributes
+		         $ echo 'ts_file  filter=ts-crypt diff=ts-crypt' >> .gitattributes
+		         $ git add .gitattributes ts_file
+		         $ git commit -m 'Add encrypted version of a top-secret file'
+
+		         # List all contexts and their status
+		         $ transcrypt --list-contexts
+		         default (configured, in .gitattributes)
+		         ts (configured, in .gitattributes)
 
 		AUTHOR
 		     Aaron Bull Schaefer <aaron@elasticdog.com>
