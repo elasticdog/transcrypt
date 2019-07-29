@@ -423,12 +423,19 @@ display_configuration() {
 
 # remove transcrypt-related settings from the repository's git config
 clean_gitconfig() {
-	git config --remove-section transcrypt 2>/dev/null || true
-	git config --remove-section filter.crypt 2>/dev/null || true
-	git config --remove-section diff.crypt 2>/dev/null || true
-	git config --unset merge.renormalize
+	# Remove context-specific settings
+	for context in $(get_contexts_from_git_config); do
+		context_prefix=''
+		if [[ $context != 'default' ]]; then
+		  context_prefix="$context-"
+		fi
+		git config --remove-section filter.${context_prefix}crypt 2>/dev/null || true
+		git config --remove-section diff.${context_prefix}crypt 2>/dev/null || true
+	done
 
-	# TODO Remove context-specific config sections
+	# Remove global transcrypt settings
+	git config --remove-section transcrypt 2>/dev/null || true
+	git config --unset merge.renormalize
 
 	# remove the merge section if it's now empty
 	local merge_values
@@ -504,6 +511,8 @@ uninstall_transcrypt() {
 
 	# only uninstall if the user explicitly confirmed
 	if [[ $answer =~ $YES_REGEX ]]; then
+		contexts_in_git_config=$(get_contexts_from_git_config)
+
 		clean_gitconfig
 
 		# remove helper scripts
@@ -521,9 +530,15 @@ uninstall_transcrypt() {
 			touch $encrypted_files
 		fi
 
-		# remove the `git ls-crypt` alias
-		# TODO Remove context-specific ls-*-crypt aliases
+		# remove the `git ls-crypt` aliases
 		git config --unset alias.ls-crypt-all
+		for context in $contexts_in_git_config; do
+			context_prefix=''
+			if [[ $context != 'default' ]]; then
+				context_prefix="$context-"
+			fi
+			git config --unset alias.ls-${context_prefix}crypt
+		done
 
 		# remove the alias section if it's now empty
 		local alias_values
@@ -533,15 +548,21 @@ uninstall_transcrypt() {
 		fi
 
 		# remove any defined crypt patterns in gitattributes
-		# TODO Remove context-specific *-crypt patterns
-		case $OSTYPE in
-		darwin*)
-			/usr/bin/sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
-			;;
-		linux*)
-			sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
-			;;
-		esac
+		for context in $(get_contexts_from_git_attributes); do
+			context_prefix=''
+			if [[ $context != 'default' ]]; then
+				context_prefix="$context-"
+			fi
+
+			case $OSTYPE in
+			darwin*)
+				/usr/bin/sed -i '' '/filter='$context_prefix'crypt diff='$context_prefix'crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
+				;;
+			linux*)
+				sed -i '/filter='$context_prefix'crypt diff='$context_prefix'crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
+				;;
+			esac
+		done
 
 		printf 'The transcrypt configuration has been completely removed from the repository.\n'
 	else
