@@ -919,6 +919,7 @@ while [[ "${1:-}" != '' ]]; do
 	-s | --show-raw)
 		show_file=$2
 		requires_existing_config='true'
+		shift
 		;;
 	--show-raw=*)
 		show_file=${1#*=}
