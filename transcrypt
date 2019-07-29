@@ -634,6 +634,61 @@ import_gpg() {
 	password=$(printf '%s' "$configuration" | grep '^password' | cut -d'=' -f 2-)
 }
 
+get_contexts_from_git_config() {
+	contexts=()
+	config_name=$(git config --local --name-only --list)
+	extract_context_name_regex="transcrypt.(${CONTEXT_REGEX})?-version"
+	for name in $config_name; do
+		if [[ $name =~ 'transcrypt.version' ]]; then
+			contexts+=' default'
+		elif [[ $name =~ $extract_context_name_regex ]]; then
+			contexts+=" ${BASH_REMATCH[1]}"
+		fi
+	done
+	echo $contexts
+}
+
+get_contexts_from_git_attributes() {
+	contexts=()
+	# Capture contents of .gitattributes without comments (leading # hash)
+	attrs=$(cat $GIT_ATTRIBUTES | sed '/^.*#/d')
+	extract_context_name_regex="filter=(${CONTEXT_REGEX})?-crypt"
+	for attr in $attrs; do
+		if [[ $attr =~ 'filter=crypt' ]]; then
+			contexts+=' default'
+		elif [[ $attr =~ $extract_context_name_regex ]]; then
+			contexts+=" ${BASH_REMATCH[1]}"
+		fi
+	done
+	echo $contexts
+}
+
+get_contexts() {
+	combined_contexts="$(get_contexts_from_git_config) $(get_contexts_from_git_attributes)"
+	echo $(printf '%s\n' $combined_contexts | sort -u | tr '\n' ' ')
+}
+
+is_item_in_array() {
+	# Based on https://stackoverflow.com/a/47541882/4970
+	return $(printf '%s\n' $2 | grep -q "^${1}$")
+}
+
+list_contexts() {
+	in_git_config=$(get_contexts_from_git_config)
+	in_git_attributes=$(get_contexts_from_git_attributes)
+	for context in $(get_contexts); do
+		config_desc='not configured'
+		if is_item_in_array $context "${in_git_config[@]}"; then
+			config_desc='configured'
+		fi
+		attr_desc='not in .gitattributes'
+		if is_item_in_array $context "${in_git_attributes[@]}"; then
+			attr_desc='in .gitattributes'
+		fi
+		echo "$context ($config_desc, $attr_desc)"
+	done
+}
+
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
@@ -711,6 +766,9 @@ help() {
 		            and cipher from the "default" context. Use this to encrypt
 		            files with more than one passphrase in the same repository.
 
+		     --list-contexts
+		            list all contexts configured in the repository
+
 		     -v, --version
 		            print the version information
 
@@ -785,6 +843,10 @@ while [[ "${1:-}" != '' ]]; do
 		;;
 	--context=*)
 		context=${1#*=}
+		;;
+	--list-contexts)
+		list_contexts
+		exit 0
 		;;
 	-c | --cipher)
 		cipher=$2
