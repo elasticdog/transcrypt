@@ -666,10 +666,14 @@ get_contexts_from_git_config() {
 			contexts+=" ${BASH_REMATCH[1]}"
 		fi
 	done
-	echo $contexts
+	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
+	echo ${contexts[@]+"${contexts[@]}"}
 }
 
 get_contexts_from_git_attributes() {
+	if [[ ! -f $GIT_ATTRIBUTES ]]; then
+		return 0
+	fi
 	contexts=()
 	# Capture contents of .gitattributes without comments (leading # hash)
 	attrs=$(cat $GIT_ATTRIBUTES | sed '/^.*#/d')
@@ -681,7 +685,8 @@ get_contexts_from_git_attributes() {
 			contexts+=" ${BASH_REMATCH[1]}"
 		fi
 	done
-	echo $contexts
+	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
+	echo ${contexts[@]+"${contexts[@]}"}
 }
 
 get_contexts() {
