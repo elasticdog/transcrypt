@@ -272,7 +272,7 @@ confirm_rekey() {
 # automatically stage rekeyed files in preparation for the user to commit them
 stage_rekeyed_files() {
 	local encrypted_files
-	encrypted_files=$(git ls-crypt-all)
+	encrypted_files=$(git ls-crypt)
 	if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
 		# touch all encrypted files to prevent stale stat info
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
@@ -389,11 +389,11 @@ save_configuration() {
 	git config diff.${CONTEXT_CRYPT}.binary 'true'
 	git config merge.renormalize 'true'
 
-	# add a git alias for listing encrypted files in context
-	git config alias.ls-${CONTEXT_CRYPT} "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ${CONTEXT_CRYPT}$/{ print \$1 }'"
+	# add a git alias for listing encrypted files in specific context, including 'default'
+	git config alias.${CONTEXT_LS_CRYPT} "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ${CONTEXT_CRYPT}$/{ print \$1 }'"
 
-	# add a git alias for listing ALL encrypted files regardless of context
-	git config alias.ls-crypt-all "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / (${CONTEXT_REGEX}-)?crypt$/{ print \$1 }'"
+	# add git alias for listing ALL encrypted files regardless of context
+	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / (${CONTEXT_REGEX}-)?crypt$/{ print \$1 }'"
 }
 
 # display the current configuration settings
@@ -463,7 +463,7 @@ force_checkout() {
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
 		local encrypted_files
-		encrypted_files=$(git ls-$CONTEXT_CRYPT)
+		encrypted_files=$(git $CONTEXT_LS_CRYPT)
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 		IFS=$'\n'
 		for file in $encrypted_files; do
@@ -532,21 +532,17 @@ uninstall_transcrypt() {
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files
-		encrypted_files=$(git ls-crypt-all)
+		encrypted_files=$(git ls-crypt)
 		if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
 			cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 			# shellcheck disable=SC2086
 			touch $encrypted_files
 		fi
 
-		# remove the `git ls-crypt` aliases
-		git config --unset alias.ls-crypt-all
+		# remove the `git ls-crypt` global alias and each context-specific alias
+		git config --unset alias.ls-crypt
 		for context in $contexts_in_git_config; do
-			context_prefix=''
-			if [[ $context != 'default' ]]; then
-				context_prefix="$context-"
-			fi
-			git config --unset alias.ls-${context_prefix}crypt
+			git config --unset alias.ls-${context}-crypt
 		done
 
 		# remove the alias section if it's now empty
@@ -583,7 +579,7 @@ uninstall_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-		git ls-crypt-all
+		git ls-crypt
 	fi
 }
 
@@ -598,7 +594,7 @@ show_raw_file() {
 			die 1 'the file "%s" is not currently being tracked by git' "$show_file"
 		fi
 	elif [[ $show_file == '*' ]]; then
-		file_paths=$(git ls-$CONTEXT_CRYPT)
+		file_paths=$(git ls-crypt)
 	else
 		die 1 'the file "%s" does not exist' "$show_file"
 	fi
@@ -1017,6 +1013,9 @@ readonly CONTEXT_TRANSCRYPT_VERSION=transcrypt.${CONTEXT_PREFIX:-}version
 readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT_PREFIX:-}cipher
 readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT_PREFIX:-}password
 readonly CONTEXT_CRYPT=${CONTEXT_PREFIX:-}crypt
+
+# For ls-crypt aliases we want one for each context, including 'default'
+readonly CONTEXT_LS_CRYPT="ls-$CONTEXT-crypt"
 
 # whether or not transcrypt is already configured
 readonly CONFIGURED=$(git config --get --local $CONTEXT_TRANSCRYPT_VERSION 2>/dev/null)
