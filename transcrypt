@@ -318,8 +318,18 @@ save_helper_scripts() {
 		fi
 	EOF
 
+	cat <<-'EOF' >"${GIT_DIR}/crypt/merge"
+		#!/usr/bin/env bash
+		# Decrypt BASE, LOCAL, and REMOTE versions of file being merged
+		echo "$(./.git/crypt/textconv $1)" > $1
+		echo "$(./.git/crypt/textconv $2)" > $2
+		echo "$(./.git/crypt/textconv $3)" > $3
+		# Use git's internal merge-file to merge the decrypted files
+		git merge-file --marker-size=$4 -L local -L base -L remote $2 $1 $3
+	EOF
+
 	# make scripts executable
-	for script in {clean,smudge,textconv}; do
+	for script in {clean,smudge,textconv,merge}; do
 		chmod 0755 "${GIT_DIR}/crypt/${script}"
 	done
 }
@@ -340,15 +350,18 @@ save_configuration() {
 		git config filter.crypt.clean '"$(git rev-parse --git-common-dir)"/crypt/clean %f'
 		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge'
 		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv'
+		git config merge.crypt.driver '"$(git rev-parse --git-common-dir)"/crypt/merge %O %A %B %L %P'
 	else
 		git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/clean %f'
 		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge'
 		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
+		git config merge.crypt.driver '"$(git rev-parse --git-dir)"/crypt/merge %O %A %B %L %P'
 	fi
 	git config filter.crypt.required 'true'
 	git config diff.crypt.cachetextconv 'true'
 	git config diff.crypt.binary 'true'
 	git config merge.renormalize 'true'
+	git config merge.crypt.name 'Merge transcrypt secret files'
 
 	# add a git alias for listing encrypted files
 	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
@@ -376,6 +389,7 @@ clean_gitconfig() {
 	git config --remove-section transcrypt
 	git config --remove-section filter.crypt
 	git config --remove-section diff.crypt
+	git config --remove-section merge.crypt
 	git config --unset merge.renormalize
 
 	# remove the merge section if it's now empty
@@ -453,7 +467,7 @@ uninstall_transcrypt() {
 		clean_gitconfig
 
 		# remove helper scripts
-		for script in {clean,smudge,textconv}; do
+		for script in {clean,smudge,textconv,merge}; do
 			[[ -f "${GIT_DIR}/crypt/${script}" ]] && rm "${GIT_DIR}/crypt/${script}"
 		done
 		[[ -d "${GIT_DIR}/crypt" ]] && rmdir "${GIT_DIR}/crypt"
@@ -477,10 +491,10 @@ uninstall_transcrypt() {
 		# remove any defined crypt patterns in gitattributes
 		case $OSTYPE in
 			darwin*)
-				sed -i '' '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
+				sed -i '' '/filter=crypt diff=crypt merge=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
 				;;
 			linux*)
-				sed -i '/filter=crypt diff=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
+				sed -i '/filter=crypt diff=crypt merge=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
 				;;
 		esac
 
@@ -669,7 +683,7 @@ help() {
 	     a file in your repository, the file  will  be  transparently  encrypted
 	     once you stage and commit it:
 
-	         $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
+	         $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' >> .gitattributes
 	         $ git add .gitattributes sensitive_file
 	         $ git commit -m 'Add encrypted version of a sensitive file'
 
@@ -858,7 +872,7 @@ fi
 # ensure the git attributes file exists
 if [[ ! -f $GIT_ATTRIBUTES ]]; then
 	mkdir -p "${GIT_ATTRIBUTES%/*}"
-	printf '#pattern  filter=crypt diff=crypt\n' > "$GIT_ATTRIBUTES"
+	printf '#pattern  filter=crypt diff=crypt merge=crypt\n' > "$GIT_ATTRIBUTES"
 fi
 
 printf 'The repository has been successfully configured by transcrypt.\n'
