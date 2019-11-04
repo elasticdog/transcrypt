@@ -324,9 +324,50 @@ save_helper_scripts() {
 	done
 }
 
+# save helper hooks under the repository's git directory
+save_helper_hooks() {
+	# Install pre-commit hook script
+	pre_commit_hook="${GIT_DIR}/hooks/pre-commit"
+
+	if [[ -f "$pre_commit_hook" ]]; then
+		printf 'WARNING:\n' $pre_commit_hook >&2
+		printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' $pre_commit_hook >&2
+		pre_commit_hook="pre-commit-crypt"
+		printf 'Please manually install the pre-commit script saved as: %s\n' $pre_commit_hook >&2
+		printf '\n'
+	fi
+
+	cat <<-'EOF' > "$pre_commit_hook"
+		#!/usr/bin/env bash
+		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
+		for secret_file in $(transcrypt --list); do
+		  # Get prefix of raw file in Git's index using the :FILENAME revision syntax
+		  # The first bytes of an encrypted file are always "Salted" in Base64
+		  firstbytes=$(git show :$secret_file | head -c 8)
+		  if [[ $firstbytes != "U2FsdGVk" ]]; then
+		    printf 'Transcrypt managed file is not encrypted in the Git index: %s\n' $secret_file >&2
+		    printf '\n' >&2
+		    printf 'You probably staged this file using a tool that does not apply' >&2
+		    printf ' .gitattribute filters as required by Transcrypt.\n' >&2
+		    printf '\n' >&2
+		    printf 'Fix this by re-staging the file with a compatible tool or with'
+		    printf ' Git on the command line:\n' >&2
+		    printf '\n' >&2
+		    printf '    git reset -- %s\n' $secret_file >&2
+		    printf '    git add %s\n' $secret_file >&2
+		    printf '\n' >&2
+		    exit 1
+		  fi
+		done
+	EOF
+
+	chmod 0755 "$pre_commit_hook"
+}
+
 # write the configuration to the repository's git config
 save_configuration() {
 	save_helper_scripts
+	save_helper_hooks
 
 	# write the encryption info
 	git config transcrypt.version "$VERSION"
@@ -457,6 +498,13 @@ uninstall_transcrypt() {
 			[[ -f "${GIT_DIR}/crypt/${script}" ]] && rm "${GIT_DIR}/crypt/${script}"
 		done
 		[[ -d "${GIT_DIR}/crypt" ]] && rmdir "${GIT_DIR}/crypt"
+
+		# rename helper hooks (don't delete, in case user has custom changes)
+		pre_commit_hook="${GIT_DIR}/hooks/pre-commit"
+		pre_commit_hook_renamed="${GIT_DIR}/hooks/pre-commit-crypt"
+		[[ -f "$pre_commit_hook" ]] \
+			&& mv "$pre_commit_hook" "$pre_commit_hook_renamed" \
+			&& printf 'Disabled Git pre-commit hook by renaming script to %s\n\n' $pre_commit_hook_renamed
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files=$(git ls-crypt)
@@ -597,7 +645,8 @@ help() {
 	     encryption/decryption of files by utilizing OpenSSL's symmetric  cipher
 	     routines  and  Git's  built-in clean/smudge filters. It will also add a
 	     Git alias "ls-crypt" to list all transparently encrypted  files  within
-	     the repository.
+	     the  repository,  and a pre-commit hook  to prevent  accidental commits
+	     of files in plain text caused by incompatible tools.
 
 	     The  transcrypt  source  code  and full documentation may be downloaded
 	     from https://github.com/elasticdog/transcrypt.
