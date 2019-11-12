@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+shopt -so nounset pipefail
 
 #
 # transcrypt - https://github.com/elasticdog/transcrypt
@@ -826,6 +826,18 @@ done
 
 # always run our safety checks
 run_safety_checks
+
+# This errexit exists here rather than at the start of this script, as
+# transcrypt uses many global variables which are initialized by git commands.
+# These commands will fail if transcrypt is run outside of a git repository,
+# causing transcrypt to immediately exit with a failure.  This causes
+# unexpected behavior when running non-git dependent subcommands like "help" or
+# "version"
+#
+# Long term, the use of errexit should be avoided in favor of proper error
+# handling. This has been moved here for now, as it's not clear if the following code
+# has been hardened against failures.
+shopt -so errexit
 
 # in order to keep behavior consistent no matter what order the options were
 # specified in, we must run these here rather than in the case statement above
