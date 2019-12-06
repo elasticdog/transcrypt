@@ -321,11 +321,31 @@ save_helper_scripts() {
 	cat <<-'EOF' >"${GIT_DIR}/crypt/merge"
 		#!/usr/bin/env bash
 		# Decrypt BASE, LOCAL, and REMOTE versions of file being merged
-		echo "$(./.git/crypt/textconv $1)" > $1
-		echo "$(./.git/crypt/textconv $2)" > $2
-		echo "$(./.git/crypt/textconv $3)" > $3
-		# Use git's internal merge-file to merge the decrypted files
-		git merge-file --marker-size=$4 -L local -L base -L remote $2 $1 $3
+		echo "$(cat $1 | ./.git/crypt/smudge)" > $1
+		echo "$(cat $2 | ./.git/crypt/smudge)" > $2
+		echo "$(cat $3 | ./.git/crypt/smudge)" > $3
+
+		# Merge the decrypted files to the working copy named by $5
+		# We must redirect stdout to $5 here instead of letting merge-file write to
+		# $2 as it would by default, because we need $5 to contain the final result
+		# content so a later crypt `clean` generates the correct hash salt value
+		git merge-file --stdout --marker-size=$4 -L local -L base -L remote $2 $1 $3 > $5
+
+		if [[ "$?" == "0" ]]; then
+		  # If the merge was successful (no conflicts) re-encrypt the merged working
+		  # copy file to the incoming "local" temp file $2 which git will then
+		  # update in the index during the "Auto-merging" step.
+		  # Git needs the cleaned copy to avoid triggering the error:
+		  #     error: add_cacheinfo failed to refresh for path 'FILE'; merge aborting.
+		  echo "$(cat $5 | ./.git/crypt/clean $5)" > $2
+		  exit 0
+		else
+		  # If the merge was not successful, copy the merged working copy file to the
+		  # "local" temp file $2 which git will then re-copy back to the working copy
+		  # so the user can fix it manually
+		  cp $5 $2
+		  exit 1
+		fi
 	EOF
 
 	# make scripts executable
