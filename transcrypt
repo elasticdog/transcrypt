@@ -21,28 +21,7 @@ readonly VERSION='2.0.0'
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
 
-# regular expression used to test user input
-readonly YES_REGEX='^[Yy]$'
-
-## Repository Metadata
-
-# whether or not transcrypt is already configured
-readonly CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
-
-# the current git repository's top-level directory
-readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
-
-# whether or not a HEAD revision exists
-readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2>/dev/null)
-
-# https://github.com/RichiH/vcsh
-# whether or not the git repository is running under vcsh
-readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh 2>/dev/null)
-
-# whether or not the git repository is bare
-readonly IS_BARE=$(git rev-parse --is-bare-repository 2>/dev/null)
-
-## Git Directory Handling
+##### FUNCTIONS
 
 # print a canonicalized absolute pathname
 realpath() {
@@ -72,21 +51,40 @@ realpath() {
 	fi
 }
 
-# the current git repository's .git directory
-RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
-readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
+# establish repository metadata and directory handling
+gather_repo_metadata() {
+	# whether or not transcrypt is already configured
+	readonly CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
 
-# the current git repository's gitattributes file
-readonly CORE_ATTRIBUTES=$(git config --get --local --path core.attributesFile)
-if [[ $CORE_ATTRIBUTES ]]; then
-	readonly GIT_ATTRIBUTES=$CORE_ATTRIBUTES
-elif [[ $IS_BARE == 'true' ]] || [[ $IS_VCSH == 'true' ]]; then
-	readonly GIT_ATTRIBUTES="${GIT_DIR}/info/attributes"
-else
-	readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
-fi
+	# the current git repository's top-level directory
+	readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
 
-##### FUNCTIONS
+	# whether or not a HEAD revision exists
+	readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2>/dev/null)
+
+	# https://github.com/RichiH/vcsh
+	# whether or not the git repository is running under vcsh
+	readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh 2>/dev/null)
+
+	# whether or not the git repository is bare
+	readonly IS_BARE=$(git rev-parse --is-bare-repository 2>/dev/null || printf 'false')
+
+	# the current git repository's .git directory
+	local RELATIVE_GIT_DIR
+	RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
+	readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
+
+	# the current git repository's gitattributes file
+	local CORE_ATTRIBUTES
+	CORE_ATTRIBUTES=$(git config --get --local --path core.attributesFile 2>/dev/null || printf '')
+	if [[ $CORE_ATTRIBUTES ]]; then
+		readonly GIT_ATTRIBUTES=$CORE_ATTRIBUTES
+	elif [[ $IS_BARE == 'true' ]] || [[ $IS_VCSH == 'true' ]]; then
+		readonly GIT_ATTRIBUTES="${GIT_DIR}/info/attributes"
+	else
+		readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
+	fi
+}
 
 # print a message to stderr
 warn() {
@@ -715,15 +713,16 @@ help() {
 
 # reset all variables that might be set
 cipher=''
-password=''
-interactive='true'
 display_config=''
-rekey=''
 flush_creds=''
-uninstall=''
-show_file=''
-gpg_recipient=''
 gpg_import_file=''
+gpg_recipient=''
+interactive='true'
+list=''
+password=''
+rekey=''
+show_file=''
+uninstall=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -771,8 +770,7 @@ while [[ "${1:-}" != '' ]]; do
 		requires_clean_repo=''
 		;;
 	-l | --list)
-		list_files
-		exit 0
+		list='true'
 		;;
 	-s | --show-raw)
 		show_file=$2
@@ -824,12 +822,20 @@ while [[ "${1:-}" != '' ]]; do
 	shift
 done
 
+gather_repo_metadata
+
 # always run our safety checks
 run_safety_checks
 
+# regular expression used to test user input
+readonly YES_REGEX='^[Yy]$'
+
 # in order to keep behavior consistent no matter what order the options were
 # specified in, we must run these here rather than in the case statement above
-if [[ $uninstall ]]; then
+if [[ $list ]]; then
+	list_files
+	exit 0
+elif [[ $uninstall ]]; then
 	uninstall_transcrypt
 	exit 0
 elif [[ $display_config ]] && [[ $flush_creds ]]; then
