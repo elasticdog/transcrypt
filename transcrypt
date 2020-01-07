@@ -268,68 +268,55 @@ stage_rekeyed_files() {
 	fi
 }
 
-# save helper scripts under the repository's git directory
-save_helper_scripts() {
-	mkdir -p "${GIT_DIR}/crypt"
-
-	# The `decryption -> encryption` process on an unchanged file must be
-	# deterministic for everything to work transparently. To do that, the same
-	# salt must be used each time we encrypt the same file. An HMAC has been
-	# proven to be a PRF, so we generate an HMAC-SHA256 for each decrypted file
-	# (keyed with a combination of the filename and transcrypt password), and
-	# then use the last 16 bytes of that HMAC for the file's unique salt.
-
-	cat <<-'EOF' >"${GIT_DIR}/crypt/clean"
-		#!/usr/bin/env bash
-		filename=$1
-		# ignore empty files
-		if [[ -s $filename ]]; then
-		  # cache STDIN to test if it's already encrypted
-		  tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
-		  trap 'rm -f "$tempfile"' EXIT
-		  tee "$tempfile" &>/dev/null
-		  # the first bytes of an encrypted file are always "Salted" in Base64
-		  read -n 8 firstbytes <"$tempfile"
-		  if [[ $firstbytes == "U2FsdGVk" ]]; then
-		    cat "$tempfile"
-		  else
-		    cipher=$(git config --get --local transcrypt.cipher)
-		    password=$(git config --get --local transcrypt.password)
-		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
-		    ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
-		  fi
-		fi
-	EOF
-
-	cat <<-'EOF' >"${GIT_DIR}/crypt/smudge"
-		#!/usr/bin/env bash
+# The `decryption -> encryption` process on an unchanged file must be
+# deterministic for everything to work transparently. To do that, the same
+# salt must be used each time we encrypt the same file. An HMAC has been
+# proven to be a PRF, so we generate an HMAC-SHA256 for each decrypted file
+# (keyed with a combination of the filename and transcrypt password), and
+# then use the last 16 bytes of that HMAC for the file's unique salt.
+crypt_clean() {
+	filename=$1
+	# ignore empty files
+	if [[ -s $filename ]]; then
+		# cache STDIN to test if it's already encrypted
 		tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 		trap 'rm -f "$tempfile"' EXIT
-		cipher=$(git config --get --local transcrypt.cipher)
-		password=$(git config --get --local transcrypt.password)
-		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
-	EOF
-
-	cat <<-'EOF' >"${GIT_DIR}/crypt/textconv"
-		#!/usr/bin/env bash
-		filename=$1
-		# ignore empty files
-		if [[ -s $filename ]]; then
-		  cipher=$(git config --get --local transcrypt.cipher)
-		  password=$(git config --get --local transcrypt.password)
-		  ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+		tee "$tempfile" &>/dev/null
+		# the first bytes of an encrypted file are always "Salted" in Base64
+		read -r -n 8 firstbytes <"$tempfile"
+		if [[ $firstbytes == "U2FsdGVk" ]]; then
+			cat "$tempfile"
+		else
+			cipher=$(git config --get --local transcrypt.cipher)
+			password=$(git config --get --local transcrypt.password)
+			salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
+			ENC_PASS=$password openssl enc "-${cipher}" -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
 		fi
-	EOF
+	fi
+}
 
-	# make scripts executable
-	for script in {clean,smudge,textconv}; do
-		chmod 0755 "${GIT_DIR}/crypt/${script}"
-	done
+crypt_smudge() {
+	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
+	trap 'rm -f "$tempfile"' EXIT
+	cipher=$(git config --get --local transcrypt.cipher)
+	password=$(git config --get --local transcrypt.password)
+	tee "$tempfile" | ENC_PASS=$password openssl enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+}
+
+crypt_textconv() {
+	filename=$1
+	# ignore empty files
+	if [[ -s $filename ]]; then
+	  cipher=$(git config --get --local transcrypt.cipher)
+	  password=$(git config --get --local transcrypt.password)
+	  ENC_PASS=$password openssl enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+	fi
 }
 
 # write the configuration to the repository's git config
 save_configuration() {
-	save_helper_scripts
+	# This directory is used by transcrypt as a working directory.
+	mkdir -p "${GIT_DIR}/crypt"
 
 	# write the encryption info
 	git config transcrypt.version "$VERSION"
@@ -337,23 +324,12 @@ save_configuration() {
 	git config transcrypt.password "$password"
 
 	# write the filter settings
-	if [[ -d $(git rev-parse --git-common-dir) ]]; then
-		# this allows us to support multiple working trees via git-worktree
-		# ...but the --git-common-dir flag was only added in November 2014
-		# shellcheck disable=SC2016
-		git config filter.crypt.clean '"$(git rev-parse --git-common-dir)"/crypt/clean %f'
-		# shellcheck disable=SC2016
-		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge'
-		# shellcheck disable=SC2016
-		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv'
-	else
-		# shellcheck disable=SC2016
-		git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/clean %f'
-		# shellcheck disable=SC2016
-		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge'
-		# shellcheck disable=SC2016
-		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
-	fi
+	# shellcheck disable=SC2016
+	git config filter.crypt.clean "$0 --crypt-clean %f"
+	# shellcheck disable=SC2016
+	git config filter.crypt.smudge "$0 --crypt-smudge"
+	# shellcheck disable=SC2016
+	git config diff.crypt.textconv "$0 --crypt-textconv"
 	git config filter.crypt.required 'true'
 	git config diff.crypt.cachetextconv 'true'
 	git config diff.crypt.binary 'true'
@@ -466,6 +442,8 @@ uninstall_transcrypt() {
 		clean_gitconfig
 
 		# remove helper scripts
+		# This is obsolete, but we should keep it to clean up these
+		# scripts from old versions of transcrypt.
 		for script in {clean,smudge,textconv}; do
 			[[ ! -f "${GIT_DIR}/crypt/${script}" ]] || rm "${GIT_DIR}/crypt/${script}"
 		done
@@ -799,6 +777,21 @@ while [[ "${1:-}" != '' ]]; do
 		;;
 	--import-gpg=*)
 		gpg_import_file=${1#*=}
+		;;
+	--crypt-clean)
+		shift
+		crypt_clean "$1"
+		exit 0
+		;;
+	--crypt-smudge)
+		shift
+		crypt_smudge
+		exit 0
+		;;
+	--crypt-textconv)
+		shift
+		crypt_textconv "$1"
+		exit 0
 		;;
 	-v | --version)
 		printf 'transcrypt %s\n' "$VERSION"
