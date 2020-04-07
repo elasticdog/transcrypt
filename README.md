@@ -300,4 +300,19 @@ License
 transcrypt is provided under the terms of the
 [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
-Copyright &copy; 2014-2018, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
+Copyright &copy; 2014-2020, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
+
+Contributing
+------------
+
+### Tests
+
+Tests are written using [bats-core](https://github.com/bats-core/bats-core)
+version of "Bash Automated Testing System" and stored in the *tests/*
+directory.
+
+To run the tests:
+
+- [install bats-core](https://github.com/bats-core/bats-core#installation)
+- run all tests with: `bats tests/`
+- run an individual test with e.g: `./tests/test_help.bats`
