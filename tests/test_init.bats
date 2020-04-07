@@ -27,7 +27,7 @@ function teardown {
   init_transcrypt
   [ -f .gitattributes ]
   run cat .gitattributes
-  [ "${lines[0]}" = "#pattern  filter=crypt diff=crypt" ]
+  [ "${lines[0]}" = "#pattern  filter=crypt diff=crypt merge=crypt" ]
 }
 
 @test "init creates scripts in .git/crypt/" {

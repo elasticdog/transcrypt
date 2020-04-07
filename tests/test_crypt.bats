@@ -11,7 +11,7 @@ function init_transcrypt {
 
 function encrypt_file {
   echo $SECRET_CONTENT > sensitive_file
-  echo 'sensitive_file filter=crypt diff=crypt' >> .gitattributes
+  echo 'sensitive_file filter=crypt diff=crypt merge=crypt' >> .gitattributes
   git add .gitattributes sensitive_file
   git commit -m 'Add encrypted version of a sensitive file'
 }
