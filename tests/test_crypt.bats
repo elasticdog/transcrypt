@@ -74,7 +74,6 @@ function teardown {
 }
 
 @test "transcrypt --list lists encrypted file" {
-  skip "TODO Fails due to bug in transcrypt requirements checking"
   encrypt_file
 
   run ../transcrypt --list
