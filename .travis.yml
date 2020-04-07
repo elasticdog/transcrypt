@@ -1,10 +1,10 @@
 language: bash
 
 before_script:
-  - git clone https://github.com/sstephenson/bats.git /tmp/bats
-  - mkdir -p /tmp/local
-  - bash /tmp/bats/install.sh /tmp/local
-  - export PATH=$PATH:/tmp/local/bin
+  - git clone https://github.com/bats-core/bats-core.git /tmp/bats-core-repo
+  - mkdir -p /tmp/bats-core
+  - bash /tmp/bats-core-repo/install.sh /tmp/bats-core
+  - export PATH=$PATH:/tmp/bats-core/bin
 
 script:
   - bats tests/
