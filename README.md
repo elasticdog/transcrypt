@@ -92,14 +92,14 @@ using the command line options. Run `transcrypt --help` for more details.
 ### Designate a File to be Encrypted
 
 Once a repository has been configured with transcrypt, you can designate
-for files to be encrypted by applying the "crypt" filter and diff to a
+for files to be encrypted by applying the "crypt" filter, diff and merge to a
 [pattern](https://www.kernel.org/pub/software/scm/git/docs/gitignore.html#_pattern_format)
 in the top-level _[.gitattributes](http://git-scm.com/docs/gitattributes)_
 config. If that pattern matches a file in your repository, the file will
 be transparently encrypted once you stage and commit it:
 
     $ cd <path-to-your-repo>/
-    $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
+    $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' >> .gitattributes
     $ git add .gitattributes sensitive_file
     $ git commit -m 'Add encrypted version of a sensitive file'
 
@@ -316,3 +316,19 @@ To run the tests:
 - [install bats-core](https://github.com/bats-core/bats-core#installation)
 - run all tests with: `bats tests/`
 - run an individual test with e.g: `./tests/test_help.bats`
+
+Changes
+-------
+
+Fixes:
+
+- Fix handling of branch merges with conflicts in encrypted files, which
+  would previously leave the user to manually merge files with a mix of
+  encrypted and unencrypted content.
+
+  To apply this fix in projects that already use transcrypt: uninstall and
+  re-init transcrypt, then add `merge=crypt` to the patterns in *.gitattributes*
+
+Improvements:
+
+- Add functional tests.
