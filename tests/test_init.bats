@@ -47,9 +47,16 @@ function teardown {
   [ `git config --get transcrypt.cipher` = "aes-256-cbc" ]
   [ `git config --get transcrypt.password` = "abc123" ]
 
-  [[ `git config --get filter.crypt.clean` = '"$(git rev-parse --git-common-dir)"/crypt/clean %f' ]]
-  [[ `git config --get filter.crypt.smudge` = '"$(git rev-parse --git-common-dir)"/crypt/smudge' ]]
-  [[ `git config --get filter.crypt.textconv` = '"$(git rev-parse --git-common-dir)"/crypt/textconv' ]]
+  # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
+  if [[ -d $(git rev-parse --git-common-dir) ]]; then
+    [[ `git config --get filter.crypt.clean` = '"$(git rev-parse --git-common-dir)"/crypt/clean %f' ]]
+    [[ `git config --get filter.crypt.smudge` = '"$(git rev-parse --git-common-dir)"/crypt/smudge' ]]
+    [[ `git config --get filter.crypt.textconv` = '"$(git rev-parse --git-common-dir)"/crypt/textconv' ]]
+  else
+    [[ `git config --get filter.crypt.clean` = '"$(git rev-parse --git-dir)"/crypt/clean %f' ]]
+    [[ `git config --get filter.crypt.smudge` = '"$(git rev-parse --git-dir)"/crypt/smudge' ]]
+    [[ `git config --get filter.crypt.textconv` = '"$(git rev-parse --git-dir)"/crypt/textconv' ]]
+  fi
 
   [ `git config --get filter.crypt.required` = "true" ]
   [ `git config --get diff.crypt.cachetextconv` = "true" ]
