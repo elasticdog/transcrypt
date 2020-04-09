@@ -16,21 +16,21 @@ function teardown {
   popd
 }
 
-@test "init works" {
+@test "init: works at all" {
   # Use literal command not function to confirm command works at least once
   run ../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "The repository has been successfully configured by transcrypt." ]
 }
 
-@test "init creates .gitattributes" {
+@test "init: creates .gitattributes" {
   init_transcrypt
   [ -f .gitattributes ]
   run cat .gitattributes
   [ "${lines[0]}" = "#pattern  filter=crypt diff=crypt" ]
 }
 
-@test "init creates scripts in .git/crypt/" {
+@test "init: creates scripts in .git/crypt/" {
   init_transcrypt
   [ -d .git/crypt ]
   [ -f .git/crypt/clean ]
@@ -38,7 +38,7 @@ function teardown {
   [ -f .git/crypt/textconv ]
 }
 
-@test "init applies git config" {
+@test "init: applies git config" {
   init_transcrypt
   VERSION=`../transcrypt -v | awk '{print $2}'`
   GIT_DIR=`git rev-parse --git-dir`
@@ -64,4 +64,28 @@ function teardown {
   [ `git config --get merge.renormalize` = "true" ]
 
   [[ `git config --get alias.ls-crypt` = "!git ls-files"* ]]
+}
+
+@test "init: show details for --display" {
+  init_transcrypt
+  VERSION=`../transcrypt -v | awk '{print $2}'`
+
+  run ../transcrypt --display
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]
+  [ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]
+  [ "${lines[6]}" = "  PASSWORD: abc123" ]
+  [ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]
+}
+
+@test "init: show details for -d" {
+  init_transcrypt
+  VERSION=`../transcrypt -v | awk '{print $2}'`
+
+  run ../transcrypt -d
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]
+  [ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]
+  [ "${lines[6]}" = "  PASSWORD: abc123" ]
+  [ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]
 }
