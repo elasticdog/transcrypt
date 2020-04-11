@@ -1,10 +1,16 @@
 #!/usr/bin/env bats
 
+load $BATS_TEST_DIRNAME/_test_helper.bash
+
 function setup {
   pushd $BATS_TEST_DIRNAME
+  # Need to init and tear down Git repo for these tests, mainly to avoid falling
+  # back to the transcrypt repo's Git config and partial transcrypt setup
+  init_git_repo
 }
 
 function teardown {
+  nuke_git_repo
   popd
 }
 
@@ -32,6 +38,16 @@ function teardown {
   [ "${lines[0]}" = "transcrypt $VERSION" ]
 }
 
+@test "not inited: no files listed for --list" {
+  run ../transcrypt --list
+  [ "${lines[0]}" = "" ]
+}
+
+@test "not inited: no files listed for -l" {
+  run ../transcrypt -l
+  [ "${lines[0]}" = "" ]
+}
+
 
 # Operations that should not work in a repo not yet initialised
 
@@ -57,19 +73,4 @@ function teardown {
   run ../transcrypt -u
   [ "$status" -ne 0 ]
   [ "${lines[0]}" = "transcrypt: the current repository is not configured" ]
-}
-
-
-# ?
-
-@test "not inited: no files listed for --list" {
-  skip "TODO: --list doesn't work for un-inited repo, should it?"
-  run ../transcrypt --list
-  [ "${lines[0]}" = "" ]
-}
-
-@test "not inited: no files listed for -l" {
-  skip "TODO: -l doesn't work for un-inited repo, should it?"
-  run ../transcrypt -l
-  [ "${lines[0]}" = "" ]
 }

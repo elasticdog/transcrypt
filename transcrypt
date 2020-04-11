@@ -112,7 +112,9 @@ run_safety_checks() {
 	[[ $GIT_DIR ]] || die 'you are not currently in a git repository; did you forget to run "git init"?'
 
 	# exit if transcrypt is not in the required state
-	if [[ $requires_existing_config ]] && [[ ! $CONFIGURED ]]; then
+	if [[ $ignore_config_status ]]; then
+		:  # no-op, no need to check $CONFIGURED status
+	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED ]]; then
 		die 1 'the current repository is not configured'
 	elif [[ ! $requires_existing_config ]] && [[ $CONFIGURED ]]; then
 		die 1 'the current repository is already configured; see --display'
@@ -727,6 +729,7 @@ uninstall=''
 # used to bypass certain safety checks
 requires_existing_config=''
 requires_clean_repo='true'
+ignore_config_status=''  # Set for operations where config can exist or not
 
 # parse command line options
 while [[ "${1:-}" != '' ]]; do
@@ -771,8 +774,8 @@ while [[ "${1:-}" != '' ]]; do
 		;;
 	-l | --list)
 		list='true'
-		requires_existing_config='true'
 		requires_clean_repo=''
+		ignore_config_status='true'
 		;;
 	-s | --show-raw)
 		show_file=$2
