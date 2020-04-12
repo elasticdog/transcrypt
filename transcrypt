@@ -436,6 +436,7 @@ save_configuration() {
 		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge'
 		# shellcheck disable=SC2016
 		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv'
+		# shellcheck disable=SC2016
 		git config merge.crypt.driver '"$(git rev-parse --git-common-dir)"/crypt/merge %O %A %B %L %P'
 	else
 		# shellcheck disable=SC2016
@@ -444,6 +445,7 @@ save_configuration() {
 		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge'
 		# shellcheck disable=SC2016
 		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
+		# shellcheck disable=SC2016
 		git config merge.crypt.driver '"$(git rev-parse --git-dir)"/crypt/merge %O %A %B %L %P'
 	fi
 	git config filter.crypt.required 'true'
