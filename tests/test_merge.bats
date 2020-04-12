@@ -37,7 +37,6 @@ function teardown {
   git checkout -
   git merge branch-2
 
-  cat sensitive_file
   run cat sensitive_file
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "1. First step" ]
@@ -57,7 +56,6 @@ function teardown {
   git checkout -
   git merge branch-2
 
-  cat sensitive_file
   run cat sensitive_file
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "1. Step the first" ]
@@ -85,10 +83,10 @@ function teardown {
 
   run cat sensitive_file
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" = "<<<<<<< "* ]]
+  [ "${lines[0]}" = "<<<<<<< master" ]
   [ "${lines[1]}" = "a. First step" ]
   [ "${lines[2]}" = "=======" ]
   [ "${lines[3]}" = "1. Step the first" ]
   [ "${lines[4]}" = "2. Second step" ]
-  [[ "${lines[5]}" = ">>>>>>> "* ]]
+  [ "${lines[5]}" = ">>>>>>> branch-2" ]
 }
