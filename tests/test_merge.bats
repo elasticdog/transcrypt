@@ -25,7 +25,7 @@ function teardown {
   popd
 }
 
-@test "merge branches with encrypted file - addition, no conflict" {
+@test "merge: branches with encrypted file - addition, no conflict" {
   echo "1. First step" > sensitive_file
   encrypt_named_file sensitive_file
 
@@ -44,7 +44,7 @@ function teardown {
   [ "${lines[1]}" = "2. Second step" ]
 }
 
-@test "merge branches with encrypted file - line change, no conflict" {
+@test "merge: branches with encrypted file - line change, no conflict" {
   echo "1. First step" > sensitive_file
   encrypt_named_file sensitive_file
 
@@ -64,7 +64,7 @@ function teardown {
   [ "${lines[1]}" = "2. Second step" ]
 }
 
-@test "merge branches with encrypted file - with conflicts" {
+@test "merge: branches with encrypted file - with conflicts" {
   echo "1. First step" > sensitive_file
   encrypt_named_file sensitive_file
 

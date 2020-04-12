@@ -32,32 +32,32 @@ function teardown {
   popd
 }
 
-@test "git ls-crypt command is available" {
+@test "crypt: git ls-crypt command is available" {
   # No encrypted file yet, so command should work with no output
   run git ls-crypt
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "" ]
 }
 
-@test "encrypt a file" {
+@test "crypt: encrypt a file" {
   encrypt_file
 }
 
-@test "encrypted file contents are decrypted in working copy" {
+@test "crypt: encrypted file contents are decrypted in working copy" {
   encrypt_file
   run cat sensitive_file
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
 }
 
-@test "encrypted file contents are encrypted in git (via git show)" {
+@test "crypt: encrypted file contents are encrypted in git (via git show)" {
   encrypt_file
   run git show HEAD:sensitive_file --no-textconv
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
 }
 
-@test "transcrypt --show-raw shows encrypted content" {
+@test "crypt: transcrypt --show-raw shows encrypted content" {
   encrypt_file
   run ../transcrypt --show-raw sensitive_file
   [ "$status" -eq 0 ]
@@ -65,7 +65,7 @@ function teardown {
   [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
 }
 
-@test "git ls-crypt lists encrypted file" {
+@test "crypt: git ls-crypt lists encrypted file" {
   encrypt_file
 
   run git ls-crypt
@@ -73,7 +73,7 @@ function teardown {
   [ "${lines[0]}" = "sensitive_file" ]
 }
 
-@test "transcrypt --list lists encrypted file" {
+@test "crypt: transcrypt --list lists encrypted file" {
   encrypt_file
 
   run ../transcrypt --list
@@ -81,7 +81,7 @@ function teardown {
   [ "${lines[0]}" = "sensitive_file" ]
 }
 
-@test "transcrypt --uninstall leaves decrypted file and repo dirty" {
+@test "crypt: transcrypt --uninstall leaves decrypted file and repo dirty" {
   encrypt_file
 
   run ../transcrypt --uninstall --yes
@@ -98,7 +98,7 @@ function teardown {
   [ "$status" -ne 0 ]
 }
 
-@test "git reset after uninstall leaves encrypted file" {
+@test "crypt: git reset after uninstall leaves encrypted file" {
   encrypt_file
 
   ../transcrypt --uninstall --yes
