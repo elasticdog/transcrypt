@@ -293,7 +293,7 @@ complexity here would be worth it given transcrypt's use case.
 transcrypt is provided under the terms of the
 [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
-Copyright &copy; 2014-2019, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
+Copyright &copy; 2014-2020, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
 
 ## Contributing
 
@@ -308,3 +308,14 @@ To run the tests:
 - [install bats-core](https://github.com/bats-core/bats-core#installation)
 - run all tests with: `bats tests/`
 - run an individual test with e.g: `./tests/test_help.bats`
+
+## Changes
+
+Improvements:
+
+- Add Git pre-commit hook to reject commit of file that should be encrypted but
+  has plain text content: a safety mechanism to prevent accidental commits of
+  plain text files staged by tools that do not respect the .gitattribute
+  filters Transcrypt needs to do its job.
+
+- Add functional tests.
