@@ -371,12 +371,12 @@ save_helper_scripts() {
 # save helper hooks under the repository's git directory
 save_helper_hooks() {
 	# Install pre-commit hook script
-	pre_commit_hook="${GIT_DIR}/hooks/pre-commit"
+	pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
 
 	if [[ -f "$pre_commit_hook" ]]; then
 		printf 'WARNING:\n' $pre_commit_hook >&2
 		printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' $pre_commit_hook >&2
-		pre_commit_hook="pre-commit-crypt"
+		pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
 		printf 'Please manually install the pre-commit script saved as: %s\n' $pre_commit_hook >&2
 		printf '\n'
 	fi

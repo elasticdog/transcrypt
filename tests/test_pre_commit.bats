@@ -60,3 +60,17 @@ function teardown {
   [ "${lines[3]}" = "    git reset -- sensitive_file" ]
   [ "${lines[4]}" = "    git add sensitive_file" ]
 }
+
+@test "pre-commit: warn and don't clobber existing pre-commit hook on init" {
+  # Uninstall pre-existing transcrypt config from setup()
+  run $BATS_TEST_DIRNAME/../transcrypt --uninstall --yes
+
+  # Create a pre-existing pre-commit hook
+  touch .git/hooks/pre-commit
+
+  run $BATS_TEST_DIRNAME/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "WARNING:" ]
+  [ "${lines[1]}" = "Cannot install Git pre-commit hook script because file already exists: .git/hooks/pre-commit" ]
+  [ "${lines[2]}" = "Please manually install the pre-commit script saved as: .git/hooks/pre-commit-crypt" ]
+}
