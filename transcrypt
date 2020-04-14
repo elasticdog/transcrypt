@@ -375,7 +375,7 @@ save_helper_hooks() {
 	cat <<-'EOF' > "$pre_commit_hook_installed"
 		#!/usr/bin/env bash
 		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
-		for secret_file in $(transcrypt --list); do
+		for secret_file in $(git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
 		  # Get prefix of raw file in Git's index using the :FILENAME revision syntax
 		  firstbytes=$(git show :$secret_file | head -c 8)
 		  # An empty file does not need to be, and is not, encrypted
