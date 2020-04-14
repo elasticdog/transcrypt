@@ -331,4 +331,9 @@ Fixes:
 
 Improvements:
 
+- Add Git pre-commit hook to reject commit of file that should be encrypted but
+  has plain text content: a safety mechanism to prevent accidental commits of
+  plain text files staged by tools that do not respect the .gitattribute
+  filters Transcrypt needs to do its job.
+
 - Add functional tests.
