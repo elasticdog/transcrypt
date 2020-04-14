@@ -370,18 +370,9 @@ save_helper_scripts() {
 
 # save helper hooks under the repository's git directory
 save_helper_hooks() {
-	# Install pre-commit hook script
-	pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
-
-	if [[ -f "$pre_commit_hook" ]]; then
-		printf 'WARNING:\n' $pre_commit_hook >&2
-		printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' $pre_commit_hook >&2
-		pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
-		printf 'Please manually install the pre-commit script saved as: %s\n' $pre_commit_hook >&2
-		printf '\n'
-	fi
-
-	cat <<-'EOF' > "$pre_commit_hook"
+	# Install pre-commit-crypt hook script
+	pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
+	cat <<-'EOF' > "$pre_commit_hook_installed"
 		#!/usr/bin/env bash
 		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
 		for secret_file in $(transcrypt --list); do
@@ -408,7 +399,17 @@ save_helper_hooks() {
 		done
 	EOF
 
-	chmod 0755 "$pre_commit_hook"
+	# Activate hook by copying it to the pre-commit script name, if safe to do so
+	pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
+	if [[ -f "$pre_commit_hook" ]]; then
+		printf 'WARNING:\n' $pre_commit_hook >&2
+		printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' $pre_commit_hook >&2
+		printf 'Please manually install the pre-commit script saved as: %s\n' $pre_commit_hook_installed >&2
+		printf '\n'
+	else
+		cp "$pre_commit_hook_installed" "$pre_commit_hook"
+		chmod 0755 "$pre_commit_hook"
+	fi
 }
 
 # write the configuration to the repository's git config
@@ -551,11 +552,18 @@ uninstall_transcrypt() {
 		[[ -d "${GIT_DIR}/crypt" ]] && rmdir "${GIT_DIR}/crypt"
 
 		# rename helper hooks (don't delete, in case user has custom changes)
-		pre_commit_hook="${GIT_DIR}/hooks/pre-commit"
-		pre_commit_hook_renamed="${GIT_DIR}/hooks/pre-commit-crypt"
-		[[ -f "$pre_commit_hook" ]] \
-			&& mv "$pre_commit_hook" "$pre_commit_hook_renamed" \
-			&& printf 'Disabled Git pre-commit hook by renaming script to %s\n\n' $pre_commit_hook_renamed
+		pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
+		pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
+		if [ -f $pre_commit_hook ]; then
+			hook_md5=$(cat $pre_commit_hook | openssl md5 -hex)
+			installed_md5=$(cat $pre_commit_hook_installed | openssl md5 -hex)
+			if [[ "$hook_md5" = "$installed_md5" ]]; then
+				rm "$pre_commit_hook"
+			else
+				printf 'WARNING: Cannot safely disable Git pre-commit hook %s please check it yourself\n' $pre_commit_hook
+			fi
+		fi
+		[[ -f "$pre_commit_hook_installed" ]] && rm "$pre_commit_hook_installed"
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files=$(git ls-crypt)

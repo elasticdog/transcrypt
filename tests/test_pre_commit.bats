@@ -73,4 +73,27 @@ function teardown {
   [ "${lines[0]}" = "WARNING:" ]
   [ "${lines[1]}" = "Cannot install Git pre-commit hook script because file already exists: .git/hooks/pre-commit" ]
   [ "${lines[2]}" = "Please manually install the pre-commit script saved as: .git/hooks/pre-commit-crypt" ]
+
+  # Confirm pre-commit-crypt file is installed, but not copied to pre-commit
+  run cat .git/hooks/pre-commit-crypt
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = '# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64' ]
+  [ ! -s .git/hooks/pre-commit ] # Zero file size
+}
+
+@test "pre-commit: de-activate and remove transcrypt's pre-commit hook" {
+  $BATS_TEST_DIRNAME/../transcrypt --uninstall --yes
+  [ ! -f .git/hooks/pre-commit ]
+  [ ! -f .git/hooks/pre-commit-crypt ]
+}
+
+@test "pre-commit: warn and don't delete customised pre-commit hook on uninstall" {
+  # Customise transcrypt's pre-commit hook
+  echo "#" >> .git/hooks/pre-commit
+
+  run $BATS_TEST_DIRNAME/../transcrypt --uninstall --yes
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = 'WARNING: Cannot safely disable Git pre-commit hook .git/hooks/pre-commit please check it yourself' ]
+  [ -f .git/hooks/pre-commit ]
+  [ ! -f .git/hooks/pre-commit-crypt ]
 }
