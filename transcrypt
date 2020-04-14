@@ -70,8 +70,7 @@ gather_repo_metadata() {
 	readonly IS_BARE=$(git rev-parse --is-bare-repository 2>/dev/null || printf 'false')
 
 	# the current git repository's .git directory
-	local RELATIVE_GIT_DIR
-	RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
+	readonly RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
 	readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
 
 	# the current git repository's gitattributes file
@@ -113,7 +112,7 @@ run_safety_checks() {
 
 	# exit if transcrypt is not in the required state
 	if [[ $ignore_config_status ]]; then
-		:  # no-op, no need to check $CONFIGURED status
+		: # no-op, no need to check $CONFIGURED status
 	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED ]]; then
 		die 1 'the current repository is not configured'
 	elif [[ ! $requires_existing_config ]] && [[ $CONFIGURED ]]; then
@@ -122,7 +121,7 @@ run_safety_checks() {
 
 	# check for dependencies
 	for cmd in {column,grep,mktemp,openssl,sed,tee}; do
-		command -v $cmd >/dev/null || die 'required command "%s" was not found' "$cmd"
+		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
@@ -329,9 +328,54 @@ save_helper_scripts() {
 	done
 }
 
+# save helper hooks under the repository's git directory
+save_helper_hooks() {
+	# Install pre-commit-crypt hook script
+	pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
+	cat <<-'EOF' >"$pre_commit_hook_installed"
+		#!/usr/bin/env bash
+		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
+		for secret_file in $(git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
+		  # Get prefix of raw file in Git's index using the :FILENAME revision syntax
+		  firstbytes=$(git show :$secret_file | head -c 8)
+		  # An empty file does not need to be, and is not, encrypted
+		  if [[ $firstbytes == "" ]]; then
+		    :  # Do nothing
+		  # The first bytes of an encrypted file must be "Salted" in Base64
+		  elif [[ $firstbytes != "U2FsdGVk" ]]; then
+		    printf 'Transcrypt managed file is not encrypted in the Git index: %s\n' $secret_file >&2
+		    printf '\n' >&2
+		    printf 'You probably staged this file using a tool that does not apply' >&2
+		    printf ' .gitattribute filters as required by Transcrypt.\n' >&2
+		    printf '\n' >&2
+		    printf 'Fix this by re-staging the file with a compatible tool or with'
+		    printf ' Git on the command line:\n' >&2
+		    printf '\n' >&2
+		    printf '    git reset -- %s\n' $secret_file >&2
+		    printf '    git add %s\n' $secret_file >&2
+		    printf '\n' >&2
+		    exit 1
+		  fi
+		done
+	EOF
+
+	# Activate hook by copying it to the pre-commit script name, if safe to do so
+	pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
+	if [[ -f "$pre_commit_hook" ]]; then
+		printf 'WARNING:\n' >&2
+		printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' "$pre_commit_hook" >&2
+		printf 'Please manually install the pre-commit script saved as: %s\n' "$pre_commit_hook_installed" >&2
+		printf '\n'
+	else
+		cp "$pre_commit_hook_installed" "$pre_commit_hook"
+		chmod 0755 "$pre_commit_hook"
+	fi
+}
+
 # write the configuration to the repository's git config
 save_configuration() {
 	save_helper_scripts
+	save_helper_hooks
 
 	# write the encryption info
 	git config transcrypt.version "$VERSION"
@@ -472,6 +516,20 @@ uninstall_transcrypt() {
 			[[ ! -f "${GIT_DIR}/crypt/${script}" ]] || rm "${GIT_DIR}/crypt/${script}"
 		done
 		[[ ! -d "${GIT_DIR}/crypt" ]] || rmdir "${GIT_DIR}/crypt"
+
+		# rename helper hooks (don't delete, in case user has custom changes)
+		pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
+		pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
+		if [ -f "$pre_commit_hook" ]; then
+			hook_md5=$(openssl md5 -hex <"$pre_commit_hook")
+			installed_md5=$(openssl md5 -hex <"$pre_commit_hook_installed")
+			if [[ "$hook_md5" = "$installed_md5" ]]; then
+				rm "$pre_commit_hook"
+			else
+				printf 'WARNING: Cannot safely disable Git pre-commit hook %s please check it yourself\n' "$pre_commit_hook"
+			fi
+		fi
+		[[ -f "$pre_commit_hook_installed" ]] && rm "$pre_commit_hook_installed"
 
 		# touch all encrypted files to prevent stale stat info
 		local encrypted_files
@@ -729,7 +787,7 @@ uninstall=''
 # used to bypass certain safety checks
 requires_existing_config=''
 requires_clean_repo='true'
-ignore_config_status=''  # Set for operations where config can exist or not
+ignore_config_status='' # Set for operations where config can exist or not
 
 # parse command line options
 while [[ "${1:-}" != '' ]]; do
