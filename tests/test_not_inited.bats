@@ -2,17 +2,11 @@
 
 load $BATS_TEST_DIRNAME/_test_helper.bash
 
-function setup {
-  pushd $BATS_TEST_DIRNAME
-  # Need to init and tear down Git repo for these tests, mainly to avoid falling
-  # back to the transcrypt repo's Git config and partial transcrypt setup
-  init_git_repo
-}
+# Custom setup: don't init transcrypt
+# We need to init and tear down Git repo for these tests, mainly to avoid
+# falling back to the transcrypt repo's Git config and partial transcrypt setup
+SETUP_SKIP_INIT_TRANSCRYPT=1
 
-function teardown {
-  nuke_git_repo
-  popd
-}
 
 # Operations that should work in a repo not yet initialised
 

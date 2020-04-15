@@ -2,19 +2,9 @@
 
 load $BATS_TEST_DIRNAME/_test_helper.bash
 
-function init_transcrypt {
-  $BATS_TEST_DIRNAME/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
-}
+# Custom setup: don't init transcrypt
+SETUP_SKIP_INIT_TRANSCRYPT=1
 
-function setup {
-  pushd $BATS_TEST_DIRNAME
-  init_git_repo
-}
-
-function teardown {
-  cleanup_all
-  popd
-}
 
 @test "init: works at all" {
   # Use literal command not function to confirm command works at least once

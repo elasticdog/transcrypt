@@ -32,3 +32,31 @@ function cleanup_all {
   rm $BATS_TEST_DIRNAME/.gitattributes
   rm $BATS_TEST_DIRNAME/sensitive_file
 }
+
+function init_transcrypt {
+  $BATS_TEST_DIRNAME/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
+}
+
+function encrypt_named_file {
+  filename=$1
+  content=$2
+  if [ "$content" ]; then
+    echo "$content" > $filename
+  fi
+  echo "$filename filter=crypt diff=crypt" >> .gitattributes
+  git add .gitattributes $filename
+  git commit -m "Encrypt file $filename"
+}
+
+function setup {
+  pushd $BATS_TEST_DIRNAME
+  init_git_repo
+  if [ ! "$SETUP_SKIP_INIT_TRANSCRYPT" ]; then
+    init_transcrypt
+  fi
+}
+
+function teardown {
+  cleanup_all
+  popd
+}
