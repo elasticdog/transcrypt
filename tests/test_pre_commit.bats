@@ -2,28 +2,6 @@
 
 load $BATS_TEST_DIRNAME/_test_helper.bash
 
-function init_transcrypt {
-  $BATS_TEST_DIRNAME/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
-}
-
-function encrypt_named_file {
-  filename=$1
-  echo "$filename filter=crypt diff=crypt merge=crypt" >> .gitattributes
-  git add .gitattributes $filename
-  git commit -m "Encrypt file $filename"
-}
-
-function setup {
-  pushd $BATS_TEST_DIRNAME
-  init_git_repo
-  init_transcrypt
-}
-
-function teardown {
-  cleanup_all
-  popd
-}
-
 @test "pre-commit: pre-commit hook installed on init" {
   # Confirm pre-commit-crypt file is installed
   [ -f .git/hooks/pre-commit-crypt ]
