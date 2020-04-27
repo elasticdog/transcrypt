@@ -21,4 +21,7 @@ jobs:
         bash /tmp/bats-core-repo/install.sh /tmp/bats-core
 
     - name: Run all tests in tests/ with bats-core
-      run: /tmp/bats-core/bin/bats tests/
+      run: |
+        git config user.name github-actions-user
+        git config user.email github-actions-user@nowhere.com
+        /tmp/bats-core/bin/bats tests/
