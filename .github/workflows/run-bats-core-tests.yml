@@ -19,8 +19,6 @@ jobs:
         git clone https://github.com/bats-core/bats-core.git /tmp/bats-core-repo
         mkdir -p /tmp/bats-core
         bash /tmp/bats-core-repo/install.sh /tmp/bats-core
-        export PATH=$PATH:/tmp/bats-core/bin
 
-    # Run bats-core on all tests in tests/ directory
-    - name: Run a multi-line script
-      run: bats tests/
+    - name: Run all tests in tests/ with bats-core
+      run: /tmp/bats-core/bin/bats tests/
