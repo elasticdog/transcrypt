@@ -23,7 +23,7 @@ jobs:
     - name: Configure dummy Git user.[name,email] values
       run: |
         git config --global user.name github-actions-user
-        git config --global user.email github-actions-user@nowhere.com
+        git config --global user.email github-actions-user@example.com
 
     - name: Run tests
       run: /tmp/bats-core/bin/bats tests/
