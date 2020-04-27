@@ -4,11 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    # The type of runner that the job will run on
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ubuntu-latest
 
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
