@@ -12,7 +12,7 @@ to work normally on your local working copy. You can conveniently store things
 like passwords and private keys within your repository and not have to share
 them with your entire team or complicate your workflow.
 
-![Tests](https://github.com/elasticdog/transcrypt/workflows/Run%20BATS%20(bats-core)%20functionality%20tests/badge.svg)
+![Tests](https://github.com/elasticdog/transcrypt/workflows/Tests/badge.svg)
 
 ## Overview
 
