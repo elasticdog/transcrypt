@@ -43,7 +43,7 @@ function encrypt_named_file {
   if [ "$content" ]; then
     echo "$content" > $filename
   fi
-  echo "$filename filter=crypt diff=crypt" >> .gitattributes
+  echo "$filename filter=crypt diff=crypt merge=crypt" >> .gitattributes
   git add .gitattributes $filename
   git commit -m "Encrypt file $filename"
 }
