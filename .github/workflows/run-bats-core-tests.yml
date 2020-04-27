@@ -2,10 +2,10 @@ name: Tests
 
 on:
   # Only run tests on push to master branch
-  - push:
+  push:
     branches: [master]
-  # Run tests for all pull request changes
-  - pull_request
+  # Run tests for all pull request changes targeting master
+  pull_request: [master]
 
 jobs:
   test:
