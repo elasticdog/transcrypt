@@ -1,23 +1,29 @@
-name: Tests
+name: Run BATS (bats-core) functionality tests
 
 on: [push, pull_request]
 
 jobs:
   test:
+    # We use older Ubuntu for now to avoid warning from newer OpenSSL (#55)
+    # which break output expectations in some (fragile) tests
     runs-on: ubuntu-16.04
 
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
-    - name: Install and setup bats-core
+    - name: Install and set up bats-core
       run: |
         git clone https://github.com/bats-core/bats-core.git /tmp/bats-core-repo
         mkdir -p /tmp/bats-core
         bash /tmp/bats-core-repo/install.sh /tmp/bats-core
 
-    - name: Run all tests in tests/ with bats-core
+    # Need to configure git globally to avoid errors when we create and use
+    # temporary test-specific Git repos fatal: `empty ident name`
+    - name: Configure dummy Git user.[name,email] values
       run: |
         git config --global user.name github-actions-user
         git config --global user.email github-actions-user@nowhere.com
-        /tmp/bats-core/bin/bats tests/
+
+    - name: Run tests
+      run: /tmp/bats-core/bin/bats tests/
