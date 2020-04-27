@@ -18,6 +18,6 @@ jobs:
 
     - name: Run all tests in tests/ with bats-core
       run: |
-        git config user.name github-actions-user
-        git config user.email github-actions-user@nowhere.com
+        git config --global user.name github-actions-user
+        git config --global user.email github-actions-user@nowhere.com
         /tmp/bats-core/bin/bats tests/
