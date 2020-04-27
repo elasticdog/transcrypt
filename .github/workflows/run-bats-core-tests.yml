@@ -1,4 +1,4 @@
-name: Run BATS (bats-core) functionality tests
+name: Tests
 
 on: [push, pull_request]
 
