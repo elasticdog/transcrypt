@@ -5,7 +5,8 @@ on:
   push:
     branches: [master]
   # Run tests for all pull request changes targeting master
-  pull_request: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
   test:
