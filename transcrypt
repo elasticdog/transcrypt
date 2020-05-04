@@ -379,7 +379,8 @@ save_helper_hooks() {
 	cat <<-'EOF' >"$pre_commit_hook_installed"
 		#!/usr/bin/env bash
 		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
-		for secret_file in $(git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
+		IFS=$'\n'
+		for secret_file in $(git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
 		  # Get prefix of raw file in Git's index using the :FILENAME revision syntax
 		  firstbytes=$(git show :$secret_file | head -c 8)
 		  # An empty file does not need to be, and is not, encrypted
@@ -401,6 +402,7 @@ save_helper_hooks() {
 		    exit 1
 		  fi
 		done
+		unset IFS
 	EOF
 
 	# Activate hook by copying it to the pre-commit script name, if safe to do so
@@ -455,7 +457,7 @@ save_configuration() {
 	git config merge.crypt.name 'Merge transcrypt secret files'
 
 	# add a git alias for listing encrypted files
-	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
+	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
 }
 
 # display the current configuration settings
@@ -622,7 +624,7 @@ uninstall_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-		git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+		git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
 	fi
 }
 
@@ -631,8 +633,8 @@ show_raw_file() {
 	if [[ -f $show_file ]]; then
 		# ensure the file is currently being tracked
 		local escaped_file=${show_file//\//\\\/}
-		if git ls-files --others -- "$show_file" | awk "/${escaped_file}/{ exit 1 }"; then
-			file_paths=$(git ls-tree --name-only --full-name HEAD "$show_file")
+		if git -c core.quotePath=false ls-files --others -- "$show_file" | awk "/${escaped_file}/{ exit 1 }"; then
+			file_paths=$(git -c core.quotePath=false ls-tree --name-only --full-name HEAD "$show_file")
 		else
 			die 1 'the file "%s" is not currently being tracked by git' "$show_file"
 		fi

@@ -30,7 +30,7 @@ function nuke_git_repo {
 function cleanup_all {
   nuke_git_repo
   rm $BATS_TEST_DIRNAME/.gitattributes
-  rm $BATS_TEST_DIRNAME/sensitive_file
+  rm -f $BATS_TEST_DIRNAME/sensitive_file
 }
 
 function init_transcrypt {
@@ -38,14 +38,14 @@ function init_transcrypt {
 }
 
 function encrypt_named_file {
-  filename=$1
+  filename="$1"
   content=$2
   if [ "$content" ]; then
-    echo "$content" > $filename
+    echo "$content" > "$filename"
   fi
-  echo "$filename filter=crypt diff=crypt merge=crypt" >> .gitattributes
-  git add .gitattributes $filename
-  git commit -m "Encrypt file $filename"
+  echo "\"$filename\" filter=crypt diff=crypt merge=crypt" >> .gitattributes
+  git add .gitattributes "$filename"
+  run git commit -m "Encrypt file \"$filename\""
 }
 
 function setup {
