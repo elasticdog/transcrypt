@@ -26,7 +26,7 @@ load $BATS_TEST_DIRNAME/_test_helper.bash
   run git log --format=oneline
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" = *"Added more" ]]
-  [[ "${lines[1]}" = *"Encrypt file sensitive_file" ]]
+  [[ "${lines[1]}" = *"Encrypt file \"sensitive_file\"" ]]
 }
 
 @test "pre-commit: reject commit of encrypted file with unencrypted content" {

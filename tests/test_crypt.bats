@@ -88,3 +88,46 @@ function check_repo_is_clean {
   [ "${lines[0]}" != "$SECRET_CONTENT" ]
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
 }
+
+@test "crypt: handle challenging file names when 'core.quotePath=true'" {
+  # Set core.quotePath=true which is the Git default prior to encrypting a
+  # file with non-ASCII characters and spaces in the name, to confirm
+  # transcrypt can handle the file properly.
+  # For info about the 'core.quotePath' setting see
+  # https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
+  git config --local --add core.quotePath true
+
+  FILENAME="Mig – røve"  # Danish
+  SECRET_CONTENT_ENC="U2FsdGVkX19Fp9SwTyQ+tz1OgHNIN0OJ+6sMgHIqPMzfdZ6rZ2iVquS293WnjJMx"
+
+  encrypt_named_file "$FILENAME" "$SECRET_CONTENT"
+  [[ "${lines[0]}" = *"Encrypt file \"$FILENAME\"" ]]
+
+  # Working copy is decrypted
+  run cat "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Git internal copy is encrypted
+  run git show HEAD:"$FILENAME" --no-textconv
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
+
+  # transcrypt --show-raw shows encrypted content
+  run ../transcrypt --show-raw "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "==> $FILENAME <==" ]
+  [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
+
+  # git ls-crypt lists encrypted file
+  run git ls-crypt
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$FILENAME" ]
+
+  # transcrypt --list lists encrypted file"
+  run ../transcrypt --list
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$FILENAME" ]
+
+  rm "$FILENAME"
+}
