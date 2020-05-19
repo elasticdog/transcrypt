@@ -31,7 +31,8 @@ load $BATS_TEST_DIRNAME/_test_helper.bash
   git commit -m "Add line 2, change line 1"
 
   git checkout -
-  git merge branch-2
+  run git merge branch-2
+  [ "$status" -eq 0 ]
 
   run cat sensitive_file
   [ "$status" -eq 0 ]
