@@ -365,7 +365,7 @@ save_helper_scripts() {
 
 		# Now we use the `clean` script to encrypt the merged file contents back to the
 		# temp file $2 where Git expects to find the merge result content.
-		echo "$(cat \"$5\" | ./.git/crypt/clean \"$5\")" > "$2"
+		cat "$5" | ./.git/crypt/clean "$5" > "$2"
 	EOF
 
 	# make scripts executable
