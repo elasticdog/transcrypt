@@ -616,10 +616,38 @@ uninstall_transcrypt() {
 			;;
 		esac
 
-		printf 'The transcrypt configuration has been completely removed from the repository.\n'
+		if [[ ! $upgrade ]]; then
+			printf 'The transcrypt configuration has been completely removed from the repository.\n'
+		fi
 	else
 		die 1 'uninstallation has been aborted'
 	fi
+}
+
+# uninstall and re-install transcrypt to upgrade scripts and update configuration
+upgrade_transcrypt() {
+	# Keep current cipher and password
+	cipher=$(git config --get --local transcrypt.cipher)
+	password=$(git config --get --local transcrypt.password)
+
+	# Keep contents of .gitattributes
+	ORIG_GITATTRIBUTES=$(cat "$GIT_ATTRIBUTES")
+
+	uninstall_transcrypt
+	save_configuration
+
+	# Re-instate contents of .gitattributes
+	echo "$ORIG_GITATTRIBUTES" > "$GIT_ATTRIBUTES"
+
+	# Update .gitattributes for transcrypt'ed files to include "merge=crypt" config
+	case $OSTYPE in
+	darwin*)
+		/usr/bin/sed -i '' 's/filter=crypt diff=crypt\(.*\)/filter=crypt diff=crypt merge=crypt\1/' "$GIT_ATTRIBUTES"
+		;;
+	linux*)
+		sed -i 's/filter=crypt diff=crypt\(.*\)/filter=crypt diff=crypt merge=crypt\1/' "$GIT_ATTRIBUTES"
+		;;
+	esac
 }
 
 # list all of the currently encrypted files in the repository
@@ -764,6 +792,10 @@ help() {
 		            remove  all  transcrypt  configuration  from  the repository and
 		            leave files in the current working copy decrypted
 
+		     --upgrade
+		            uninstall and re-install transcrypt configuration in the repository
+		            to apply the newest scripts and .gitattributes configuration
+
 		     -l, --list
 		            list all of the transparently encrypted files in the repository,
 		            relative to the top-level directory
@@ -839,6 +871,7 @@ password=''
 rekey=''
 show_file=''
 uninstall=''
+upgrade=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -885,6 +918,12 @@ while [[ "${1:-}" != '' ]]; do
 		uninstall='true'
 		requires_existing_config='true'
 		requires_clean_repo=''
+		;;
+	--upgrade)
+		upgrade='true'
+		requires_existing_config='true'
+		requires_clean_repo=''
+		interactive=''
 		;;
 	-l | --list)
 		list='true'
@@ -956,6 +995,9 @@ if [[ $list ]]; then
 	exit 0
 elif [[ $uninstall ]]; then
 	uninstall_transcrypt
+	exit 0
+elif [[ $upgrade ]]; then
+	upgrade_transcrypt
 	exit 0
 elif [[ $display_config ]] && [[ $flush_creds ]]; then
 	display_configuration
