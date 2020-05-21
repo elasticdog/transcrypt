@@ -131,3 +131,60 @@ function check_repo_is_clean {
 
   rm "$FILENAME"
 }
+
+@test "crypt: transcrypt --upgrade applies new merge driver" {
+  VERSION=`../transcrypt -v | awk '{print $2}'`
+
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+
+  # Simulate a fake old installation of transcrypt without merge driver
+  echo "sensitive_file filter=crypt diff=crypt" > .gitattributes
+  git add .gitattributes
+  git commit -m "Removed merge driver config from .gitattributes"
+
+  git config --local transcrypt.version "0.0"
+
+  rm .git/crypt/merge
+
+  # Check .gitattributes and sensitive_file before re-install
+  run cat .gitattributes
+  [ "${lines[0]}" = "sensitive_file filter=crypt diff=crypt" ]
+  [ ! -f .git/crypt/merge ]
+
+  run git config --get --local transcrypt.version
+  [ "${lines[0]}" = "0.0" ]
+  run git config --get --local transcrypt.cipher
+  [ "${lines[0]}" = "aes-256-cbc" ]
+  run git config --get --local transcrypt.password
+  [ "${lines[0]}" = "abc123" ]
+
+  run cat sensitive_file
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Perform re-install
+  run ../transcrypt --upgrade
+  [ "$status" -eq 0 ]
+
+  run git config --get --local transcrypt.version
+  [ "${lines[0]}" = "$VERSION" ]
+  run git config --get --local transcrypt.cipher
+  [ "${lines[0]}" = "aes-256-cbc" ]
+  run git config --get --local transcrypt.password
+  [ "${lines[0]}" = "abc123" ]
+
+  # Check sensitive_file is unchanged after re-install
+  run cat sensitive_file
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Check merge driver is installed
+  [ -f .git/crypt/merge ]
+
+  # Check .gitattributes is updated to include merge driver
+  run cat .gitattributes
+  [ "${lines[0]}" = "sensitive_file filter=crypt diff=crypt merge=crypt" ]
+
+  run check_repo_is_clean
+  [ "$status" -ne 0 ]
+}

@@ -68,3 +68,10 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ "$status" -ne 0 ]
   [ "${lines[0]}" = "transcrypt: the current repository is not configured" ]
 }
+
+
+@test "not inited: error on --upgrade" {
+  run ../transcrypt --upgrade
+  [ "$status" -ne 0 ]
+  [ "${lines[0]}" = "transcrypt: the current repository is not configured" ]
+}
