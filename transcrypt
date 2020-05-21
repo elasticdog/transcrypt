@@ -794,10 +794,10 @@ help() {
 		         $ transcrypt
 
 		     Once  a  repository has been configured with transcrypt, you can trans-
-		     parently encrypt files by applying the "crypt" filter  and  diff  to  a
-		     pattern in the top-level .gitattributes config. If that pattern matches
-		     a file in your repository, the file  will  be  transparently  encrypted
-		     once you stage and commit it:
+		     parently encrypt files by applying the "crypt" filter,  diff and  merge
+		     to a pattern in the  top-level .gitattributes config.  If that  pattern
+		     matches  a file in your  repository,  the file  will  be  transparently
+		     encrypted once you stage and commit it:
 
 		         $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' >> .gitattributes
 		         $ git add .gitattributes sensitive_file
