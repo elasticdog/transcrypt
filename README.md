@@ -345,4 +345,7 @@ Improvements:
   plain text files staged by tools that do not respect the .gitattribute
   filters Transcrypt needs to do its job.
 
+- Add --upgrade command to apply the latest transcrypt scripts in the
+  repository without changing its configuration settings.
+
 - Add functional tests.
