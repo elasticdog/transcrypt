@@ -626,6 +626,27 @@ uninstall_transcrypt() {
 
 # uninstall and re-install transcrypt to upgrade scripts and update configuration
 upgrade_transcrypt() {
+	CURRENT_VERSION=$(git config --get --local transcrypt.version 2>/dev/null)
+
+	if [[ $interactive ]]; then
+		printf 'You are about to upgrade the transcrypt scripts in your repository.\n'
+		printf 'Your configuration settings will not be changed.\n\n'
+		printf ' Current version: %s\n' "$CURRENT_VERSION"
+		printf 'Upgraded version: %s\n\n' "$VERSION"
+		printf 'Proceed with upgrade? [y/N] '
+		read -r answer
+		printf '\n'
+
+		if [[ $answer =~ $YES_REGEX ]]; then
+			# User confirmed, don't prompt again
+			interactive=''
+		else
+			# User did not confirm, exit
+			# Exit if user did not confirm
+			die 1 'upgrade has been aborted'
+		fi
+	fi
+
 	# Keep current cipher and password
 	cipher=$(git config --get --local transcrypt.cipher)
 	password=$(git config --get --local transcrypt.password)
@@ -642,12 +663,21 @@ upgrade_transcrypt() {
 	# Update .gitattributes for transcrypt'ed files to include "merge=crypt" config
 	case $OSTYPE in
 	darwin*)
-		/usr/bin/sed -i '' 's/filter=crypt diff=crypt\(.*\)/filter=crypt diff=crypt merge=crypt\1/' "$GIT_ATTRIBUTES"
+		/usr/bin/sed -i '' 's/=crypt\(.*\)/=crypt diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
 		;;
 	linux*)
-		sed -i 's/filter=crypt diff=crypt\(.*\)/filter=crypt diff=crypt merge=crypt\1/' "$GIT_ATTRIBUTES"
+		sed -i 's/=crypt\(.*\)/=crypt diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
 		;;
 	esac
+
+	printf 'Upgrade is complete\n'
+
+	LATEST_GITATTRIBUTES=$(cat "$GIT_ATTRIBUTES")
+	if [[ "$LATEST_GITATTRIBUTES" != "$ORIG_GITATTRIBUTES" ]]; then
+		printf '\nYour gitattributes file has been updated with the latest recommended values.\n'
+		printf 'Please review and commit the new values in:\n'
+		printf '%s\n' "$GIT_ATTRIBUTES"
+	fi
 }
 
 # list all of the currently encrypted files in the repository
@@ -793,8 +823,8 @@ help() {
 		            leave files in the current working copy decrypted
 
 		     --upgrade
-		            uninstall and re-install transcrypt configuration in the repository
-		            to apply the newest scripts and .gitattributes configuration
+		            apply the  latest transcrypt scripts  in the  repository without
+		            changing your configuration settings
 
 		     -l, --list
 		            list all of the transparently encrypted files in the repository,
@@ -923,7 +953,6 @@ while [[ "${1:-}" != '' ]]; do
 		upgrade='true'
 		requires_existing_config='true'
 		requires_clean_repo=''
-		interactive=''
 		;;
 	-l | --list)
 		list='true'
