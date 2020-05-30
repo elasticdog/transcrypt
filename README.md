@@ -338,6 +338,9 @@ Fixes:
   command, or uninstall and re-init transcrypt then add `merge=crypt` to the
   patterns in _.gitattributes_
 
+- Remove any cached unencrypted from Git's object database when credentials are
+  removed from a repository with a flush or uninstall (#74).
+
 Improvements:
 
 - Add Git pre-commit hook to reject commit of file that should be encrypted but
