@@ -18,12 +18,17 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   [ "$status" -eq 0 ]
   [[ "${output}" = *"+$SECRET_CONTENT" ]]  # Check last line of patch
 
-  # Confirm plaintext is cached
+  # Look up notes ref to cached plaintext
   [[ -f $BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt ]]
   cached_plaintext_obj=$(cat $BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt)
+
+  # Confirm plaintext is cached
   run git show "$cached_plaintext_obj"
   [ "$status" -eq 0 ]
   [[ "${output}" = *"+$SECRET_CONTENT" ]]  # Check last line of patch
+
+  # Repack to force all objects into packs (which are trickier to clear)
+  git repack
 
   # Flush credentials
   run ../transcrypt -f --yes
@@ -61,12 +66,17 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   [ "$status" -eq 0 ]
   [[ "${output}" = *"+$SECRET_CONTENT" ]]  # Check last line of patch
 
-  # Confirm plaintext is cached
+  # Look up notes ref to cached plaintext
   [[ -f $BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt ]]
   cached_plaintext_obj=$(cat $BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt)
+
+  # Confirm plaintext is cached
   run git show "$cached_plaintext_obj"
   [ "$status" -eq 0 ]
   [[ "${output}" = *"+$SECRET_CONTENT" ]]  # Check last line of patch
+
+  # Repack to force all objects into packs (which are trickier to clear)
+  git repack
 
   # Uninstall
   run ../transcrypt --uninstall --yes
