@@ -581,7 +581,9 @@ uninstall_transcrypt() {
 	if [[ $answer =~ $YES_REGEX ]]; then
 		clean_gitconfig
 
-		remove_cached_plaintext
+		if [[ ! $upgrade ]]; then
+			remove_cached_plaintext
+		fi
 
 		# remove helper scripts
 		for script in {clean,smudge,textconv,merge}; do
