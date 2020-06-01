@@ -538,7 +538,8 @@ flush_credentials() {
 
 	if [[ $interactive ]]; then
 		printf 'You are about to flush the local credentials; make sure you have saved them elsewhere.\n'
-		printf 'All previously decrypted files will revert to their encrypted form.\n\n'
+		printf 'All previously decrypted files will revert to their encrypted form, and your\n'
+		printf 'repo will be garbage collected to remove any cached plaintext of secret files.\n\n'
 		printf 'Proceed with credential flush? [y/N] '
 		read -r answer
 		printf '\n'
@@ -568,7 +569,8 @@ uninstall_transcrypt() {
 
 	if [[ $interactive ]]; then
 		printf 'You are about to remove all transcrypt configuration from your repository.\n'
-		printf 'All previously encrypted files will remain decrypted in this working copy.\n\n'
+		printf 'All previously encrypted files will remain decrypted in this working copy, but your\n'
+		printf 'repo will be garbage collected to remove any cached plaintext of secret files.\n\n'
 		printf 'Proceed with uninstall? [y/N] '
 		read -r answer
 		printf '\n'
