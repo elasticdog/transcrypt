@@ -495,14 +495,19 @@ clean_gitconfig() {
 	if [[ ! $merge_values ]]; then
 		git config --remove-section merge 2>/dev/null || true
 	fi
+}
 
-	# Remove refs to cached plaintext of secret files created due to
-	# diff.crypt.cachetextconv='true'
+# Remove from the local Git DB any objects containing the cached plaintext of
+# secret files, created due to the setting diff.crypt.cachetextconv='true'
+remove_cached_plaintext() {
+	# Delete ref to cached plaintext objects, to leave these objects
+	# unreferenced and available for removal
 	git update-ref -d refs/notes/textconv/crypt
-	# Remove any plaintext objects in Git's DB that used to be referenced by
-	# the above notes, or that have been already been packed.
-	# The key sub-commands jobs we expect this `gc` command to do are something
-	# like: `git prune`, `git repack -ad`
+
+	# Remove ANY unreferenced objects in Git's object DB (packed or unpacked),
+	# to ensure that cached plaintext objects are also removed.
+	# The vital sub-commands equivalents we require this `gc` command to do are:
+	# `git prune`, `git repack -ad`
 	git gc --prune=now --quiet
 }
 
@@ -546,6 +551,8 @@ flush_credentials() {
 	if [[ $answer =~ $YES_REGEX ]]; then
 		clean_gitconfig
 
+		remove_cached_plaintext
+
 		# re-encrypt any files that had been previously decrypted
 		force_checkout
 
@@ -573,6 +580,8 @@ uninstall_transcrypt() {
 	# only uninstall if the user explicitly confirmed
 	if [[ $answer =~ $YES_REGEX ]]; then
 		clean_gitconfig
+
+		remove_cached_plaintext
 
 		# remove helper scripts
 		for script in {clean,smudge,textconv,merge}; do
