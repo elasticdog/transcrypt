@@ -496,9 +496,14 @@ clean_gitconfig() {
 		git config --remove-section merge 2>/dev/null || true
 	fi
 
-	# Remove any plaintext of secret files cached due to diff.crypt.cachetextconv='true'
+	# Remove refs to cached plaintext of secret files created due to
+	# diff.crypt.cachetextconv='true'
 	git update-ref -d refs/notes/textconv/crypt
-	git prune
+	# Remove any plaintext objects in Git's DB that used to be referenced by
+	# the above notes, or that have been already been packed.
+	# The key sub-commands jobs we expect this `gc` command to do are something
+	# like: `git prune`, `git repack -ad`
+	git gc --prune=now --quiet
 }
 
 # force the checkout of any files with the crypt filter applied to them;
