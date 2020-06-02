@@ -497,6 +497,20 @@ clean_gitconfig() {
 	fi
 }
 
+# Remove from the local Git DB any objects containing the cached plaintext of
+# secret files, created due to the setting diff.crypt.cachetextconv='true'
+remove_cached_plaintext() {
+	# Delete ref to cached plaintext objects, to leave these objects
+	# unreferenced and available for removal
+	git update-ref -d refs/notes/textconv/crypt
+
+	# Remove ANY unreferenced objects in Git's object DB (packed or unpacked),
+	# to ensure that cached plaintext objects are also removed.
+	# The vital sub-commands equivalents we require this `gc` command to do are:
+	# `git prune`, `git repack -ad`
+	git gc --prune=now --quiet
+}
+
 # force the checkout of any files with the crypt filter applied to them;
 # this will decrypt existing encrypted files if you've just cloned a repository,
 # or it will encrypt locally decrypted files if you've just flushed the credentials
@@ -524,7 +538,8 @@ flush_credentials() {
 
 	if [[ $interactive ]]; then
 		printf 'You are about to flush the local credentials; make sure you have saved them elsewhere.\n'
-		printf 'All previously decrypted files will revert to their encrypted form.\n\n'
+		printf 'All previously decrypted files will revert to their encrypted form, and your\n'
+		printf 'repo will be garbage collected to remove any cached plaintext of secret files.\n\n'
 		printf 'Proceed with credential flush? [y/N] '
 		read -r answer
 		printf '\n'
@@ -536,6 +551,8 @@ flush_credentials() {
 	# only flush if the user explicitly confirmed
 	if [[ $answer =~ $YES_REGEX ]]; then
 		clean_gitconfig
+
+		remove_cached_plaintext
 
 		# re-encrypt any files that had been previously decrypted
 		force_checkout
@@ -552,7 +569,8 @@ uninstall_transcrypt() {
 
 	if [[ $interactive ]]; then
 		printf 'You are about to remove all transcrypt configuration from your repository.\n'
-		printf 'All previously encrypted files will remain decrypted in this working copy.\n\n'
+		printf 'All previously encrypted files will remain decrypted in this working copy, but your\n'
+		printf 'repo will be garbage collected to remove any cached plaintext of secret files.\n\n'
 		printf 'Proceed with uninstall? [y/N] '
 		read -r answer
 		printf '\n'
@@ -564,6 +582,10 @@ uninstall_transcrypt() {
 	# only uninstall if the user explicitly confirmed
 	if [[ $answer =~ $YES_REGEX ]]; then
 		clean_gitconfig
+
+		if [[ ! $upgrade ]]; then
+			remove_cached_plaintext
+		fi
 
 		# remove helper scripts
 		for script in {clean,smudge,textconv,merge}; do
