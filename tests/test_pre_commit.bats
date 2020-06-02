@@ -44,11 +44,11 @@ load $BATS_TEST_DIRNAME/_test_helper.bash
   # an encrypted file
   run git commit -m "Added more"
   [ "$status" -ne 0 ]
-  [ "${lines[0]}" = "Transcrypt managed file is not encrypted in the Git index: sensitive_file" ]
-  [ "${lines[1]}" = "You probably staged this file using a tool that does not apply .gitattribute filters as required by Transcrypt." ]
-  [ "${lines[2]}" = "Fix this by re-staging the file with a compatible tool or with Git on the command line:" ]
-  [ "${lines[3]}" = "    git reset -- sensitive_file" ]
-  [ "${lines[4]}" = "    git add sensitive_file" ]
+  [[ "${output}" = *"Transcrypt managed file is not encrypted in the Git index: sensitive_file"* ]]
+  [[ "${output}" = *"You probably staged this file using a tool that does not apply .gitattribute filters as required by Transcrypt."* ]]
+  [[ "${output}" = *"Fix this by re-staging the file with a compatible tool or with Git on the command line:"* ]]
+  [[ "${output}" = *"    git reset -- sensitive_file"* ]]
+  [[ "${output}" = *"    git add sensitive_file"* ]]
 }
 
 @test "pre-commit: warn and don't clobber existing pre-commit hook on init" {

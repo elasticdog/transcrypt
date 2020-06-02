@@ -86,7 +86,7 @@ load $BATS_TEST_DIRNAME/_test_helper.bash
 
   run git merge branch-2
   [ "$status" -ne 0 ]
-  [ "${lines[1]}" = "CONFLICT (content): Merge conflict in sensitive_file" ]
+  [[ "${output}" = *"CONFLICT (content): Merge conflict in sensitive_file"* ]]
 
   run cat sensitive_file
   [ "$status" -eq 0 ]
