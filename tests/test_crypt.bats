@@ -101,7 +101,7 @@ function check_repo_is_clean {
   SECRET_CONTENT_ENC="U2FsdGVkX19Fp9SwTyQ+tz1OgHNIN0OJ+6sMgHIqPMzfdZ6rZ2iVquS293WnjJMx"
 
   encrypt_named_file "$FILENAME" "$SECRET_CONTENT"
-  [[ "${lines[0]}" = *"Encrypt file \"$FILENAME\"" ]]
+  [[ "${output}" = *"Encrypt file \"$FILENAME\"" ]]
 
   # Working copy is decrypted
   run cat "$FILENAME"
