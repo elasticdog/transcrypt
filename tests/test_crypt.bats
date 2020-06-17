@@ -188,3 +188,23 @@ function check_repo_is_clean {
   run check_repo_is_clean
   [ "$status" -ne 0 ]
 }
+
+@test "crypt: transcrypt --force handles files missing from working copy" {
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+
+  ../transcrypt --uninstall --yes
+
+  # Reset repo to restore .gitattributes file
+  git reset --hard
+
+  # Delete secret file from working copy
+  rm sensitive_file
+
+  # Re-init with --force should check out deleted secret file
+  ../transcrypt --force --cipher=aes-256-cbc --password=abc123 --yes
+
+  # Check sensitive_file is present and decrypted
+  run cat sensitive_file
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+}
