@@ -12,6 +12,8 @@ to work normally on your local working copy. You can conveniently store things
 like passwords and private keys within your repository and not have to share
 them with your entire team or complicate your workflow.
 
+![Tests](https://github.com/elasticdog/transcrypt/workflows/Tests/badge.svg)
+
 ## Overview
 
 transcrypt is in the same vein as existing projects like
@@ -92,14 +94,14 @@ using the command line options. Run `transcrypt --help` for more details.
 ### Designate a File to be Encrypted
 
 Once a repository has been configured with transcrypt, you can designate for
-files to be encrypted by applying the "crypt" filter and diff to a
+files to be encrypted by applying the "crypt" filter, diff, and merge to a
 [pattern](https://www.kernel.org/pub/software/scm/git/docs/gitignore.html#_pattern_format)
 in the top-level _[.gitattributes](http://git-scm.com/docs/gitattributes)_
 config. If that pattern matches a file in your repository, the file will be
 transparently encrypted once you stage and commit it:
 
     $ cd <path-to-your-repo>/
-    $ echo 'sensitive_file  filter=crypt diff=crypt' >> .gitattributes
+    $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' >> .gitattributes
     $ git add .gitattributes sensitive_file
     $ git commit -m 'Add encrypted version of a sensitive file'
 
@@ -219,6 +221,10 @@ directory.
              remove  all  transcrypt  configuration  from  the repository and
              leave files in the current working copy decrypted
 
+       --upgrade
+             uninstall and re-install transcrypt configuration in the repository
+             to apply the newest scripts and .gitattributes configuration
+
       -l, --list
              list all of the transparently encrypted files in the repository,
              relative to the top-level directory
@@ -293,4 +299,56 @@ complexity here would be worth it given transcrypt's use case.
 transcrypt is provided under the terms of the
 [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
-Copyright &copy; 2014-2019, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
+Copyright &copy; 2014-2020, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
+
+## Contributing
+
+### Linting and formatting
+
+Please use:
+
+- the [shellcheck](https://www.shellcheck.net) tool to check for subtle bash
+  scripting errors in the _transcrypt_ file, and apply the recommendations when
+  possible. E.g: `shellcheck transcrypt`
+- the [shfmt](https://github.com/mvdan/sh) tool to apply consistent formatting
+  to the _transcrypt_ file, e.g: `shfmt -w transcrypt`
+- the [Prettier](https://prettier.io) tool to apply consistent formatting to the
+  _README.md_ file, e.g: `prettier --write README.md`
+
+### Tests
+
+Tests are written using [bats-core](https://github.com/bats-core/bats-core)
+version of "Bash Automated Testing System" and stored in the _tests/_ directory.
+
+To run the tests:
+
+- [install bats-core](https://github.com/bats-core/bats-core#installation)
+- run all tests with: `bats tests/`
+- run an individual test with e.g: `./tests/test_help.bats`
+
+## Changes
+
+Fixes:
+
+- Fix handling of branch merges with conflicts in encrypted files, which would
+  previously leave the user to manually merge files with a mix of encrypted and
+  unencrypted content.
+
+  To apply this fix in projects that already use transcrypt: use the `--upgrade`
+  command, or uninstall and re-init transcrypt then add `merge=crypt` to the
+  patterns in _.gitattributes_
+
+- Remove any cached unencrypted from Git's object database when credentials are
+  removed from a repository with a flush or uninstall (#74).
+
+Improvements:
+
+- Add Git pre-commit hook to reject commit of file that should be encrypted but
+  has plain text content: a safety mechanism to prevent accidental commits of
+  plain text files staged by tools that do not respect the .gitattribute
+  filters Transcrypt needs to do its job.
+
+- Add --upgrade command to apply the latest transcrypt scripts in the
+  repository without changing its configuration settings.
+
+- Add functional tests.
