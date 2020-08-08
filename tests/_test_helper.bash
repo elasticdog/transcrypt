@@ -40,10 +40,16 @@ function init_transcrypt {
 function encrypt_named_file {
   filename="$1"
   content=$2
+  context=${3:-default}
   if [ "$content" ]; then
     echo "$content" > "$filename"
   fi
-  echo "\"$filename\" filter=crypt diff=crypt merge=crypt" >> .gitattributes
+  if [ "$context" != "default" ]; then
+    context_crypt="$context-crypt"
+  else
+    context_crypt="crypt"
+  fi
+  echo "\"$filename\" filter=${context_crypt} diff=${context_crypt} merge=${context_crypt}" >> .gitattributes
   git add .gitattributes "$filename"
   run git commit -m "Encrypt file \"$filename\""
 }

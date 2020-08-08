@@ -445,7 +445,9 @@ save_helper_hooks() {
 
 	# Activate hook by copying it to the pre-commit script name, if safe to do so
 	pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
-	if [[ -f "$pre_commit_hook" ]]; then
+	if [[ -f "$pre_commit_hook" && "$CONTEXT" != "default" ]]; then
+		: # no-op, skip re-install of pre-commit hook for additional contexts
+	elif [[ -f "$pre_commit_hook" ]]; then
 		printf 'WARNING:\n' >&2
 		printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' "$pre_commit_hook" >&2
 		printf 'Please manually install the pre-commit script saved as: %s\n' "$pre_commit_hook_installed" >&2
@@ -495,7 +497,7 @@ save_configuration() {
 	git config merge."${CONTEXT_CRYPT}".name 'Merge transcrypt secret files'
 
 	# add a git alias for listing encrypted files in specific context, including 'default'
-	git config alias."${CONTEXT_LS_CRYPT}" "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ${CONTEXT_CRYPT}$/{ print \$1 }'"
+	git config alias."${CONTEXT_LS_CRYPT}" "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ${CONTEXT_CRYPT}$/{ print \$1 }'"
 
 	# add git alias for listing ALL encrypted files regardless of context
 	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / (${CONTEXT_REGEX}-)?crypt$/{ print \$1 }'"
@@ -866,17 +868,16 @@ import_gpg() {
 # Echo array of context names as defined in the git config
 get_contexts_from_git_config() {
 	contexts=()
-	config_name=$(git config --local --name-only --list)
-	extract_context_name_regex="transcrypt.(${CONTEXT_REGEX})?-version"
-	for name in $config_name; do
+	config_names=$(git config --local --name-only --list)
+	extract_context_name_regex="transcrypt\.(${CONTEXT_REGEX})-version"
+	for name in $config_names; do
 		if [[ $name =~ transcrypt\.version ]]; then
 			contexts+=('default')
 		elif [[ $name =~ $extract_context_name_regex ]]; then
-			contexts+=("${BASH_REMATCH[1]}")
+			contexts+=(${BASH_REMATCH[1]})
 		fi
 	done
-	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
-	echo ${contexts[@]+"${contexts[@]}"}
+	printf "%q " "${contexts[@]:-}"
 }
 
 # Echo array of context names as defined in the .gitattributes file
@@ -887,30 +888,32 @@ get_contexts_from_git_attributes() {
 	contexts=()
 	# Capture contents of .gitattributes without comments (leading # hash)
 	attrs=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
-	extract_context_name_regex="filter=(${CONTEXT_REGEX})?-crypt"
+	extract_context_name_regex="filter=(${CONTEXT_REGEX})-crypt"
 	for attr in $attrs; do
 		if [[ $attr =~ 'filter=crypt' ]]; then
 			contexts+=('default')
 		elif [[ $attr =~ $extract_context_name_regex ]]; then
-			contexts+=("${BASH_REMATCH[1]}")
+			contexts+=(${BASH_REMATCH[1]})
 		fi
 	done
-	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
-	echo ${contexts[@]+"${contexts[@]}"}
+	printf "%q " "${contexts[@]:-}"
 }
 
 # Echo all context names, sorted and distinct, as defined in the git config or .gitattributes file
 get_contexts() {
 	combined_contexts="$(get_contexts_from_git_config) $(get_contexts_from_git_attributes)"
-	sorted_contexts=$(printf '%s\n' "$combined_contexts" | sort -u | tr '\n' ' ')
+	sorted_contexts=$(echo "$combined_contexts" | tr ' ' '\n' | sort -u | tr '\n' ' ')
 	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
 	echo ${sorted_contexts[@]+"${sorted_contexts[@]}"}
 }
 
 # Utility function returns a truthy value if value $1 is in bash array $2
+# Based on https://stackoverflow.com/a/8574392/4970
 is_item_in_array() {
-	# Based on https://stackoverflow.com/a/47541882/4970
-	return "$(printf '%s\n' "$2" | grep -q "^${1}$")"
+  local e match="$1"
+  shift
+  for e; do [[ "$e" == "$match" ]] && return 0; done
+  return 1
 }
 
 list_contexts() {
@@ -918,11 +921,11 @@ list_contexts() {
 	in_git_attributes=$(get_contexts_from_git_attributes)
 	for context in $(get_contexts); do
 		config_status='not configured'
-		if is_item_in_array "$context" "${in_git_config[@]}"; then
+		if is_item_in_array "$context" ${in_git_config[@]}; then
 			config_status='configured'
 		fi
 		attr_status='not in .gitattributes'
-		if is_item_in_array "$context" "${in_git_attributes[@]}"; then
+		if is_item_in_array "$context" ${in_git_attributes[@]}; then
 			attr_status='in .gitattributes'
 		fi
 		echo "$context ($config_status, $attr_status)"
@@ -1060,7 +1063,7 @@ help() {
 		         $ transcrypt --context=ts
 
 		         # Use context name as a prefix to 'crypt' in .gitattributes
-		         $ echo 'ts_file  filter=ts-crypt diff=ts-crypt' >> .gitattributes
+		         $ echo 'ts_file  filter=ts-crypt diff=ts-crypt merge=ts-crypt' >> .gitattributes
 		         $ git add .gitattributes ts_file
 		         $ git commit -m 'Add encrypted version of a top-secret file'
 
@@ -1083,6 +1086,7 @@ help() {
 context=''
 cipher=''
 display_config=''
+list_ctxs=''
 flush_creds=''
 gpg_import_file=''
 gpg_recipient=''
@@ -1110,8 +1114,8 @@ while [[ "${1:-}" != '' ]]; do
 		context=${1#*=}
 		;;
 	--list-contexts)
-		list_contexts
-		exit 0
+		list_ctxs='true'
+		ignore_config_status='true'
 		;;
 	-c | --cipher)
 		cipher=$2
@@ -1215,10 +1219,10 @@ done
 if [[ $context ]]; then
 	readonly CONTEXT=$context
 	readonly CONTEXT_DESC_SUFFIX=" for context '$CONTEXT'"
-	readonly CONTEXT_TRANSCRYPT_VERSION=transcrypt.${CONTEXT_PREFIX}-version
-	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT_PREFIX}-cipher
-	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT_PREFIX}-password
-	readonly CONTEXT_CRYPT=${CONTEXT_PREFIX}-crypt
+	readonly CONTEXT_TRANSCRYPT_VERSION=transcrypt.${CONTEXT}-version
+	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}-cipher
+	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT}-password
+	readonly CONTEXT_CRYPT=${CONTEXT}-crypt
 	# For ls-crypt aliases we want one for each context, including 'default'
 	readonly CONTEXT_LS_CRYPT="ls-$CONTEXT-crypt"
 else
@@ -1259,6 +1263,9 @@ elif [[ $display_config ]] && [[ $flush_creds ]]; then
 elif [[ $display_config ]]; then
 	display_configuration
 	exit 0
+elif [[ $list_ctxs ]]; then
+	list_contexts
+	exit 0
 elif [[ $flush_creds ]]; then
 	flush_credentials
 	exit 0
@@ -1295,6 +1302,6 @@ if [[ ! -f $GIT_ATTRIBUTES ]]; then
 	printf '#pattern  filter=crypt diff=crypt merge=crypt\n' >"$GIT_ATTRIBUTES"
 fi
 
-printf 'The repository has been successfully configured by transcrypt.\n'
+printf 'The repository has been successfully configured by transcrypt%s.\n' "$CONTEXT_DESC_SUFFIX"
 
 exit 0
