@@ -57,7 +57,7 @@ realpath() {
 # establish repository metadata and directory handling
 gather_repo_metadata() {
 	# whether or not transcrypt is already configured
-	readonly CONFIGURED=$(git config --get --local $CONTEXT_TRANSCRYPT_VERSION 2>/dev/null)
+	readonly CONFIGURED=$(git config --get --local "$CONTEXT_TRANSCRYPT_VERSION" 2>/dev/null)
 
 	# the current git repository's top-level directory
 	readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -471,31 +471,31 @@ save_configuration() {
 		# this allows us to support multiple working trees via git-worktree
 		# ...but the --git-common-dir flag was only added in November 2014
 		# shellcheck disable=SC2016
-		git config filter.${CONTEXT_CRYPT}.clean '"$(git rev-parse --git-common-dir)"/crypt/clean '$CONTEXT' %f'
+		git config filter."${CONTEXT_CRYPT}".clean '"$(git rev-parse --git-common-dir)"/crypt/clean '"$CONTEXT"' %f'
 		# shellcheck disable=SC2016
-		git config filter.${CONTEXT_CRYPT}.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge '$CONTEXT
+		git config filter."${CONTEXT_CRYPT}".smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge '"$CONTEXT"
 		# shellcheck disable=SC2016
-		git config diff.${CONTEXT_CRYPT}.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv '$CONTEXT
+		git config diff."${CONTEXT_CRYPT}".textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv '"$CONTEXT"
 		# shellcheck disable=SC2016
-		git config merge.${CONTEXT_CRYPT}.driver '"$(git rev-parse --git-common-dir)"/crypt/merge '$CONTEXT' %O %A %B %L %P'
+		git config merge."${CONTEXT_CRYPT}".driver '"$(git rev-parse --git-common-dir)"/crypt/merge '"$CONTEXT"' %O %A %B %L %P'
 	else
 		# shellcheck disable=SC2016
-		git config filter.${CONTEXT_CRYPT}.clean '"$(git rev-parse --git-dir)"/crypt/clean '$CONTEXT ' %f'
+		git config filter."${CONTEXT_CRYPT}".clean '"$(git rev-parse --git-dir)"/crypt/clean '"$CONTEXT" ' %f'
 		# shellcheck disable=SC2016
-		git config filter.${CONTEXT_CRYPT}.smudge '"$(git rev-parse --git-dir)"/crypt/smudge '$CONTEXT
+		git config filter."${CONTEXT_CRYPT}".smudge '"$(git rev-parse --git-dir)"/crypt/smudge '"$CONTEXT"
 		# shellcheck disable=SC2016
-		git config diff.${CONTEXT_CRYPT}.textconv '"$(git rev-parse --git-dir)"/crypt/textconv '$CONTEXT
+		git config diff."${CONTEXT_CRYPT}".textconv '"$(git rev-parse --git-dir)"/crypt/textconv '"$CONTEXT"
 		# shellcheck disable=SC2016
-		git config merge.${CONTEXT_CRYPT}.driver '"$(git rev-parse --git-dir)"/crypt/merge '$CONTEXT' %O %A %B %L %P'
+		git config merge."${CONTEXT_CRYPT}".driver '"$(git rev-parse --git-dir)"/crypt/merge '"$CONTEXT"' %O %A %B %L %P'
 	fi
-	git config filter.${CONTEXT_CRYPT}.required 'true'
-	git config diff.${CONTEXT_CRYPT}.cachetextconv 'true'
-	git config diff.${CONTEXT_CRYPT}.binary 'true'
+	git config filter."${CONTEXT_CRYPT}".required 'true'
+	git config diff."${CONTEXT_CRYPT}".cachetextconv 'true'
+	git config diff."${CONTEXT_CRYPT}".binary 'true'
 	git config merge.renormalize 'true'
-	git config merge.${CONTEXT_CRYPT}.name 'Merge transcrypt secret files'
+	git config merge."${CONTEXT_CRYPT}".name 'Merge transcrypt secret files'
 
 	# add a git alias for listing encrypted files in specific context, including 'default'
-	git config alias.${CONTEXT_LS_CRYPT} "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ${CONTEXT_CRYPT}$/{ print \$1 }'"
+	git config alias."${CONTEXT_LS_CRYPT}" "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ${CONTEXT_CRYPT}$/{ print \$1 }'"
 
 	# add git alias for listing ALL encrypted files regardless of context
 	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / (${CONTEXT_REGEX}-)?crypt$/{ print \$1 }'"
@@ -504,16 +504,16 @@ save_configuration() {
 # display the current configuration settings
 display_configuration() {
 	local current_cipher
-	current_cipher=$(git config --get --local $CONTEXT_TRANSCRYPT_CIPHER)
+	current_cipher=$(git config --get --local "$CONTEXT_TRANSCRYPT_CIPHER")
 	local current_password
-	current_password=$(git config --get --local $CONTEXT_TRANSCRYPT_PASSWORD)
+	current_password=$(git config --get --local "$CONTEXT_TRANSCRYPT_PASSWORD")
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
 	contexts=$(get_contexts)
-	contexts_array=($contexts)  # Convert list to bash array so we can count elements
+	contexts_array=("$contexts") # Convert list to bash array so we can count elements
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
-	printf "and has the following configuration$CONTEXT_DESC_SUFFIX:\n\n"
+	printf "and has the following configuration%s:\n\n" "$CONTEXT_DESC_SUFFIX"
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
@@ -525,7 +525,7 @@ display_configuration() {
 	if [[ "${#contexts_array[@]}" -gt "1" ]]; then
 		printf 'The repository has %s contexts: %s\n\n' "${#contexts_array[@]}" "$contexts"
 	fi
-	printf "Copy and paste the following command to initialize a cloned repository$CONTEXT_DESC_SUFFIX:\n\n"
+	printf "Copy and paste the following command to initialize a cloned repository%s:\n\n" "$CONTEXT_DESC_SUFFIX"
 	if [[ $CONTEXT != 'default' ]]; then
 		printf "  transcrypt -C $CONTEXT -c %s -p '%s'\n" "$current_cipher" "$escaped_password"
 	else
@@ -582,7 +582,7 @@ force_checkout() {
 		# this would normally delete uncommitted changes in the working directory,
 		# but we already made sure the repo was clean during the safety checks
 		local encrypted_files
-		encrypted_files=$(git $CONTEXT_LS_CRYPT)
+		encrypted_files=$(git "$CONTEXT_LS_CRYPT")
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 		IFS=$'\n'
 		for file in $encrypted_files; do
@@ -683,7 +683,7 @@ uninstall_transcrypt() {
 		# remove the `git ls-crypt` global alias and each context-specific alias
 		git config --unset alias.ls-crypt
 		for context in $contexts_in_git_config; do
-			git config --unset alias.ls-${context}-crypt
+			git config --unset alias.ls-"${context}"-crypt
 		done
 
 		# remove the alias section if it's now empty
@@ -703,12 +703,12 @@ uninstall_transcrypt() {
 
 			case $OSTYPE in
 			darwin*)
-				/usr/bin/sed -i '' "/filter=$context_crypt diff=$context_crypt[ \t]*$/d" "$GIT_ATTRIBUTES"
-				/usr/bin/sed -i '' "/filter=$context_crypt diff=$context_crypt merge=$context_crypt[ \t]*$/d" "$GIT_ATTRIBUTES"
+				/usr/bin/sed -i '' "/filter=${context_crypt} diff=${context_crypt}[ \t]*$/d" "$GIT_ATTRIBUTES"
+				/usr/bin/sed -i '' "/filter=${context_crypt} diff=${context_crypt} merge=${context_crypt}[ \t]*$/d" "$GIT_ATTRIBUTES"
 				;;
 			linux*)
-				sed -i "/filter=$context_crypt diff=$context_crypt[ \t]*$/d" "$GIT_ATTRIBUTES"
-				sed -i "/filter=$context_crypt diff=$context_crypt merge=$context_crypt[ \t]*$/d" "$GIT_ATTRIBUTES"
+				sed -i "/filter=${context_crypt} diff=${context_crypt}[ \t]*$/d" "$GIT_ATTRIBUTES"
+				sed -i "/filter=${context_crypt} diff=${context_crypt} merge=${context_crypt}[ \t]*$/d" "$GIT_ATTRIBUTES"
 				;;
 			esac
 		done
@@ -755,7 +755,7 @@ upgrade_transcrypt() {
 	save_configuration
 
 	# Re-instate contents of .gitattributes
-	echo "$ORIG_GITATTRIBUTES" > "$GIT_ATTRIBUTES"
+	echo "$ORIG_GITATTRIBUTES" >"$GIT_ATTRIBUTES"
 
 	# Update .gitattributes for transcrypt'ed files to include "merge=crypt" config
 	case $OSTYPE in
@@ -821,9 +821,9 @@ export_gpg() {
 	fi
 
 	local current_cipher
-	current_cipher=$(git config --get --local $CONTEXT_TRANSCRYPT_CIPHER)
+	current_cipher=$(git config --get --local "$CONTEXT_TRANSCRYPT_CIPHER")
 	local current_password
-	current_password=$(git config --get --local $CONTEXT_TRANSCRYPT_PASSWORD)
+	current_password=$(git config --get --local "$CONTEXT_TRANSCRYPT_PASSWORD")
 	mkdir -p "${GIT_DIR}/crypt"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
@@ -869,10 +869,10 @@ get_contexts_from_git_config() {
 	config_name=$(git config --local --name-only --list)
 	extract_context_name_regex="transcrypt.(${CONTEXT_REGEX})?-version"
 	for name in $config_name; do
-		if [[ $name =~ 'transcrypt.version' ]]; then
-			contexts+=' default'
+		if [[ $name =~ transcrypt\.version ]]; then
+			contexts+=('default')
 		elif [[ $name =~ $extract_context_name_regex ]]; then
-			contexts+=" ${BASH_REMATCH[1]}"
+			contexts+=("${BASH_REMATCH[1]}")
 		fi
 	done
 	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
@@ -886,13 +886,13 @@ get_contexts_from_git_attributes() {
 	fi
 	contexts=()
 	# Capture contents of .gitattributes without comments (leading # hash)
-	attrs=$(cat $GIT_ATTRIBUTES | sed '/^.*#/d')
+	attrs=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
 	extract_context_name_regex="filter=(${CONTEXT_REGEX})?-crypt"
 	for attr in $attrs; do
 		if [[ $attr =~ 'filter=crypt' ]]; then
-			contexts+=' default'
+			contexts+=('default')
 		elif [[ $attr =~ $extract_context_name_regex ]]; then
-			contexts+=" ${BASH_REMATCH[1]}"
+			contexts+=("${BASH_REMATCH[1]}")
 		fi
 	done
 	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
@@ -902,7 +902,7 @@ get_contexts_from_git_attributes() {
 # Echo all context names, sorted and distinct, as defined in the git config or .gitattributes file
 get_contexts() {
 	combined_contexts="$(get_contexts_from_git_config) $(get_contexts_from_git_attributes)"
-	sorted_contexts=$(printf '%s\n' $combined_contexts | sort -u | tr '\n' ' ')
+	sorted_contexts=$(printf '%s\n' "$combined_contexts" | sort -u | tr '\n' ' ')
 	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
 	echo ${sorted_contexts[@]+"${sorted_contexts[@]}"}
 }
@@ -910,7 +910,7 @@ get_contexts() {
 # Utility function returns a truthy value if value $1 is in bash array $2
 is_item_in_array() {
 	# Based on https://stackoverflow.com/a/47541882/4970
-	return $(printf '%s\n' $2 | grep -q "^${1}$")
+	return "$(printf '%s\n' "$2" | grep -q "^${1}$")"
 }
 
 list_contexts() {
@@ -918,11 +918,11 @@ list_contexts() {
 	in_git_attributes=$(get_contexts_from_git_attributes)
 	for context in $(get_contexts); do
 		config_status='not configured'
-		if is_item_in_array $context "${in_git_config[@]}"; then
+		if is_item_in_array "$context" "${in_git_config[@]}"; then
 			config_status='configured'
 		fi
 		attr_status='not in .gitattributes'
-		if is_item_in_array $context "${in_git_attributes[@]}"; then
+		if is_item_in_array "$context" "${in_git_attributes[@]}"; then
 			attr_status='in .gitattributes'
 		fi
 		echo "$context ($config_status, $attr_status)"
