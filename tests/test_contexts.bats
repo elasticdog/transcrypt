@@ -90,8 +90,8 @@ function teardown {
   # Confirm .gitattributes is configured for multiple contexts
   run ../transcrypt --list-contexts
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = 'default (configured, in .gitattributes)' ]
-  [ "${lines[1]}" = 'super-secret (configured, in .gitattributes)' ]
+  [[ "${output}" = *'default (configured, in .gitattributes)'* ]]
+  [[ "${output}" = *'super-secret (configured, in .gitattributes)'* ]]
 }
 
 @test "contexts: encrypted file contents in multiple context are decrypted in working copy" {
@@ -241,7 +241,7 @@ function teardown {
   # Re-init just super-secret context: its files are decrypted, not default context
   $BATS_TEST_DIRNAME/../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
   run ../transcrypt --list-contexts
-  [ "${lines[1]}" = 'super-secret (configured, in .gitattributes)' ]
+  [[ "${output}" = *'super-secret (configured, in .gitattributes)'* ]]
   run cat super_sensitive_file
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
   run cat sensitive_file
@@ -255,7 +255,7 @@ function teardown {
   # Re-init just default context: its files are decrypted, not super-secret context
   $BATS_TEST_DIRNAME/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
   run ../transcrypt --list-contexts
-  [ "${lines[0]}" = 'default (configured, in .gitattributes)' ]
+  [[ "${output}" = *'default (configured, in .gitattributes)'* ]]
   run cat sensitive_file
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
   run cat super_sensitive_file
