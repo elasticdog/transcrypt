@@ -66,3 +66,7 @@ function teardown {
   cleanup_all
   popd
 }
+
+function check_repo_is_clean {
+  git diff-index --quiet HEAD --
+}

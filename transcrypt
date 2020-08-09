@@ -56,8 +56,25 @@ realpath() {
 
 # establish repository metadata and directory handling
 gather_repo_metadata() {
-	# whether or not transcrypt is already configured
-	readonly CONFIGURED=$(git config --get --local "$CONTEXT_TRANSCRYPT_VERSION" 2>/dev/null)
+	contexts_in_git_config=$(get_contexts_from_git_config)
+
+	# whether or not transcrypt is already configured for at least one context
+	if [ -z "${contexts_in_git_config}" ]; then
+		readonly CONFIGURED_FOR_ANY_CONTEXT=''
+	else
+		readonly CONFIGURED_FOR_ANY_CONTEXT=1
+	fi
+
+	# whether or not transcrypt is already configured for the current context
+	if [ $CONFIGURED_FOR_ANY_CONTEXT ]; then
+		first_context_name=$(trim "$contexts_in_git_config" | tr ' ' '\n' | head -1)
+		if [[ "$first_context_name" != 'default' ]]; then
+		  context_prefix="$first_context_name-"
+		else
+		  context_prefix=''
+		fi
+		readonly CONFIGURED_VERSION=$(git config --get --local "transcrypt.${context_prefix}version" 2>/dev/null)
+	fi
 
 	# the current git repository's top-level directory
 	readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -121,11 +138,11 @@ run_safety_checks() {
 
 	# exit if transcrypt is not in the required state
 	if [[ $ignore_config_status ]]; then
-		: # no-op, no need to check $CONFIGURED status
-	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED ]]; then
-		die 1 "the current repository is not configured$CONTEXT_DESC_SUFFIX"
-	elif [[ ! $requires_existing_config ]] && [[ $CONFIGURED ]]; then
-		die 1 "the current repository is already configured$CONTEXT_DESC_SUFFIX; see --display"
+		: # no-op, no need to check $CONFIGURED_FOR_ANY_CONTEXT status
+	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED_FOR_ANY_CONTEXT ]]; then
+		die 1 "the current repository is not configured"
+	elif [[ ! $requires_existing_config ]] && [[ $CONFIGURED_FOR_ANY_CONTEXT ]]; then
+		die 1 "the current repository is already configured; see --display"
 	fi
 
 	# check for dependencies
@@ -512,9 +529,9 @@ display_configuration() {
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
 	contexts=$(get_contexts)
-	contexts_array=("$contexts") # Convert list to bash array so we can count elements
+	contexts_count=$(echo $contexts | tr ' ' '\n' | wc -l | tr -d ' ')
 
-	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
+	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED_VERSION"
 	printf "and has the following configuration%s:\n\n" "$CONTEXT_DESC_SUFFIX"
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
@@ -524,8 +541,8 @@ display_configuration() {
 	fi
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
-	if [[ "${#contexts_array[@]}" -gt "1" ]]; then
-		printf 'The repository has %s contexts: %s\n\n' "${#contexts_array[@]}" "$contexts"
+	if [[ "$contexts_count" -gt "1" ]]; then
+		printf 'The repository has %s contexts: %s\n\n' "$contexts_count" "$contexts"
 	fi
 	printf "Copy and paste the following command to initialize a cloned repository%s:\n\n" "$CONTEXT_DESC_SUFFIX"
 	if [[ $CONTEXT != 'default' ]]; then
@@ -725,12 +742,10 @@ uninstall_transcrypt() {
 
 # uninstall and re-install transcrypt to upgrade scripts and update configuration
 upgrade_transcrypt() {
-	CURRENT_VERSION=$(git config --get --local transcrypt.version 2>/dev/null)
-
 	if [[ $interactive ]]; then
 		printf 'You are about to upgrade the transcrypt scripts in your repository.\n'
 		printf 'Your configuration settings will not be changed.\n\n'
-		printf ' Current version: %s\n' "$CURRENT_VERSION"
+		printf ' Current version: %s\n' "$CONFIGURED_VERSION"
 		printf 'Upgraded version: %s\n\n' "$VERSION"
 		printf 'Proceed with upgrade? [y/N] '
 		read -r answer
@@ -877,7 +892,9 @@ get_contexts_from_git_config() {
 			contexts+=(${BASH_REMATCH[1]})
 		fi
 	done
-	printf "%q " "${contexts[@]:-}"
+	if [ ! -z "${contexts:-}" ]; then
+		printf "%q " "${contexts[@]:-}"
+	fi
 }
 
 # Echo array of context names as defined in the .gitattributes file
@@ -896,15 +913,18 @@ get_contexts_from_git_attributes() {
 			contexts+=(${BASH_REMATCH[1]})
 		fi
 	done
-	printf "%q " "${contexts[@]:-}"
+	if [ ! -z "${contexts:-}" ]; then
+		printf "%q " "${contexts[@]:-}"
+	fi
 }
 
 # Echo all context names, sorted and distinct, as defined in the git config or .gitattributes file
 get_contexts() {
 	combined_contexts="$(get_contexts_from_git_config) $(get_contexts_from_git_attributes)"
 	sorted_contexts=$(echo "$combined_contexts" | tr ' ' '\n' | sort -u | tr '\n' ' ')
-	# Avoid 'unbound variable' if array is empty: https://stackoverflow.com/a/7577209/4970
-	echo ${sorted_contexts[@]+"${sorted_contexts[@]}"}
+	if [ ! -z "${sorted_contexts:-}" ]; then
+		echo "$(trim $sorted_contexts)"
+	fi
 }
 
 # Utility function returns a truthy value if value $1 is in bash array $2
@@ -914,6 +934,17 @@ is_item_in_array() {
   shift
   for e; do [[ "$e" == "$match" ]] && return 0; done
   return 1
+}
+
+# Trim leading and trailing whitespace from $1
+# From https://stackoverflow.com/a/3352015/4970
+trim() {
+    local var="$*"
+    # remove leading whitespace characters
+    var="${var#"${var%%[![:space:]]*}"}"
+    # remove trailing whitespace characters
+    var="${var%"${var##*[![:space:]]}"}"
+    printf '%s' "$var"
 }
 
 list_contexts() {
@@ -1038,7 +1069,8 @@ help() {
 		     a file in your repository, the file  will  be  transparently  encrypted
 		     once you stage and commit it:
 
-		         $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' >> .gitattributes
+		         $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' \
+				        >> .gitattributes
 		         $ git add .gitattributes sensitive_file
 		         $ git commit -m 'Add encrypted version of a sensitive file'
 
@@ -1059,18 +1091,19 @@ help() {
 		     credentials. You can list all the contexts configured in the repository
 			 and their status. For example:
 
-		         # Initialise a new context "ts" for top-secret files
-		         $ transcrypt --context=ts
+		         # Initialise a new context "TS" for top-secret files
+		         $ transcrypt --context=TS
 
 		         # Use context name as a prefix to 'crypt' in .gitattributes
-		         $ echo 'ts_file  filter=ts-crypt diff=ts-crypt merge=ts-crypt' >> .gitattributes
+		         $ echo 'ts_file  filter=TS-crypt diff=TS-crypt merge=TS-crypt' \
+				        >> .gitattributes
 		         $ git add .gitattributes ts_file
 		         $ git commit -m 'Add encrypted version of a top-secret file'
 
 		         # List all contexts and their status
 		         $ transcrypt --list-contexts
 		         default (configured, in .gitattributes)
-		         ts (configured, in .gitattributes)
+		         TS (configured, in .gitattributes)
 
 		AUTHOR
 		     Aaron Bull Schaefer <aaron@elasticdog.com>
@@ -1108,10 +1141,12 @@ while [[ "${1:-}" != '' ]]; do
 	case $1 in
 	-C | --context)
 		context=$2
+		ignore_config_status='true'
 		shift
 		;;
 	--context=*)
 		context=${1#*=}
+		ignore_config_status='true'
 		;;
 	--list-contexts)
 		list_ctxs='true'

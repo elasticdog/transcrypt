@@ -5,10 +5,6 @@ load $BATS_TEST_DIRNAME/_test_helper.bash
 SECRET_CONTENT="My secret content"
 SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK9gPn"
 
-function check_repo_is_clean {
-  git diff-index --quiet HEAD --
-}
-
 @test "crypt: git ls-crypt command is available" {
   # No encrypted file yet, so command should work with no output
   run git ls-crypt
