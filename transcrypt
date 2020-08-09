@@ -1091,11 +1091,11 @@ help() {
 		     credentials. You can list all the contexts configured in the repository
 			 and their status. For example:
 
-		         # Initialise a new context "TS" for top-secret files
-		         $ transcrypt --context=TS
+		         # Initialise a new context "ts" for top-secret files
+		         $ transcrypt --context=ts
 
 		         # Use context name as a prefix to 'crypt' in .gitattributes
-		         $ echo 'ts_file  filter=TS-crypt diff=TS-crypt merge=TS-crypt' \
+		         $ echo 'ts_file  filter=ts-crypt diff=ts-crypt merge=ts-crypt' \
 				        >> .gitattributes
 		         $ git add .gitattributes ts_file
 		         $ git commit -m 'Add encrypted version of a top-secret file'
@@ -1103,7 +1103,7 @@ help() {
 		         # List all contexts and their status
 		         $ transcrypt --list-contexts
 		         default (configured, in .gitattributes)
-		         TS (configured, in .gitattributes)
+		         ts (configured, in .gitattributes)
 
 		AUTHOR
 		     Aaron Bull Schaefer <aaron@elasticdog.com>
