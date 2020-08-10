@@ -221,6 +221,10 @@ directory.
              remove  all  transcrypt  configuration  from  the repository and
              leave files in the current working copy decrypted
 
+       --upgrade
+             uninstall and re-install transcrypt configuration in the repository
+             to apply the newest scripts and .gitattributes configuration
+
       -l, --list
              list all of the transparently encrypted files in the repository,
              relative to the top-level directory
@@ -330,8 +334,12 @@ Fixes:
   previously leave the user to manually merge files with a mix of encrypted and
   unencrypted content.
 
-  To apply this fix in projects that already use transcrypt: uninstall and
-  re-init transcrypt, then add `merge=crypt` to the patterns in _.gitattributes_
+  To apply this fix in projects that already use transcrypt: use the `--upgrade`
+  command, or uninstall and re-init transcrypt then add `merge=crypt` to the
+  patterns in _.gitattributes_
+
+- Remove any cached unencrypted from Git's object database when credentials are
+  removed from a repository with a flush or uninstall (#74).
 
 Improvements:
 
@@ -339,5 +347,8 @@ Improvements:
   has plain text content: a safety mechanism to prevent accidental commits of
   plain text files staged by tools that do not respect the .gitattribute
   filters Transcrypt needs to do its job.
+
+- Add --upgrade command to apply the latest transcrypt scripts in the
+  repository without changing its configuration settings.
 
 - Add functional tests.

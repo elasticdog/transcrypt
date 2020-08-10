@@ -10,13 +10,18 @@ on:
 
 jobs:
   test:
-    # We use older Ubuntu for now to avoid warning from newer OpenSSL (#55)
-    # which break output expectations in some (fragile) tests
-    runs-on: ubuntu-16.04
+    # Test on older Ubuntu with OpenSSL < 1.1 and newer with OpenSSL >= 1.1
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-16.04, ubuntu-18.04]
 
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
+
+    - name: Print OpenSSL version
+      run: openssl version
 
     - name: Install and set up bats-core
       run: |

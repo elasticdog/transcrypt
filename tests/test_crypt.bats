@@ -88,3 +88,123 @@ function check_repo_is_clean {
   [ "${lines[0]}" != "$SECRET_CONTENT" ]
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
 }
+
+@test "crypt: handle challenging file names when 'core.quotePath=true'" {
+  # Set core.quotePath=true which is the Git default prior to encrypting a
+  # file with non-ASCII characters and spaces in the name, to confirm
+  # transcrypt can handle the file properly.
+  # For info about the 'core.quotePath' setting see
+  # https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
+  git config --local --add core.quotePath true
+
+  FILENAME="Mig – røve"  # Danish
+  SECRET_CONTENT_ENC="U2FsdGVkX19Fp9SwTyQ+tz1OgHNIN0OJ+6sMgHIqPMzfdZ6rZ2iVquS293WnjJMx"
+
+  encrypt_named_file "$FILENAME" "$SECRET_CONTENT"
+  [[ "${output}" = *"Encrypt file \"$FILENAME\""* ]]
+
+  # Working copy is decrypted
+  run cat "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Git internal copy is encrypted
+  run git show HEAD:"$FILENAME" --no-textconv
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
+
+  # transcrypt --show-raw shows encrypted content
+  run ../transcrypt --show-raw "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "==> $FILENAME <==" ]
+  [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
+
+  # git ls-crypt lists encrypted file
+  run git ls-crypt
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$FILENAME" ]
+
+  # transcrypt --list lists encrypted file"
+  run ../transcrypt --list
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$FILENAME" ]
+
+  rm "$FILENAME"
+}
+
+@test "crypt: transcrypt --upgrade applies new merge driver" {
+  VERSION=`../transcrypt -v | awk '{print $2}'`
+
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+
+  # Simulate a fake old installation of transcrypt without merge driver
+  echo "sensitive_file filter=crypt diff=crypt" > .gitattributes
+  git add .gitattributes
+  git commit -m "Removed merge driver config from .gitattributes"
+
+  git config --local transcrypt.version "0.0"
+
+  rm .git/crypt/merge
+
+  # Check .gitattributes and sensitive_file before re-install
+  run cat .gitattributes
+  [ "${lines[0]}" = "sensitive_file filter=crypt diff=crypt" ]
+  [ ! -f .git/crypt/merge ]
+
+  run git config --get --local transcrypt.version
+  [ "${lines[0]}" = "0.0" ]
+  run git config --get --local transcrypt.cipher
+  [ "${lines[0]}" = "aes-256-cbc" ]
+  run git config --get --local transcrypt.password
+  [ "${lines[0]}" = "abc123" ]
+
+  run cat sensitive_file
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Perform re-install
+  run ../transcrypt --upgrade --yes
+  [ "$status" -eq 0 ]
+
+  run git config --get --local transcrypt.version
+  [ "${lines[0]}" = "$VERSION" ]
+  run git config --get --local transcrypt.cipher
+  [ "${lines[0]}" = "aes-256-cbc" ]
+  run git config --get --local transcrypt.password
+  [ "${lines[0]}" = "abc123" ]
+
+  # Check sensitive_file is unchanged after re-install
+  run cat sensitive_file
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Check merge driver is installed
+  [ -f .git/crypt/merge ]
+
+  # Check .gitattributes is updated to include merge driver
+  run cat .gitattributes
+  [ "${lines[0]}" = "sensitive_file filter=crypt diff=crypt merge=crypt" ]
+
+  run check_repo_is_clean
+  [ "$status" -ne 0 ]
+}
+
+@test "crypt: transcrypt --force handles files missing from working copy" {
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+
+  ../transcrypt --uninstall --yes
+
+  # Reset repo to restore .gitattributes file
+  git reset --hard
+
+  # Delete secret file from working copy
+  rm sensitive_file
+
+  # Re-init with --force should check out deleted secret file
+  ../transcrypt --force --cipher=aes-256-cbc --password=abc123 --yes
+
+  # Check sensitive_file is present and decrypted
+  run cat sensitive_file
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+}

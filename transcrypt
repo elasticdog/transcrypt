@@ -365,7 +365,7 @@ save_helper_scripts() {
 
 		# Now we use the `clean` script to encrypt the merged file contents back to the
 		# temp file $2 where Git expects to find the merge result content.
-		echo "$(cat \"$5\" | ./.git/crypt/clean \"$5\")" > "$2"
+		cat "$5" | ./.git/crypt/clean "$5" > "$2"
 	EOF
 
 	# make scripts executable
@@ -381,7 +381,8 @@ save_helper_hooks() {
 	cat <<-'EOF' >"$pre_commit_hook_installed"
 		#!/usr/bin/env bash
 		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
-		for secret_file in $(git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
+		IFS=$'\n'
+		for secret_file in $(git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
 		  # Get prefix of raw file in Git's index using the :FILENAME revision syntax
 		  firstbytes=$(git show :$secret_file | head -c 8)
 		  # An empty file does not need to be, and is not, encrypted
@@ -403,6 +404,7 @@ save_helper_hooks() {
 		    exit 1
 		  fi
 		done
+		unset IFS
 	EOF
 
 	# Activate hook by copying it to the pre-commit script name, if safe to do so
@@ -457,7 +459,7 @@ save_configuration() {
 	git config merge.crypt.name 'Merge transcrypt secret files'
 
 	# add a git alias for listing encrypted files
-	git config alias.ls-crypt "!git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
+	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
 }
 
 # display the current configuration settings
@@ -495,6 +497,20 @@ clean_gitconfig() {
 	fi
 }
 
+# Remove from the local Git DB any objects containing the cached plaintext of
+# secret files, created due to the setting diff.crypt.cachetextconv='true'
+remove_cached_plaintext() {
+	# Delete ref to cached plaintext objects, to leave these objects
+	# unreferenced and available for removal
+	git update-ref -d refs/notes/textconv/crypt
+
+	# Remove ANY unreferenced objects in Git's object DB (packed or unpacked),
+	# to ensure that cached plaintext objects are also removed.
+	# The vital sub-commands equivalents we require this `gc` command to do are:
+	# `git prune`, `git repack -ad`
+	git gc --prune=now --quiet
+}
+
 # force the checkout of any files with the crypt filter applied to them;
 # this will decrypt existing encrypted files if you've just cloned a repository,
 # or it will encrypt locally decrypted files if you've just flushed the credentials
@@ -508,7 +524,7 @@ force_checkout() {
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
 		IFS=$'\n'
 		for file in $encrypted_files; do
-			rm "$file"
+			rm -f "$file"
 			git checkout --force HEAD -- "$file" >/dev/null
 		done
 		unset IFS
@@ -522,7 +538,8 @@ flush_credentials() {
 
 	if [[ $interactive ]]; then
 		printf 'You are about to flush the local credentials; make sure you have saved them elsewhere.\n'
-		printf 'All previously decrypted files will revert to their encrypted form.\n\n'
+		printf 'All previously decrypted files will revert to their encrypted form, and your\n'
+		printf 'repo will be garbage collected to remove any cached plaintext of secret files.\n\n'
 		printf 'Proceed with credential flush? [y/N] '
 		read -r answer
 		printf '\n'
@@ -534,6 +551,8 @@ flush_credentials() {
 	# only flush if the user explicitly confirmed
 	if [[ $answer =~ $YES_REGEX ]]; then
 		clean_gitconfig
+
+		remove_cached_plaintext
 
 		# re-encrypt any files that had been previously decrypted
 		force_checkout
@@ -550,7 +569,8 @@ uninstall_transcrypt() {
 
 	if [[ $interactive ]]; then
 		printf 'You are about to remove all transcrypt configuration from your repository.\n'
-		printf 'All previously encrypted files will remain decrypted in this working copy.\n\n'
+		printf 'All previously encrypted files will remain decrypted in this working copy, but your\n'
+		printf 'repo will be garbage collected to remove any cached plaintext of secret files.\n\n'
 		printf 'Proceed with uninstall? [y/N] '
 		read -r answer
 		printf '\n'
@@ -562,6 +582,10 @@ uninstall_transcrypt() {
 	# only uninstall if the user explicitly confirmed
 	if [[ $answer =~ $YES_REGEX ]]; then
 		clean_gitconfig
+
+		if [[ ! $upgrade ]]; then
+			remove_cached_plaintext
+		fi
 
 		# remove helper scripts
 		for script in {clean,smudge,textconv,merge}; do
@@ -614,9 +638,67 @@ uninstall_transcrypt() {
 			;;
 		esac
 
-		printf 'The transcrypt configuration has been completely removed from the repository.\n'
+		if [[ ! $upgrade ]]; then
+			printf 'The transcrypt configuration has been completely removed from the repository.\n'
+		fi
 	else
 		die 1 'uninstallation has been aborted'
+	fi
+}
+
+# uninstall and re-install transcrypt to upgrade scripts and update configuration
+upgrade_transcrypt() {
+	CURRENT_VERSION=$(git config --get --local transcrypt.version 2>/dev/null)
+
+	if [[ $interactive ]]; then
+		printf 'You are about to upgrade the transcrypt scripts in your repository.\n'
+		printf 'Your configuration settings will not be changed.\n\n'
+		printf ' Current version: %s\n' "$CURRENT_VERSION"
+		printf 'Upgraded version: %s\n\n' "$VERSION"
+		printf 'Proceed with upgrade? [y/N] '
+		read -r answer
+		printf '\n'
+
+		if [[ $answer =~ $YES_REGEX ]]; then
+			# User confirmed, don't prompt again
+			interactive=''
+		else
+			# User did not confirm, exit
+			# Exit if user did not confirm
+			die 1 'upgrade has been aborted'
+		fi
+	fi
+
+	# Keep current cipher and password
+	cipher=$(git config --get --local transcrypt.cipher)
+	password=$(git config --get --local transcrypt.password)
+
+	# Keep contents of .gitattributes
+	ORIG_GITATTRIBUTES=$(cat "$GIT_ATTRIBUTES")
+
+	uninstall_transcrypt
+	save_configuration
+
+	# Re-instate contents of .gitattributes
+	echo "$ORIG_GITATTRIBUTES" > "$GIT_ATTRIBUTES"
+
+	# Update .gitattributes for transcrypt'ed files to include "merge=crypt" config
+	case $OSTYPE in
+	darwin*)
+		/usr/bin/sed -i '' 's/=crypt\(.*\)/=crypt diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
+		;;
+	linux*)
+		sed -i 's/=crypt\(.*\)/=crypt diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
+		;;
+	esac
+
+	printf 'Upgrade is complete\n'
+
+	LATEST_GITATTRIBUTES=$(cat "$GIT_ATTRIBUTES")
+	if [[ "$LATEST_GITATTRIBUTES" != "$ORIG_GITATTRIBUTES" ]]; then
+		printf '\nYour gitattributes file has been updated with the latest recommended values.\n'
+		printf 'Please review and commit the new values in:\n'
+		printf '%s\n' "$GIT_ATTRIBUTES"
 	fi
 }
 
@@ -624,7 +706,7 @@ uninstall_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-		git ls-files | git check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+		git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
 	fi
 }
 
@@ -633,8 +715,8 @@ show_raw_file() {
 	if [[ -f $show_file ]]; then
 		# ensure the file is currently being tracked
 		local escaped_file=${show_file//\//\\\/}
-		if git ls-files --others -- "$show_file" | awk "/${escaped_file}/{ exit 1 }"; then
-			file_paths=$(git ls-tree --name-only --full-name HEAD "$show_file")
+		if git -c core.quotePath=false ls-files --others -- "$show_file" | awk "/${escaped_file}/{ exit 1 }"; then
+			file_paths=$(git -c core.quotePath=false ls-tree --name-only --full-name HEAD "$show_file")
 		else
 			die 1 'the file "%s" is not currently being tracked by git' "$show_file"
 		fi
@@ -762,6 +844,10 @@ help() {
 		            remove  all  transcrypt  configuration  from  the repository and
 		            leave files in the current working copy decrypted
 
+		     --upgrade
+		            apply the  latest transcrypt scripts  in the  repository without
+		            changing your configuration settings
+
 		     -l, --list
 		            list all of the transparently encrypted files in the repository,
 		            relative to the top-level directory
@@ -837,6 +923,7 @@ password=''
 rekey=''
 show_file=''
 uninstall=''
+upgrade=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -881,6 +968,11 @@ while [[ "${1:-}" != '' ]]; do
 		;;
 	-u | --uninstall)
 		uninstall='true'
+		requires_existing_config='true'
+		requires_clean_repo=''
+		;;
+	--upgrade)
+		upgrade='true'
 		requires_existing_config='true'
 		requires_clean_repo=''
 		;;
@@ -954,6 +1046,9 @@ if [[ $list ]]; then
 	exit 0
 elif [[ $uninstall ]]; then
 	uninstall_transcrypt
+	exit 0
+elif [[ $upgrade ]]; then
+	upgrade_transcrypt
 	exit 0
 elif [[ $display_config ]] && [[ $flush_creds ]]; then
 	display_configuration
