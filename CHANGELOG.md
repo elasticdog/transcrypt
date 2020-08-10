@@ -4,13 +4,76 @@ This is a summary of transcrypt releases, dates, and key changes.
 
 See also https://github.com/elasticdog/transcrypt/releases
 
+## transcrypt v2.1.0 (? ? 2020)
+
+This release includes features to make it easier and safer to use transcrypt,
+in particular: fix merge of encrypted files with conflicts, preventing
+accidental commit of plain text files by incompatible Git tools, and upgrade
+easily with `--upgrade`.
+
+### Steps to upgrade
+
+1. Make sure you are running the latest version of _transcrypt_:
+
+   ```
+   $ transcrypt --version
+   ```
+
+2. Upgrade a repository:
+
+   ```
+   $ transcrypt --upgrade
+   ```
+
+3. Enable the merge handling fix by adding `merge=crypt` to the end of each
+   _transcrypt_ pattern in `.gitattribute`, to look like this:
+
+   ```
+   sensitive_file  filter=crypt diff=crypt merge=crypt
+   ```
+
+### New features
+
+- Add `--upgrade` command to apply the latest transcrypt scripts in an already
+  configured repository without the need to re-apply existing settings.
+
+- Install a Git pre-commit hook to reject accidental commit of unencrypted
+  plain text version of sensitive files, which could otherwise happen if a tool
+  does not respect the `.gitattribute` filters Transcrypt needs to do its job.
+
+### Fixed
+
+- Fix handling of branch merges with conflicts in encrypted files, which would
+  previously leave the user to manually merge files with a mix of encrypted and
+  unencrypted content. (#69, #8, #23, #67)
+
+- Remove any cached unencrypted files from Git's object database when
+  credentials are removed from a repository with a flush or uninstall, so
+  sensitive file data does not remain accessible in a surprising way. (#74)
+
+- Fix handling of sensitive files with non-ASCII file names, such as extended
+  Unicode characters. (#78)
+
+- Transcrypt `--version` and `--help` commands now work when run outside a Git
+  repository. (#68)
+
+- The `--list` command now works in a repository that has not yet been init-ed.
+
+### Changed
+
+- Add a functional test suite built on [bats-core](https://github.com/bats-core/bats-core#installation).
+- Apply Continuous Integration: run functional tests with GitHub Actions.
+- Fix [EditorConfig](https://editorconfig.org/) file config for Markdown files.
+- Add [CHANGELOG.md](CHANGELOG.md) file to make it easier to find notes about
+  project changes (see also Release)
+
 ## transcrypt v2.0.0 (20 Jul 2019)
 
 **\*\*\* WARNING: Re-encryption will be required when updating to version 2.0.0! \*\*\***
 
 This is not a security issue, but the result of a [bug fix](https://github.com/elasticdog/transcrypt/pull/57) to ensure that the salt generation is consistent across all operating systems. Once someone on your team updates to version 2.0.0, it will manifest as the encrypted files in your repository showing as _changed_. You should ensure that all users upgrade at the same time...since `transcrypt` itself is small, it may make sense to commit the script directly into your repo to maintain consistency moving forward.
 
-## Steps to Re-encrypt
+### Steps to Re-encrypt
 
 After you've upgraded to v2.0.0...
 
