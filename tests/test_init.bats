@@ -33,27 +33,27 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   VERSION=`../transcrypt -v | awk '{print $2}'`
   GIT_DIR=`git rev-parse --git-dir`
 
-  [ `git config --get transcrypt.version` = $VERSION ]
-  [ `git config --get transcrypt.cipher` = "aes-256-cbc" ]
-  [ `git config --get transcrypt.password` = "abc123" ]
+  [ "$(git config --get transcrypt.version)" = "$VERSION" ]
+  [ "$(git config --get transcrypt.cipher)" = "aes-256-cbc" ]
+  [ "$(git config --get transcrypt.password)" = "abc123" ]
 
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
-  if [[ -d $(git rev-parse --git-common-dir) ]]; then
-    [[ `git config --get filter.crypt.clean` = '"$(git rev-parse --git-common-dir)"/crypt/clean %f' ]]
-    [[ `git config --get filter.crypt.smudge` = '"$(git rev-parse --git-common-dir)"/crypt/smudge' ]]
-    [[ `git config --get diff.crypt.textconv` = '"$(git rev-parse --git-common-dir)"/crypt/textconv' ]]
+  if [ -d $(git rev-parse --git-common-dir) ]; then
+    [ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-common-dir)"/crypt/clean %f' ]
+    [ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-common-dir)"/crypt/smudge' ]
+    [ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-common-dir)"/crypt/textconv' ]
   else
-    [[ `git config --get filter.crypt.clean` = '"$(git rev-parse --git-dir)"/crypt/clean %f' ]]
-    [[ `git config --get filter.crypt.smudge` = '"$(git rev-parse --git-dir)"/crypt/smudge' ]]
-    [[ `git config --get diff.crypt.textconv` = '"$(git rev-parse --git-dir)"/crypt/textconv' ]]
+    [ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-dir)"/crypt/clean %f' ]
+    [ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-dir)"/crypt/smudge' ]
+    [ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-dir)"/crypt/textconv' ]
   fi
 
-  [ `git config --get filter.crypt.required` = "true" ]
-  [ `git config --get diff.crypt.cachetextconv` = "true" ]
-  [ `git config --get diff.crypt.binary` = "true" ]
-  [ `git config --get merge.renormalize` = "true" ]
+  [ "$(git config --get filter.crypt.required)" = "true" ]
+  [ "$(git config --get diff.crypt.cachetextconv)" = "true" ]
+  [ "$(git config --get diff.crypt.binary)" = "true" ]
+  [ "$(git config --get merge.renormalize)" = "true" ]
 
-  [[ `git config --get alias.ls-crypt` = "!git -c core.quotePath=false ls-files"* ]]
+  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'" ]
 }
 
 @test "init: show details for --display" {

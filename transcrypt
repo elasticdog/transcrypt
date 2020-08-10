@@ -680,7 +680,7 @@ upgrade_transcrypt() {
 	save_configuration
 
 	# Re-instate contents of .gitattributes
-	echo "$ORIG_GITATTRIBUTES" > "$GIT_ATTRIBUTES"
+	echo "$ORIG_GITATTRIBUTES" >"$GIT_ATTRIBUTES"
 
 	# Update .gitattributes for transcrypt'ed files to include "merge=crypt" config
 	case $OSTYPE in
