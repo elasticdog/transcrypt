@@ -22,7 +22,7 @@ _transcrypt() {
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
 	opts="-c -p -y -d -r -f -F -u -l -s -e -i -v -h \
-	      --cipher --password --yes --display --rekey --flush-credentials --force --uninstall --list --show-raw --export-gpg --import-gpg --version --help"
+	      --cipher --password --yes --display --rekey --flush-credentials --force --uninstall --upgrade --list --show-raw --export-gpg --import-gpg --version --help"
 
 	case "${prev}" in
 		-c | --cipher)
