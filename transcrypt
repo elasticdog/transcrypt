@@ -56,25 +56,8 @@ realpath() {
 
 # establish repository metadata and directory handling
 gather_repo_metadata() {
-	contexts_in_git_config=$(get_contexts_from_git_config)
-
-	# whether or not transcrypt is already configured for at least one context
-	if [ -z "${contexts_in_git_config}" ]; then
-		readonly CONFIGURED_FOR_ANY_CONTEXT=''
-	else
-		readonly CONFIGURED_FOR_ANY_CONTEXT=1
-	fi
-
-	# whether or not transcrypt is already configured for the current context
-	if [ $CONFIGURED_FOR_ANY_CONTEXT ]; then
-		first_context_name=$(trim "$contexts_in_git_config" | tr ' ' '\n' | head -1)
-		if [[ "$first_context_name" != 'default' ]]; then
-		  context_prefix="$first_context_name-"
-		else
-		  context_prefix=''
-		fi
-		readonly CONFIGURED_VERSION=$(git config --get --local "transcrypt.${context_prefix}version" 2>/dev/null)
-	fi
+	# whether or not transcrypt is already configured
+	readonly CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
 
 	# the current git repository's top-level directory
 	readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -138,11 +121,11 @@ run_safety_checks() {
 
 	# exit if transcrypt is not in the required state
 	if [[ $ignore_config_status ]]; then
-		: # no-op, no need to check $CONFIGURED_FOR_ANY_CONTEXT status
-	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED_FOR_ANY_CONTEXT ]]; then
-		die 1 "the current repository is not configured"
-	elif [[ ! $requires_existing_config ]] && [[ $CONFIGURED_FOR_ANY_CONTEXT ]]; then
-		die 1 "the current repository is already configured; see --display"
+		: # no-op, no need to check $CONFIGURED status
+	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED ]]; then
+		die 1 'the current repository is not configured'
+	elif [[ ! $requires_existing_config ]] && [[ $CONFIGURED ]]; then
+		die 1 'the current repository is already configured; see --display'
 	fi
 
 	# check for dependencies
@@ -462,7 +445,7 @@ save_helper_hooks() {
 
 	# Activate hook by copying it to the pre-commit script name, if safe to do so
 	pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
-	if [[ -f "$pre_commit_hook" && "$CONTEXT" != "default" ]]; then
+	if [[ -f "$pre_commit_hook" ]] && [[ "$CONFIGURED" ]]; then
 		: # no-op, skip re-install of pre-commit hook for additional contexts
 	elif [[ -f "$pre_commit_hook" ]]; then
 		printf 'WARNING:\n' >&2
@@ -481,7 +464,7 @@ save_configuration() {
 	save_helper_hooks
 
 	# write the encryption info
-	git config "$CONTEXT_TRANSCRYPT_VERSION" "$VERSION"
+	git config "transcrypt.version" "$VERSION"
 	git config "$CONTEXT_TRANSCRYPT_CIPHER" "$cipher"
 	git config "$CONTEXT_TRANSCRYPT_PASSWORD" "$password"
 
@@ -531,7 +514,7 @@ display_configuration() {
 	contexts=$(get_contexts)
 	contexts_count=$(echo $contexts | tr ' ' '\n' | wc -l | tr -d ' ')
 
-	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED_VERSION"
+	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
 	printf "and has the following configuration%s:\n\n" "$CONTEXT_DESC_SUFFIX"
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
@@ -745,7 +728,7 @@ upgrade_transcrypt() {
 	if [[ $interactive ]]; then
 		printf 'You are about to upgrade the transcrypt scripts in your repository.\n'
 		printf 'Your configuration settings will not be changed.\n\n'
-		printf ' Current version: %s\n' "$CONFIGURED_VERSION"
+		printf ' Current version: %s\n' "$CONFIGURED"
 		printf 'Upgraded version: %s\n\n' "$VERSION"
 		printf 'Proceed with upgrade? [y/N] '
 		read -r answer
@@ -882,11 +865,11 @@ import_gpg() {
 
 # Echo array of context names as defined in the git config
 get_contexts_from_git_config() {
+	config_names=$(git config --local --name-only --list | grep transcrypt)
+	extract_context_name_regex="transcrypt\.(${CONTEXT_REGEX})-password"
 	contexts=()
-	config_names=$(git config --local --name-only --list)
-	extract_context_name_regex="transcrypt\.(${CONTEXT_REGEX})-version"
 	for name in $config_names; do
-		if [[ $name =~ transcrypt\.version ]]; then
+		if [[ "$name" = "transcrypt.password" ]]; then
 			contexts+=('default')
 		elif [[ $name =~ $extract_context_name_regex ]]; then
 			contexts+=(${BASH_REMATCH[1]})
@@ -1254,7 +1237,6 @@ done
 if [[ $context ]]; then
 	readonly CONTEXT=$context
 	readonly CONTEXT_DESC_SUFFIX=" for context '$CONTEXT'"
-	readonly CONTEXT_TRANSCRYPT_VERSION=transcrypt.${CONTEXT}-version
 	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}-cipher
 	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT}-password
 	readonly CONTEXT_CRYPT=${CONTEXT}-crypt
@@ -1263,7 +1245,6 @@ if [[ $context ]]; then
 else
 	readonly CONTEXT='default'
 	readonly CONTEXT_DESC_SUFFIX=''
-	readonly CONTEXT_TRANSCRYPT_VERSION=transcrypt.version
 	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.cipher
 	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.password
 	readonly CONTEXT_CRYPT=crypt

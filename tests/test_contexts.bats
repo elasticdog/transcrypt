@@ -25,7 +25,7 @@ function teardown {
   VERSION=`../transcrypt -v | awk '{print $2}'`
   GIT_DIR=`git rev-parse --git-dir`
 
-  [ `git config --get transcrypt.super-secret-version` = $VERSION ]
+  [ `git config --get transcrypt.version` = $VERSION ]
   [ `git config --get transcrypt.super-secret-cipher` = "aes-256-cbc" ]
   [ `git config --get transcrypt.super-secret-password` = "321cba" ]
 
