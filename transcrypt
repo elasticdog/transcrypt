@@ -511,8 +511,8 @@ display_configuration() {
 	current_password=$(git config --get --local "$CONTEXT_TRANSCRYPT_PASSWORD")
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
-	contexts=$(get_contexts)
-	contexts_count=$(echo $contexts | tr ' ' '\n' | wc -l | tr -d ' ')
+	contexts=$(get_contexts_from_git_config)
+	contexts_count="$(count_items_in_list "$contexts")"
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
 	printf "and has the following configuration%s:\n\n" "$CONTEXT_DESC_SUFFIX"
@@ -863,7 +863,7 @@ import_gpg() {
 	password=$(printf '%s' "$configuration" | grep '^password' | cut -d'=' -f 2-)
 }
 
-# Echo array of context names as defined in the git config
+# Echo space-delimited list of context names defined in the git config
 get_contexts_from_git_config() {
 	config_names=$(git config --local --name-only --list | grep transcrypt)
 	extract_context_name_regex="transcrypt\.(${CONTEXT_REGEX})-password"
@@ -875,20 +875,20 @@ get_contexts_from_git_config() {
 			contexts+=(${BASH_REMATCH[1]})
 		fi
 	done
-	if [ ! -z "${contexts:-}" ]; then
-		printf "%q " "${contexts[@]:-}"
+	if [ "${contexts:-}" ]; then
+		echo $(trim `printf "%q " "${contexts[@]}"`)
 	fi
 }
 
-# Echo array of context names as defined in the .gitattributes file
+# Echo space-delimited list of context names defined in the .gitattributes file
 get_contexts_from_git_attributes() {
 	if [[ ! -f $GIT_ATTRIBUTES ]]; then
-		return 0
+		echo "0"
 	fi
-	contexts=()
 	# Capture contents of .gitattributes without comments (leading # hash)
 	attrs=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
 	extract_context_name_regex="filter=(${CONTEXT_REGEX})-crypt"
+	contexts=()
 	for attr in $attrs; do
 		if [[ $attr =~ 'filter=crypt' ]]; then
 			contexts+=('default')
@@ -896,21 +896,31 @@ get_contexts_from_git_attributes() {
 			contexts+=(${BASH_REMATCH[1]})
 		fi
 	done
-	if [ ! -z "${contexts:-}" ]; then
-		printf "%q " "${contexts[@]:-}"
+	if [ "${contexts:-}" ]; then
+		echo $(trim `printf "%q " "${contexts[@]}"`)
 	fi
 }
 
-# Echo all context names, sorted and distinct, as defined in the git config or .gitattributes file
+# Echo all context names, sorted and distinct, from the git config or .gitattributes
 get_contexts() {
 	combined_contexts="$(get_contexts_from_git_config) $(get_contexts_from_git_attributes)"
 	sorted_contexts=$(echo "$combined_contexts" | tr ' ' '\n' | sort -u | tr '\n' ' ')
-	if [ ! -z "${sorted_contexts:-}" ]; then
+	if [ "${sorted_contexts:-}" ]; then
 		echo "$(trim $sorted_contexts)"
 	fi
 }
 
-# Utility function returns a truthy value if value $1 is in bash array $2
+# Echo the number of items in a space-delimited list given as $1
+count_items_in_list() {
+	local trimmed=$(trim $1)
+	if [[ ! "$trimmed" ]]; then
+		return 0
+	fi
+	local just_spaces="${trimmed//[^ ]/}"
+	echo $(( ${#just_spaces} + 1 ))
+}
+
+# Utility function returns a truthy value if value $1 is in bash list or array $2
 # Based on https://stackoverflow.com/a/8574392/4970
 is_item_in_array() {
   local e match="$1"
