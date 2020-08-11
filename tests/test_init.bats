@@ -39,15 +39,15 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
   if [ -d $(git rev-parse --git-common-dir) ]; then
-    [ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-common-dir)"/crypt/clean default %f' ]
-    [ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-common-dir)"/crypt/smudge default' ]
-    [ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-common-dir)"/crypt/textconv default' ]
-    [ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-common-dir)"/crypt/merge default %O %A %B %L %P' ]
+    [ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-common-dir)"/crypt/clean %f' ]
+    [ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-common-dir)"/crypt/smudge %f' ]
+    [ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-common-dir)"/crypt/textconv' ]
+    [ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-common-dir)"/crypt/merge %O %A %B %L %P' ]
   else
-    [ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-dir)"/crypt/clean default %f' ]
-    [ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-dir)"/crypt/smudge default' ]
-    [ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-dir)"/crypt/textconv default' ]
-    [ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-dir)"/crypt/merge default %O %A %B %L %P' ]
+    [ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-dir)"/crypt/clean %f' ]
+    [ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-dir)"/crypt/smudge %f' ]
+    [ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-dir)"/crypt/textconv' ]
+    [ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-dir)"/crypt/merge %O %A %B %L %P' ]
   fi
 
   [ `git config --get filter.crypt.required` = "true" ]
@@ -55,7 +55,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ `git config --get diff.crypt.binary` = "true" ]
   [ `git config --get merge.renormalize` = "true" ]
 
-  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ([a-zA-Z][a-zA-Z0-9-]*-)?crypt$/{ print \$1 }'" ]
+  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt$/{ print \$1 }'" ]
 }
 
 @test "init: show details for --display" {

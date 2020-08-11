@@ -22,7 +22,7 @@ readonly VERSION='2.0.0'
 readonly DEFAULT_CIPHER='aes-256-cbc'
 
 # regular expression used to ensure context name is safe for use in git config
-readonly CONTEXT_REGEX='[a-zA-Z][a-zA-Z0-9-]*'
+readonly CONTEXT_REGEX='[a-z][a-z0-9-]*'
 
 ##### FUNCTIONS
 
@@ -116,7 +116,7 @@ run_safety_checks() {
 	# Do we have a valid context name?
 	full_context_regex="^${CONTEXT_REGEX}$"
 	if [[ ! $CONTEXT =~ $full_context_regex ]]; then
-		die 1 "context name '$CONTEXT' is invalid, must be ASCII followed by zero or more of letter/number/hyphen"
+		die 1 "context name '$CONTEXT' is invalid, must be lowercase ASCII letter followed by zero or more of letter/number/hyphen"
 	fi
 
 	# exit if transcrypt is not in the required state
@@ -297,11 +297,15 @@ save_helper_scripts() {
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/clean"
 		#!/usr/bin/env bash
-		context_prefix=''
-		if [[ $1 != 'default' ]]; then
-		  context_prefix="$1-"
+		filename=$1
+
+		context=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
+		if [[ $context = 'unspecified' ]]; then
+		  context_prefix=""
+		else
+		  context_prefix="$context-"
 		fi
-		filename=$2
+
 		# ignore empty files
 		if [[ -s $filename ]]; then
 		  # cache STDIN to test if it's already encrypted
@@ -323,10 +327,15 @@ save_helper_scripts() {
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/smudge"
 		#!/usr/bin/env bash
-		context_prefix=''
-		if [[ $1 != 'default' ]]; then
-		  context_prefix="$1-"
+		filename=$1
+
+		context=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
+		if [[ $context = 'unspecified' ]]; then
+		  context_prefix=""
+		else
+		  context_prefix="$context-"
 		fi
+
 		tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 		trap 'rm -f "$tempfile"' EXIT
 		cipher=$(git config --get --local transcrypt.${context_prefix}cipher)
@@ -336,11 +345,15 @@ save_helper_scripts() {
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/textconv"
 		#!/usr/bin/env bash
-		context_prefix=''
-		if [[ $1 != 'default' ]]; then
-		  context_prefix="$1-"
+		filename=$1
+
+		context=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
+		if [[ $context = 'unspecified' ]]; then
+		  context_prefix=""
+		else
+		  context_prefix="$context-"
 		fi
-		filename=$2
+
 		# ignore empty files
 		if [[ -s $filename ]]; then
 		  cipher=$(git config --get --local transcrypt.${context_prefix}cipher)
@@ -352,14 +365,11 @@ save_helper_scripts() {
 	cat <<-'EOF' >"${GIT_DIR}/crypt/merge"
 		#!/usr/bin/env bash
 
-		# NOTE: The usual merge driver argument numbers are increased by one
-		# because this script is passed the transcrypt context name as $1
-		readonly TRANSCRYPT_CONTEXT=$1
-		readonly BASE=$2
-		readonly LOCAL=$3
-		readonly REMOTE=$4
-		readonly MARKER_SIZE=$5
-		readonly WORKING_COPY_FILE=$6
+		readonly BASE=$1
+		readonly LOCAL=$2
+		readonly REMOTE=$3
+		readonly MARKER_SIZE=$4
+		readonly WORKING_COPY_FILE=$5
 
 		# Look up name of local branch/ref to which changes are being merged
 		OURS_LABEL=$(git rev-parse --abbrev-ref HEAD)
@@ -375,9 +385,9 @@ save_helper_scripts() {
 		fi
 
 		# Decrypt BASE, LOCAL, and REMOTE versions of file being merged
-		echo "$(cat "$BASE" | ./.git/crypt/smudge $TRANSCRYPT_CONTEXT)" > "$BASE"
-		echo "$(cat "$LOCAL" | ./.git/crypt/smudge $TRANSCRYPT_CONTEXT)" > "$LOCAL"
-		echo "$(cat "$REMOTE" | ./.git/crypt/smudge $TRANSCRYPT_CONTEXT)" > "$REMOTE"
+		echo "$(cat "$BASE" | ./.git/crypt/smudge $TRANSCRYPT_CONTEXT $WORKING_COPY_FILE)" > "$BASE"
+		echo "$(cat "$LOCAL" | ./.git/crypt/smudge $TRANSCRYPT_CONTEXT $WORKING_COPY_FILE)" > "$LOCAL"
+		echo "$(cat "$REMOTE" | ./.git/crypt/smudge $TRANSCRYPT_CONTEXT $WORKING_COPY_FILE)" > "$REMOTE"
 
 		# Merge the decrypted files to the temp file named by LOCAL
 		git merge-file --marker-size=$MARKER_SIZE -L "$OURS_LABEL" -L base -L "$THEIRS_LABEL" "$LOCAL" "$BASE" "$REMOTE"
@@ -473,34 +483,42 @@ save_configuration() {
 		# this allows us to support multiple working trees via git-worktree
 		# ...but the --git-common-dir flag was only added in November 2014
 		# shellcheck disable=SC2016
-		git config filter."${CONTEXT_CRYPT}".clean '"$(git rev-parse --git-common-dir)"/crypt/clean '"$CONTEXT"' %f'
+		git config filter.crypt.clean '"$(git rev-parse --git-common-dir)"/crypt/clean %f'
 		# shellcheck disable=SC2016
-		git config filter."${CONTEXT_CRYPT}".smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge '"$CONTEXT"
+		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge %f'
 		# shellcheck disable=SC2016
-		git config diff."${CONTEXT_CRYPT}".textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv '"$CONTEXT"
+		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv'
 		# shellcheck disable=SC2016
-		git config merge."${CONTEXT_CRYPT}".driver '"$(git rev-parse --git-common-dir)"/crypt/merge '"$CONTEXT"' %O %A %B %L %P'
+		git config merge.crypt.driver '"$(git rev-parse --git-common-dir)"/crypt/merge %O %A %B %L %P'
 	else
 		# shellcheck disable=SC2016
-		git config filter."${CONTEXT_CRYPT}".clean '"$(git rev-parse --git-dir)"/crypt/clean '"$CONTEXT" ' %f'
+		git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/clean %f'
 		# shellcheck disable=SC2016
-		git config filter."${CONTEXT_CRYPT}".smudge '"$(git rev-parse --git-dir)"/crypt/smudge '"$CONTEXT"
+		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge %f'
 		# shellcheck disable=SC2016
-		git config diff."${CONTEXT_CRYPT}".textconv '"$(git rev-parse --git-dir)"/crypt/textconv '"$CONTEXT"
+		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
 		# shellcheck disable=SC2016
-		git config merge."${CONTEXT_CRYPT}".driver '"$(git rev-parse --git-dir)"/crypt/merge '"$CONTEXT"' %O %A %B %L %P'
+		git config merge.crypt.driver '"$(git rev-parse --git-dir)"/crypt/merge %O %A %B %L %P'
 	fi
-	git config filter."${CONTEXT_CRYPT}".required 'true'
-	git config diff."${CONTEXT_CRYPT}".cachetextconv 'true'
-	git config diff."${CONTEXT_CRYPT}".binary 'true'
+	git config filter.crypt.required 'true'
+	git config diff.crypt.cachetextconv 'true'
+	git config diff.crypt.binary 'true'
 	git config merge.renormalize 'true'
-	git config merge."${CONTEXT_CRYPT}".name 'Merge transcrypt secret files'
-
-	# add a git alias for listing encrypted files in specific context, including 'default'
-	git config alias."${CONTEXT_LS_CRYPT}" "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ${CONTEXT_CRYPT}$/{ print \$1 }'"
+	git config merge.crypt.name 'Merge transcrypt secret files'
 
 	# add git alias for listing ALL encrypted files regardless of context
-	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / (${CONTEXT_REGEX}-)?crypt$/{ print \$1 }'"
+	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt$/{ print \$1 }'"
+
+	# add a git alias for listing encrypted files in specific context, including 'default'
+	if [[ "$CONTEXT" = 'default' ]]; then
+		# The 'ls-default-crypt' alias calls the 'ls-crypt' alias to get all crypt-ed
+		# files then filters those to any *without* a 'crypt-context' attr (unspecified).
+		# This is to avoid very difficult processing of multi-line output if we needed
+		# to fetch the two attrs 'filter' and 'crypt-context' from check-attr at once.
+		git config alias."${CONTEXT_LS_CRYPT}" "!git ls-crypt | git -c core.quotePath=false check-attr --stdin crypt-context | awk 'BEGIN { FS = \":\" }; / unspecified$/{ print \$1 }'"
+	else
+		git config alias."${CONTEXT_LS_CRYPT}" "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin crypt-context | awk 'BEGIN { FS = \":\" }; / ${CONTEXT}$/{ print \$1 }'"
+	fi
 }
 
 # display the current configuration settings
@@ -537,20 +555,10 @@ display_configuration() {
 
 # remove transcrypt-related settings from the repository's git config
 clean_gitconfig() {
-	# Remove context-specific settings
-	for context in $(get_contexts_from_git_config); do
-		if [[ $context != 'default' ]]; then
-			context_crypt="$context-crypt"
-		else
-			context_crypt='crypt'
-		fi
-		git config --remove-section filter.${context_crypt} 2>/dev/null || true
-		git config --remove-section diff.${context_crypt} 2>/dev/null || true
-		git config --remove-section merge.${context_crypt} 2>/dev/null || true
-	done
-
-	# Remove global transcrypt settings
 	git config --remove-section transcrypt 2>/dev/null || true
+	git config --remove-section filter.crypt 2>/dev/null || true
+	git config --remove-section diff.crypt 2>/dev/null || true
+	git config --remove-section merge.crypt 2>/dev/null || true
 	git config --unset merge.renormalize
 
 	# remove the merge section if it's now empty
@@ -696,24 +704,14 @@ uninstall_transcrypt() {
 		fi
 
 		# remove any defined crypt patterns in gitattributes
-		for context in $(get_contexts_from_git_attributes); do
-			if [[ $context != 'default' ]]; then
-				context_crypt="$context-crypt"
-			else
-				context_crypt='crypt'
-			fi
-
-			case $OSTYPE in
-			darwin*)
-				/usr/bin/sed -i '' "/filter=${context_crypt} diff=${context_crypt}[ \t]*$/d" "$GIT_ATTRIBUTES"
-				/usr/bin/sed -i '' "/filter=${context_crypt} diff=${context_crypt} merge=${context_crypt}[ \t]*$/d" "$GIT_ATTRIBUTES"
-				;;
-			linux*)
-				sed -i "/filter=${context_crypt} diff=${context_crypt}[ \t]*$/d" "$GIT_ATTRIBUTES"
-				sed -i "/filter=${context_crypt} diff=${context_crypt} merge=${context_crypt}[ \t]*$/d" "$GIT_ATTRIBUTES"
-				;;
-			esac
-		done
+		case $OSTYPE in
+		darwin*)
+			/usr/bin/sed -i '' "/filter=crypt diff=crypt\( merge=crypt\)*\( crypt-context=[^ \t]*\)*[ \t]*$/d" "$GIT_ATTRIBUTES"
+			;;
+		linux*)
+			sed -i "/filter=crypt diff=crypt\( merge=crypt\)*\( crypt-context=[^ \t]*\)*[ \t]*$/d" "$GIT_ATTRIBUTES"
+			;;
+		esac
 
 		if [[ ! $upgrade ]]; then
 			printf 'The transcrypt configuration has been completely removed from the repository.\n'
@@ -886,14 +884,14 @@ get_contexts_from_git_attributes() {
 		echo "0"
 	fi
 	# Capture contents of .gitattributes without comments (leading # hash)
-	attrs=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
-	extract_context_name_regex="filter=(${CONTEXT_REGEX})-crypt"
+	attr_lines=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
+	extract_context_name_regex="crypt-context=(${CONTEXT_REGEX})"
 	contexts=()
-	for attr in $attrs; do
-		if [[ $attr =~ 'filter=crypt' ]]; then
-			contexts+=('default')
-		elif [[ $attr =~ $extract_context_name_regex ]]; then
+	for attr_line in $attr_lines; do
+		if [[ $attr_line =~ $extract_context_name_regex ]]; then
 			contexts+=(${BASH_REMATCH[1]})
+		elif [[ $attr_line =~ 'filter=crypt' ]]; then
+			contexts+=('default')
 		fi
 	done
 	if [ "${contexts:-}" ]; then
@@ -1087,9 +1085,11 @@ help() {
 		         # Initialise a new context "ts" for top-secret files
 		         $ transcrypt --context=ts
 
-		         # Use context name as a prefix to 'crypt' in .gitattributes
-		         $ echo 'ts_file  filter=ts-crypt diff=ts-crypt merge=ts-crypt' \
-				        >> .gitattributes
+		         # Add extra 'crypt-context=ts' attribute in .gitattributes
+		         $ echo \
+				     'ts_file  filter=crypt diff=crypt merge=crypt crypt-context=ts' \
+				     >> .gitattributes
+
 		         $ git add .gitattributes ts_file
 		         $ git commit -m 'Add encrypted version of a top-secret file'
 
@@ -1249,7 +1249,6 @@ if [[ $context ]]; then
 	readonly CONTEXT_DESC_SUFFIX=" for context '$CONTEXT'"
 	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}-cipher
 	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT}-password
-	readonly CONTEXT_CRYPT=${CONTEXT}-crypt
 	# For ls-crypt aliases we want one for each context, including 'default'
 	readonly CONTEXT_LS_CRYPT="ls-$CONTEXT-crypt"
 else
@@ -1257,7 +1256,6 @@ else
 	readonly CONTEXT_DESC_SUFFIX=''
 	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.cipher
 	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.password
-	readonly CONTEXT_CRYPT=crypt
 	# For ls-crypt aliases we want one for each context, including 'default'
 	readonly CONTEXT_LS_CRYPT="ls-$CONTEXT-crypt"
 fi

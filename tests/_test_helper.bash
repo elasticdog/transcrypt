@@ -44,12 +44,11 @@ function encrypt_named_file {
   if [ "$content" ]; then
     echo "$content" > "$filename"
   fi
-  if [ "$context" != "default" ]; then
-    context_crypt="$context-crypt"
+  if [ "$context" = "default" ]; then
+    echo "\"$filename\" filter=crypt diff=crypt merge=crypt" >> .gitattributes
   else
-    context_crypt="crypt"
+    echo "\"$filename\" filter=crypt diff=crypt merge=crypt crypt-context=$context" >> .gitattributes
   fi
-  echo "\"$filename\" filter=${context_crypt} diff=${context_crypt} merge=${context_crypt}" >> .gitattributes
   git add .gitattributes "$filename"
   run git commit -m "Encrypt file \"$filename\""
 }

@@ -31,23 +31,23 @@ function teardown {
 
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
   if [ -d $(git rev-parse --git-common-dir) ]; then
-    [ "$(git config --get filter.super-secret-crypt.clean)" = '"$(git rev-parse --git-common-dir)"/crypt/clean super-secret %f' ]
-    [ "$(git config --get filter.super-secret-crypt.smudge)" = '"$(git rev-parse --git-common-dir)"/crypt/smudge super-secret' ]
-    [ "$(git config --get diff.super-secret-crypt.textconv)" = '"$(git rev-parse --git-common-dir)"/crypt/textconv super-secret' ]
-    [ "$(git config --get merge.super-secret-crypt.driver)" = '"$(git rev-parse --git-common-dir)"/crypt/merge super-secret %O %A %B %L %P' ]
+    [ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-common-dir)"/crypt/clean %f' ]
+    [ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-common-dir)"/crypt/smudge %f' ]
+    [ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-common-dir)"/crypt/textconv' ]
+    [ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-common-dir)"/crypt/merge %O %A %B %L %P' ]
   else
-    [ "$(git config --get filter.super-secret-crypt.clean)" = '"$(git rev-parse --git-dir)"/crypt/clean super-secret %f' ]
-    [ "$(git config --get filter.super-secret-crypt.smudge)" = '"$(git rev-parse --git-dir)"/crypt/smudge super-secret' ]
-    [ "$(git config --get diff.super-secret-crypt.textconv)" = '"$(git rev-parse --git-dir)"/crypt/textconv super-secret' ]
-    [ "$(git config --get merge.super-secret-crypt.driver)" = '"$(git rev-parse --git-dir)"/crypt/merge super-secret %O %A %B %L %P' ]
+    [ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-dir)"/crypt/clean %f' ]
+    [ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-dir)"/crypt/smudge %f' ]
+    [ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-dir)"/crypt/textconv' ]
+    [ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-dir)"/crypt/merge %O %A %B %L %P' ]
   fi
 
-  [ `git config --get filter.super-secret-crypt.required` = "true" ]
-  [ `git config --get diff.super-secret-crypt.cachetextconv` = "true" ]
-  [ `git config --get diff.super-secret-crypt.binary` = "true" ]
+  [ `git config --get filter.crypt.required` = "true" ]
+  [ `git config --get diff.crypt.cachetextconv` = "true" ]
+  [ `git config --get diff.crypt.binary` = "true" ]
   [ `git config --get merge.renormalize` = "true" ]
 
-  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / ([a-zA-Z][a-zA-Z0-9-]*-)?crypt$/{ print \$1 }'" ]
+  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt$/{ print \$1 }'" ]
 }
 
 @test "init: show extra context details in --display" {
@@ -72,7 +72,7 @@ function teardown {
   # Confirm .gitattributes is configured for multiple contexts
   run cat .gitattributes
   [ "${lines[1]}" = '"sensitive_file" filter=crypt diff=crypt merge=crypt' ]
-  [ "${lines[2]}" = '"super_sensitive_file" filter=super-secret-crypt diff=super-secret-crypt merge=super-secret-crypt' ]
+  [ "${lines[2]}" = '"super_sensitive_file" filter=crypt diff=crypt merge=crypt crypt-context=super-secret' ]
 }
 
 @test "contexts: confirm --list-contexts lists configured contexts not yet in .gitattributes" {
