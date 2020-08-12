@@ -113,7 +113,7 @@ run_safety_checks() {
 	# validate that we're in a git repository
 	[[ $GIT_DIR ]] || die 'you are not currently in a git repository; did you forget to run "git init"?'
 
-	# Do we have a valid context name?
+	# Check the context name provided (or 'default') is valid
 	full_context_regex="^${CONTEXT_REGEX}$"
 	if [[ ! $CONTEXT =~ $full_context_regex ]]; then
 		warn "context name '${CONTEXT}' is invalid"
@@ -226,9 +226,7 @@ confirm_configuration() {
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
-	if [[ $CONTEXT != 'default' ]]; then
-		printf '  CONTEXT:  %s\n' "$CONTEXT"
-	fi
+	printf '  CONTEXT:  %s\n' "$CONTEXT"
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'Does this look correct? [Y/n] '
@@ -252,9 +250,7 @@ confirm_rekey() {
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
-	if [[ $CONTEXT != 'default' ]]; then
-		printf '  CONTEXT:  %s\n' "$CONTEXT"
-	fi
+	printf '  CONTEXT:  %s\n' "$CONTEXT"
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 	printf 'You are about to re-encrypt all encrypted files using new credentials.\n'
@@ -540,9 +536,7 @@ display_configuration() {
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
-	if [[ $CONTEXT != 'default' ]]; then
-		printf '  CONTEXT:  %s\n' "$CONTEXT"
-	fi
+	printf '  CONTEXT:  %s\n' "$CONTEXT"
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
 	if [[ "$contexts_count" -gt "1" ]]; then

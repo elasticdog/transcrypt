@@ -151,6 +151,7 @@ by running the `--display` command line option:
     The current repository was configured using transcrypt v0.2.0
     and has the following configuration:
 
+      CONTEXT:  default
       CIPHER:   aes-256-cbc
       PASSWORD: correct horse battery staple
 
