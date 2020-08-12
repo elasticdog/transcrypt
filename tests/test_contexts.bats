@@ -62,8 +62,8 @@ function teardown {
   GIT_DIR=`git rev-parse --git-dir`
 
   [ `git config --get transcrypt.version` = $VERSION ]
-  [ `git config --get transcrypt.super-secret-cipher` = "aes-256-cbc" ]
-  [ `git config --get transcrypt.super-secret-password` = "321cba" ]
+  [ `git config --get transcrypt.super-secret.cipher` = "aes-256-cbc" ]
+  [ `git config --get transcrypt.super-secret.password` = "321cba" ]
 
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
   if [ -d $(git rev-parse --git-common-dir) ]; then
@@ -254,7 +254,7 @@ function teardown {
   [ "${lines[0]}" = "$SUPER_SECRET_CONTENT_ENC" ]
 }
 
-@test "contexts: just one of multiple contexts can be configured at a time" {
+@test "contexts: only one of multiple contexts can be configured at a time" {
   # Init transcrypt with encrypted files then reset to be like a new clone
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
@@ -274,7 +274,7 @@ function teardown {
   [ "${lines[0]}" = 'default (not initialised)' ]
   [ "${lines[1]}" = 'super-secret (not initialised)' ]
 
-  # Re-init just super-secret context: its files are decrypted, not default context
+  # Re-init only super-secret context: its files are decrypted, not default context
   $BATS_TEST_DIRNAME/../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
   run ../transcrypt --list-contexts
   [[ "${output}" = *'super-secret'* ]]
@@ -288,7 +288,7 @@ function teardown {
   git reset --hard
   check_repo_is_clean
 
-  # Re-init just default context: its files are decrypted, not super-secret context
+  # Re-init only default context: its files are decrypted, not super-secret context
   $BATS_TEST_DIRNAME/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
   run ../transcrypt --list-contexts
   [[ "${output}" = *'default'* ]]
