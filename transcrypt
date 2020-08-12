@@ -298,11 +298,12 @@ save_helper_scripts() {
 		#!/usr/bin/env bash
 		filename=$1
 
-		context=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-		if [[ $context = 'unspecified' ]]; then
+		# Look up file's context name from .gitattributes, fall back to no context
+		context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
+		if [[ $context_name = 'unspecified' ]]; then
 		  context_prefix=""
 		else
-		  context_prefix="$context-"
+		  context_prefix="$context_name-"
 		fi
 
 		# ignore empty files
@@ -328,11 +329,12 @@ save_helper_scripts() {
 		#!/usr/bin/env bash
 		filename=$1
 
-		context=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-		if [[ $context = 'unspecified' ]]; then
+		# Look up file's context name from .gitattributes, fall back to no context
+		context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
+		if [[ $context_name = 'unspecified' ]]; then
 		  context_prefix=""
 		else
-		  context_prefix="$context-"
+		  context_prefix="$context_name-"
 		fi
 
 		tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
@@ -346,11 +348,12 @@ save_helper_scripts() {
 		#!/usr/bin/env bash
 		filename=$1
 
-		context=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-		if [[ $context = 'unspecified' ]]; then
+		# Look up file's context name from .gitattributes, fall back to no context
+		context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
+		if [[ $context_name = 'unspecified' ]]; then
 		  context_prefix=""
 		else
-		  context_prefix="$context-"
+		  context_prefix="$context_name-"
 		fi
 
 		# ignore empty files
@@ -878,7 +881,7 @@ get_contexts_from_git_config() {
 # Echo space-delimited list of context names defined in the .gitattributes file
 get_contexts_from_git_attributes() {
 	if [[ ! -f $GIT_ATTRIBUTES ]]; then
-		echo "0"
+		echo ""
 	fi
 	# Capture contents of .gitattributes without comments (leading # hash)
 	attr_lines=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
