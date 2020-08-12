@@ -513,7 +513,7 @@ save_configuration() {
 
 	# add a git alias for listing encrypted files in specific context, including 'default'
 	if [[ "$CONTEXT" = 'default' ]]; then
-		# The 'ls-default-crypt' alias calls the 'ls-crypt' alias to get all crypt-ed
+		# The 'ls-crypt-default' alias calls the 'ls-crypt' alias to get all crypt-ed
 		# files then filters those to any *without* a 'crypt-context' attr (unspecified).
 		# This is to avoid very difficult processing of multi-line output if we needed
 		# to fetch the two attrs 'filter' and 'crypt-context' from check-attr at once.
@@ -693,7 +693,7 @@ uninstall_transcrypt() {
 		# remove the `git ls-crypt` global alias and each context-specific alias
 		git config --unset alias.ls-crypt
 		for context in $contexts_in_git_config; do
-			git config --unset alias.ls-"${context}"-crypt
+			git config --unset alias.ls-crypt-"${context}"
 		done
 
 		# remove the alias section if it's now empty
@@ -1250,14 +1250,14 @@ if [[ $context ]]; then
 	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}-cipher
 	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT}-password
 	# For ls-crypt aliases we want one for each context, including 'default'
-	readonly CONTEXT_LS_CRYPT="ls-$CONTEXT-crypt"
+	readonly CONTEXT_LS_CRYPT="ls-crypt-$CONTEXT"
 else
 	readonly CONTEXT='default'
 	readonly CONTEXT_DESC_SUFFIX=''
 	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.cipher
 	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.password
 	# For ls-crypt aliases we want one for each context, including 'default'
-	readonly CONTEXT_LS_CRYPT="ls-$CONTEXT-crypt"
+	readonly CONTEXT_LS_CRYPT="ls-crypt-$CONTEXT"
 fi
 
 gather_repo_metadata

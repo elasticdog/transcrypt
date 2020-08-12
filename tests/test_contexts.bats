@@ -181,21 +181,21 @@ function teardown {
   [ "${lines[1]}" = "super_sensitive_file" ]
 }
 
-@test "contexts: git ls-default-crypt lists encrypted file for only 'default' context" {
+@test "contexts: git ls-crypt-default lists encrypted file for only 'default' context" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
 
-  run git ls-default-crypt
+  run git ls-crypt-default
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "sensitive_file" ]
   [ "${lines[1]}" = "" ]
 }
 
-@test "contexts: git ls-super-secret-crypt lists encrypted file for only 'super-secret' context" {
+@test "contexts: git ls-crypt-super-secret lists encrypted file for only 'super-secret' context" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
 
-  run git ls-super-secret-crypt
+  run git ls-crypt-super-secret
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "super_sensitive_file" ]
   [ "${lines[1]}" = "" ]
