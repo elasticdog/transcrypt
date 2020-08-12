@@ -939,18 +939,16 @@ trim() {
 }
 
 list_contexts() {
-	in_git_config=$(get_contexts_from_git_config)
-	in_git_attributes=$(get_contexts_from_git_attributes)
+	contexts_in_git_config=$(get_contexts_from_git_config)
+	contexts_in_git_attributes=$(get_contexts_from_git_attributes)
 	for context in $(get_contexts); do
-		config_status='not configured'
-		if is_item_in_array "$context" ${in_git_config[@]}; then
-			config_status='configured'
+		if ! is_item_in_array "$context" ${contexts_in_git_config[@]}; then
+			echo "$context (not initialised)"
+		elif ! is_item_in_array "$context" ${contexts_in_git_attributes[@]}; then
+			echo "$context (no patterns in .gitattributes)"
+		else
+			echo "$context"
 		fi
-		attr_status='not in .gitattributes'
-		if is_item_in_array "$context" ${in_git_attributes[@]}; then
-			attr_status='in .gitattributes'
-		fi
-		echo "$context ($config_status, $attr_status)"
 	done
 }
 
@@ -1036,7 +1034,9 @@ help() {
 		            encrypting different files with different passphrases
 
 		     --list-contexts
-		            list all contexts configured in the repository
+		            list all contexts configured in the  repository,  with a warning
+		            message for incompletely configured contexts:
+		            "not initialised" or "no patterns in .gitattributes"
 
 		     -v, --version
 		            print the version information

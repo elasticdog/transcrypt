@@ -115,8 +115,8 @@ function teardown {
   # Confirm .gitattributes is not yet configured for multiple contexts
   run ../transcrypt --list-contexts
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = 'default (configured, not in .gitattributes)' ]
-  [ "${lines[1]}" = 'super-secret (configured, not in .gitattributes)' ]
+  [ "${lines[0]}" = 'default (no patterns in .gitattributes)' ]
+  [ "${lines[1]}" = 'super-secret (no patterns in .gitattributes)' ]
 }
 
 @test "contexts: confirm --list-contexts lists contexts with config status" {
@@ -126,8 +126,8 @@ function teardown {
   # Confirm .gitattributes is configured for multiple contexts
   run ../transcrypt --list-contexts
   [ "$status" -eq 0 ]
-  [[ "${output}" = *'default (configured, in .gitattributes)'* ]]
-  [[ "${output}" = *'super-secret (configured, in .gitattributes)'* ]]
+  [[ "${output}" = *'default'* ]]
+  [[ "${output}" = *'super-secret'* ]]
 }
 
 @test "contexts: encrypted file contents in multiple context are decrypted in working copy" {
@@ -271,13 +271,13 @@ function teardown {
   # Confirm .gitattributes is configured for contexts, but Git is not
   run ../transcrypt --list-contexts
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = 'default (not configured, in .gitattributes)' ]
-  [ "${lines[1]}" = 'super-secret (not configured, in .gitattributes)' ]
+  [ "${lines[0]}" = 'default (not initialised)' ]
+  [ "${lines[1]}" = 'super-secret (not initialised)' ]
 
   # Re-init just super-secret context: its files are decrypted, not default context
   $BATS_TEST_DIRNAME/../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
   run ../transcrypt --list-contexts
-  [[ "${output}" = *'super-secret (configured, in .gitattributes)'* ]]
+  [[ "${output}" = *'super-secret'* ]]
   run cat super_sensitive_file
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
   run cat sensitive_file
@@ -291,7 +291,7 @@ function teardown {
   # Re-init just default context: its files are decrypted, not super-secret context
   $BATS_TEST_DIRNAME/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
   run ../transcrypt --list-contexts
-  [[ "${output}" = *'default (configured, in .gitattributes)'* ]]
+  [[ "${output}" = *'default'* ]]
   run cat sensitive_file
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
   run cat super_sensitive_file
