@@ -21,8 +21,8 @@ readonly VERSION='2.0.0'
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
 
-# regular expression used to ensure context name is safe for use in git config
-readonly CONTEXT_REGEX='[a-z][a-z0-9-]*'
+# context name must match this regexp to ensure it is safe for git config and attrs
+readonly CONTEXT_REGEX='[a-z](-?[a-z0-9])*'
 
 ##### FUNCTIONS
 
@@ -116,7 +116,10 @@ run_safety_checks() {
 	# Do we have a valid context name?
 	full_context_regex="^${CONTEXT_REGEX}$"
 	if [[ ! $CONTEXT =~ $full_context_regex ]]; then
-		die 1 "context name '$CONTEXT' is invalid, must be lowercase ASCII letter followed by zero or more of letter/number/hyphen"
+		warn "context name '${CONTEXT}' is invalid"
+		echo "Must be lowercase ASCII starting with a letter then zero or more letters or numbers, hyphen seperator permitted"
+		echo "Examples: x  prod  shh  admins-only  top-secret  abc-123-xyz"
+		exit 1
 	fi
 
 	# exit if transcrypt is not in the required state

@@ -21,6 +21,42 @@ function teardown {
   popd
 }
 
+@test "contexts: check validation of context names" {
+  # Invalid context names
+  run ../transcrypt --context=-ab --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -ne 0 ]
+  run ../transcrypt --context=1ab --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -ne 0 ]
+  run ../transcrypt --context=a--b --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -ne 0 ]
+  run ../transcrypt --context=a- --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -ne 0 ]
+  run ../transcrypt --context=A --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -ne 0 ]
+  run ../transcrypt --context=aB --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -ne 0 ]
+  run ../transcrypt --context=a-B --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -ne 0 ]
+
+  # Valid context names
+  run ../transcrypt --context=ab --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -eq 0 ]
+  run ../transcrypt --context=a1 --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -eq 0 ]
+  run ../transcrypt --context=a-b --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -eq 0 ]
+  run ../transcrypt --context=a-1 --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -eq 0 ]
+  run ../transcrypt --context=a-b-c --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -eq 0 ]
+  run ../transcrypt --context=a-1-c --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -eq 0 ]
+  run ../transcrypt --context=a-b-c-d --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -eq 0 ]
+  run ../transcrypt --context=a-1-c-d-2 --cipher=aes-256-cbc --password=none --yes
+  [ "$status" -eq 0 ]
+}
+
 @test "contexts: check git config for 'super-secret' context" {
   VERSION=`../transcrypt -v | awk '{print $2}'`
   GIT_DIR=`git rev-parse --git-dir`
