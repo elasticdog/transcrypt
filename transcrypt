@@ -299,11 +299,10 @@ save_helper_scripts() {
 		filename=$1
 
 		# Look up file's context name from .gitattributes, fall back to no context
+		context_config_group=""
 		context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-		if [[ $context_name = 'unspecified' ]]; then
-		  context_prefix=""
-		else
-		  context_prefix="$context_name."
+		if [[ ! "$context_name" = 'unspecified' ]]; then
+		  context_config_group="$context_name."
 		fi
 
 		# ignore empty files
@@ -317,8 +316,8 @@ save_helper_scripts() {
 		  if [[ $firstbytes == "U2FsdGVk" ]]; then
 		    cat "$tempfile"
 		  else
-		    cipher=$(git config --get --local transcrypt.${context_prefix}cipher)
-		    password=$(git config --get --local transcrypt.${context_prefix}password)
+		    cipher=$(git config --get --local transcrypt.${context_config_group}cipher)
+		    password=$(git config --get --local transcrypt.${context_config_group}password)
 		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
 		    ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
 		  fi
@@ -330,17 +329,16 @@ save_helper_scripts() {
 		filename=$1
 
 		# Look up file's context name from .gitattributes, fall back to no context
+		context_config_group=""
 		context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-		if [[ $context_name = 'unspecified' ]]; then
-		  context_prefix=""
-		else
-		  context_prefix="$context_name."
+		if [[ ! "$context_name" = 'unspecified' ]]; then
+		  context_config_group="$context_name."
 		fi
 
 		tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 		trap 'rm -f "$tempfile"' EXIT
-		cipher=$(git config --get --local transcrypt.${context_prefix}cipher)
-		password=$(git config --get --local transcrypt.${context_prefix}password)
+		cipher=$(git config --get --local transcrypt.${context_config_group}cipher)
+		password=$(git config --get --local transcrypt.${context_config_group}password)
 		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
 	EOF
 
@@ -349,17 +347,16 @@ save_helper_scripts() {
 		filename=$1
 
 		# Look up file's context name from .gitattributes, fall back to no context
+		context_config_group=""
 		context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-		if [[ $context_name = 'unspecified' ]]; then
-		  context_prefix=""
-		else
-		  context_prefix="$context_name."
+		if [[ ! "$context_name" = 'unspecified' ]]; then
+		  context_config_group="$context_name."
 		fi
 
 		# ignore empty files
 		if [[ -s $filename ]]; then
-		  cipher=$(git config --get --local transcrypt.${context_prefix}cipher)
-		  password=$(git config --get --local transcrypt.${context_prefix}password)
+		  cipher=$(git config --get --local transcrypt.${context_config_group}cipher)
+		  password=$(git config --get --local transcrypt.${context_config_group}password)
 		  ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
 		fi
 	EOF
@@ -690,13 +687,13 @@ uninstall_transcrypt() {
 			touch $encrypted_files
 		fi
 
-		# remove the `git ls-crypt` global alias and context-specific settings
+		# remove the `git ls-crypt` global alias
 		git config --unset alias.ls-crypt
-		for context in $contexts_in_git_config; do
-			# remove context cipher and password settings
-			git config --remove-section transcrypt.${context} 2>/dev/null || true
 
-			# remove context ls-crypt alias variant
+		# remove context settings: cipher & password config, ls-crypt alias variant
+		for context in $contexts_in_git_config; do
+			git config --remove-section transcrypt."${context}" 2>/dev/null || true
+
 			git config --unset alias.ls-crypt-"${context}"
 		done
 
@@ -874,11 +871,11 @@ get_contexts_from_git_config() {
 		if [[ "$name" = "transcrypt.password" ]]; then
 			contexts+=('default')
 		elif [[ $name =~ $extract_context_name_regex ]]; then
-			contexts+=(${BASH_REMATCH[1]})
+			contexts+=("${BASH_REMATCH[1]}")
 		fi
 	done
 	if [ "${contexts:-}" ]; then
-		echo $(trim `printf "%q " "${contexts[@]}"`)
+		trim "$(printf "%q " "${contexts[@]}")"
 	fi
 }
 
@@ -893,13 +890,13 @@ get_contexts_from_git_attributes() {
 	contexts=()
 	for attr_line in $attr_lines; do
 		if [[ $attr_line =~ $extract_context_name_regex ]]; then
-			contexts+=(${BASH_REMATCH[1]})
+			contexts+=("${BASH_REMATCH[1]}")
 		elif [[ $attr_line =~ 'filter=crypt' ]]; then
 			contexts+=('default')
 		fi
 	done
 	if [ "${contexts:-}" ]; then
-		echo $(trim `printf "%q " "${contexts[@]}"`)
+		trim "$(printf "%q " "${contexts[@]}")"
 	fi
 }
 
@@ -908,47 +905,49 @@ get_contexts() {
 	combined_contexts="$(get_contexts_from_git_config) $(get_contexts_from_git_attributes)"
 	sorted_contexts=$(echo "$combined_contexts" | tr ' ' '\n' | sort -u | tr '\n' ' ')
 	if [ "${sorted_contexts:-}" ]; then
-		echo "$(trim $sorted_contexts)"
+		trim "$sorted_contexts"
 	fi
 }
 
 # Echo the number of items in a space-delimited list given as $1
 count_items_in_list() {
-	local trimmed=$(trim $1)
+	local trimmed
+	trimmed=$(trim "$1")
 	if [[ ! "$trimmed" ]]; then
 		return 0
 	fi
 	local just_spaces="${trimmed//[^ ]/}"
-	echo $(( ${#just_spaces} + 1 ))
+	echo $((${#just_spaces} + 1))
 }
 
 # Utility function returns a truthy value if value $1 is in bash list or array $2
 # Based on https://stackoverflow.com/a/8574392/4970
 is_item_in_array() {
-  local e match="$1"
-  shift
-  for e; do [[ "$e" == "$match" ]] && return 0; done
-  return 1
+	local e match="$1"
+	shift
+	for e; do [[ "$e" == "$match" ]] && return 0; done
+	return 1
 }
 
 # Trim leading and trailing whitespace from $1
 # From https://stackoverflow.com/a/3352015/4970
 trim() {
-    local var="$*"
-    # remove leading whitespace characters
-    var="${var#"${var%%[![:space:]]*}"}"
-    # remove trailing whitespace characters
-    var="${var%"${var##*[![:space:]]}"}"
-    printf '%s' "$var"
+	local var="$*"
+	# remove leading whitespace characters
+	var="${var#"${var%%[![:space:]]*}"}"
+	# remove trailing whitespace characters
+	var="${var%"${var##*[![:space:]]}"}"
+	printf '%s' "$var"
 }
 
 list_contexts() {
 	contexts_in_git_config=$(get_contexts_from_git_config)
 	contexts_in_git_attributes=$(get_contexts_from_git_attributes)
 	for context in $(get_contexts); do
-		if ! is_item_in_array "$context" ${contexts_in_git_config[@]}; then
+		# shellcheck disable=SC2086
+		if ! is_item_in_array "$context" ${contexts_in_git_config}; then
 			echo "$context (not initialised)"
-		elif ! is_item_in_array "$context" ${contexts_in_git_attributes[@]}; then
+		elif ! is_item_in_array "$context" ${contexts_in_git_attributes}; then
 			echo "$context (no patterns in .gitattributes)"
 		else
 			echo "$context"
@@ -1064,8 +1063,8 @@ help() {
 		     a file in your repository, the file  will  be  transparently  encrypted
 		     once you stage and commit it:
 
-		         $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' \
-				        >> .gitattributes
+		         $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' \\
+		            >> .gitattributes
 		         $ git add .gitattributes sensitive_file
 		         $ git commit -m 'Add encrypted version of a sensitive file'
 
@@ -1084,23 +1083,20 @@ help() {
 		     To use multiple passphrases for files with different security contexts,
 		     specify a new  context name  when you initialise  transcrypt or display
 		     credentials. You can list all the contexts configured in the repository
-			 and their status. For example:
+		     and their status. For example:
 
-		         # Initialise a new context "ts" for top-secret files
+		         # Initialise a new context "ts" for top-secret file 'plan'
 		         $ transcrypt --context=ts
 
-		         # Add extra 'crypt-context=ts' attribute in .gitattributes
-		         $ echo \
-				     'ts_file  filter=crypt diff=crypt merge=crypt crypt-context=ts' \
-				     >> .gitattributes
+		         # Add an extra 'crypt-context=ts' attribute in .gitattributes
+		         $ echo 'plan filter=crypt diff=crypt merge=crypt crypt-context=ts'\\
+		            >> .gitattributes
 
-		         $ git add .gitattributes ts_file
-		         $ git commit -m 'Add encrypted version of a top-secret file'
+		         $ git add .gitattributes plan
+		         $ git commit -m 'Add encrypted plan in top-secret context'
 
 		         # List all contexts and their status
 		         $ transcrypt --list-contexts
-		         default (configured, in .gitattributes)
-		         ts (configured, in .gitattributes)
 
 		AUTHOR
 		     Aaron Bull Schaefer <aaron@elasticdog.com>
