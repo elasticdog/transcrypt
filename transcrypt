@@ -59,9 +59,6 @@ gather_repo_metadata() {
 	# whether or not transcrypt is already configured
 	readonly INSTALLED_VERSION=$(git config --get --local transcrypt.version 2>/dev/null)
 
-	# fetch list of context names already configured
-	readonly CONFIGURED_CONTEXTS=$(get_contexts_from_git_config)
-
 	# the current git repository's top-level directory
 	readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
 
@@ -89,6 +86,10 @@ gather_repo_metadata() {
 	else
 		readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
 	fi
+
+	# fetch list of context names already configured or in .gitattributes
+	readonly CONFIGURED_CONTEXTS=$(get_contexts_from_git_config)
+	readonly GITATTRIBUTES_CONTEXTS=$(get_contexts_from_git_attributes)
 }
 
 # print a message to stderr
@@ -881,28 +882,30 @@ get_contexts_from_git_config() {
 
 # Echo space-delimited list of context names defined in the .gitattributes file
 get_contexts_from_git_attributes() {
-	if [[ ! -f $GIT_ATTRIBUTES ]]; then
-		echo ""
-	fi
-	# Capture contents of .gitattributes without comments (leading # hash)
-	attr_lines=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
-	extract_context_name_regex="crypt-context=(${CONTEXT_REGEX})"
-	contexts=()
-	for attr_line in $attr_lines; do
-		if [[ $attr_line =~ $extract_context_name_regex ]]; then
-			contexts+=("${BASH_REMATCH[1]}")
-		elif [[ $attr_line =~ 'filter=crypt' ]]; then
-			contexts+=('default')
+	if [[ -f $GIT_ATTRIBUTES ]]; then
+		# Capture contents of .gitattributes without comments (leading # hash)
+		attr_lines=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
+		extract_context_name_regex="crypt-context=(${CONTEXT_REGEX})"
+		recognise_crypt_regex="filter=crypt"
+		contexts=()
+		IFS=$'\n'
+		for attr_line in ${attr_lines}; do
+			if [[ $attr_line =~ $extract_context_name_regex ]]; then
+				contexts+=("${BASH_REMATCH[1]}")
+			elif [[ $attr_line =~ $recognise_crypt_regex ]]; then
+				contexts+=('default')
+			fi
+		done
+		unset IFS
+		if [ "${contexts:-}" ]; then
+			trim "$(printf "%q " "${contexts[@]}")"
 		fi
-	done
-	if [ "${contexts:-}" ]; then
-		trim "$(printf "%q " "${contexts[@]}")"
 	fi
 }
 
 # Echo all context names, sorted and distinct, from the git config or .gitattributes
 get_contexts() {
-	combined_contexts="$CONFIGURED_CONTEXTS $(get_contexts_from_git_attributes)"
+	combined_contexts="$CONFIGURED_CONTEXTS $GITATTRIBUTES_CONTEXTS"
 	sorted_contexts=$(echo "$combined_contexts" | tr ' ' '\n' | sort -u | tr '\n' ' ')
 	if [ "${sorted_contexts:-}" ]; then
 		trim "$sorted_contexts"
@@ -941,12 +944,11 @@ trim() {
 }
 
 list_contexts() {
-	contexts_in_git_attributes=$(get_contexts_from_git_attributes)
 	for context in $(get_contexts); do
 		# shellcheck disable=SC2086
 		if ! is_item_in_array "$context" ${CONFIGURED_CONTEXTS}; then
 			echo "$context (not initialised)"
-		elif ! is_item_in_array "$context" ${contexts_in_git_attributes}; then
+		elif ! is_item_in_array "$context" ${GITATTRIBUTES_CONTEXTS}; then
 			echo "$context (no patterns in .gitattributes)"
 		else
 			echo "$context"
@@ -1146,6 +1148,7 @@ while [[ "${1:-}" != '' ]]; do
 	--list-contexts)
 		list_ctxs='true'
 		ignore_config_status='true'
+		requires_clean_repo=''
 		;;
 	-c | --cipher)
 		cipher=$2

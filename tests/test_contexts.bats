@@ -130,6 +130,34 @@ function teardown {
   [[ "${output}" = *'super-secret'* ]]
 }
 
+@test "contexts: confirm --list-contexts only lists contexts it should" {
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+  encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
+
+  # Remove all transcrypt config, including contexts
+  ../transcrypt --uninstall --yes
+
+  # Don't list contexts when none are known
+  echo > .gitattributes
+  run ../transcrypt --list-contexts
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = '' ]
+
+  # List just super-secret context from .gitattributes
+  echo  '"super_sensitive_file" filter=crypt diff=crypt merge=crypt crypt-context=super-secret' > .gitattributes
+  run ../transcrypt --list-contexts
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 'super-secret (not initialised)' ]
+  [ "${lines[1]}" = '' ]
+
+  # List just default context from .gitattributes
+  echo  '"sensitive_file" filter=crypt diff=crypt merge=crypt' > .gitattributes
+  run ../transcrypt --list-contexts
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 'default (not initialised)' ]
+  [ "${lines[1]}" = '' ]
+}
+
 @test "contexts: encrypted file contents in multiple context are decrypted in working copy" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
