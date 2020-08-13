@@ -254,7 +254,7 @@ function teardown {
   [ "${lines[0]}" = "$SUPER_SECRET_CONTENT_ENC" ]
 }
 
-@test "contexts: only one of multiple contexts can be configured at a time" {
+@test "contexts: any one of multiple contexts works in isolation" {
   # Init transcrypt with encrypted files then reset to be like a new clone
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
@@ -296,4 +296,13 @@ function teardown {
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
   run cat super_sensitive_file
   [ "${lines[0]}" = "$SUPER_SECRET_CONTENT_ENC" ]
+
+  # Reset again
+  ../transcrypt --uninstall --yes
+  git reset --hard
+  check_repo_is_clean
+
+  # Re-init super-secret then default contexts, to confirm safety check permits this
+  $BATS_TEST_DIRNAME/../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
+  $BATS_TEST_DIRNAME/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
 }

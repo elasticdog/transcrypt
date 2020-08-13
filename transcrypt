@@ -57,7 +57,10 @@ realpath() {
 # establish repository metadata and directory handling
 gather_repo_metadata() {
 	# whether or not transcrypt is already configured
-	readonly CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
+	readonly INSTALLED_VERSION=$(git config --get --local transcrypt.version 2>/dev/null)
+
+	# fetch list of context names already configured
+	readonly CONFIGURED_CONTEXTS=$(get_contexts_from_git_config)
 
 	# the current git repository's top-level directory
 	readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -124,11 +127,11 @@ run_safety_checks() {
 
 	# exit if transcrypt is not in the required state
 	if [[ $ignore_config_status ]]; then
-		: # no-op, no need to check $CONFIGURED status
-	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED ]]; then
+		: # no-op, no need to check $CONFIGURED_CONTEXTS status
+	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED_CONTEXTS ]]; then
 		die 1 'the current repository is not configured'
-	elif [[ ! $requires_existing_config ]] && [[ $CONFIGURED ]]; then
-		die 1 'the current repository is already configured; see --display'
+	elif [[ ! $requires_existing_config ]] && is_item_in_array "$CONTEXT" "$CONFIGURED_CONTEXTS"; then
+		die 1 "the current repository is already configured${CONTEXT_DESC_SUFFIX}; see --display"
 	fi
 
 	# check for dependencies
@@ -454,7 +457,7 @@ save_helper_hooks() {
 
 	# Activate hook by copying it to the pre-commit script name, if safe to do so
 	pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
-	if [[ -f "$pre_commit_hook" ]] && [[ "$CONFIGURED" ]]; then
+	if [[ -f "$pre_commit_hook" ]] && [[ "$INSTALLED_VERSION" ]]; then
 		: # no-op, skip re-install of pre-commit hook for additional contexts
 	elif [[ -f "$pre_commit_hook" ]]; then
 		printf 'WARNING:\n' >&2
@@ -528,10 +531,9 @@ display_configuration() {
 	current_password=$(git config --get --local "$CONTEXT_TRANSCRYPT_PASSWORD")
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
-	contexts=$(get_contexts_from_git_config)
-	contexts_count="$(count_items_in_list "$contexts")"
+	contexts_count="$(count_items_in_list "$CONFIGURED_CONTEXTS")"
 
-	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
+	printf 'The current repository was configured using transcrypt version %s\n' "$INSTALLED_VERSION"
 	printf "and has the following configuration%s:\n\n" "$CONTEXT_DESC_SUFFIX"
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
@@ -540,7 +542,7 @@ display_configuration() {
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
 	if [[ "$contexts_count" -gt "1" ]]; then
-		printf 'The repository has %s contexts: %s\n\n' "$contexts_count" "$contexts"
+		printf 'The repository has %s contexts: %s\n\n' "$contexts_count" "$CONFIGURED_CONTEXTS"
 	fi
 	printf "Copy and paste the following command to initialize a cloned repository%s:\n\n" "$CONTEXT_DESC_SUFFIX"
 	if [[ $CONTEXT != 'default' ]]; then
@@ -650,8 +652,6 @@ uninstall_transcrypt() {
 
 	# only uninstall if the user explicitly confirmed
 	if [[ $answer =~ $YES_REGEX ]]; then
-		contexts_in_git_config=$(get_contexts_from_git_config)
-
 		clean_gitconfig
 
 		if [[ ! $upgrade ]]; then
@@ -691,7 +691,7 @@ uninstall_transcrypt() {
 		git config --unset alias.ls-crypt
 
 		# remove context settings: cipher & password config, ls-crypt alias variant
-		for context in $contexts_in_git_config; do
+		for context in $CONFIGURED_CONTEXTS; do
 			git config --remove-section transcrypt."${context}" 2>/dev/null || true
 
 			git config --unset alias.ls-crypt-"${context}"
@@ -727,7 +727,7 @@ upgrade_transcrypt() {
 	if [[ $interactive ]]; then
 		printf 'You are about to upgrade the transcrypt scripts in your repository.\n'
 		printf 'Your configuration settings will not be changed.\n\n'
-		printf ' Current version: %s\n' "$CONFIGURED"
+		printf ' Current version: %s\n' "$INSTALLED_VERSION"
 		printf 'Upgraded version: %s\n\n' "$VERSION"
 		printf 'Proceed with upgrade? [y/N] '
 		read -r answer
@@ -902,7 +902,7 @@ get_contexts_from_git_attributes() {
 
 # Echo all context names, sorted and distinct, from the git config or .gitattributes
 get_contexts() {
-	combined_contexts="$(get_contexts_from_git_config) $(get_contexts_from_git_attributes)"
+	combined_contexts="$CONFIGURED_CONTEXTS $(get_contexts_from_git_attributes)"
 	sorted_contexts=$(echo "$combined_contexts" | tr ' ' '\n' | sort -u | tr '\n' ' ')
 	if [ "${sorted_contexts:-}" ]; then
 		trim "$sorted_contexts"
@@ -941,11 +941,10 @@ trim() {
 }
 
 list_contexts() {
-	contexts_in_git_config=$(get_contexts_from_git_config)
 	contexts_in_git_attributes=$(get_contexts_from_git_attributes)
 	for context in $(get_contexts); do
 		# shellcheck disable=SC2086
-		if ! is_item_in_array "$context" ${contexts_in_git_config}; then
+		if ! is_item_in_array "$context" ${CONFIGURED_CONTEXTS}; then
 			echo "$context (not initialised)"
 		elif ! is_item_in_array "$context" ${contexts_in_git_attributes}; then
 			echo "$context (no patterns in .gitattributes)"
