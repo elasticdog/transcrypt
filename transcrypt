@@ -117,8 +117,8 @@ run_safety_checks() {
 	full_context_regex="^${CONTEXT_REGEX}$"
 	if [[ ! $CONTEXT =~ $full_context_regex ]]; then
 		warn "context name '${CONTEXT}' is invalid"
-		echo "Must be lowercase ASCII starting with a letter then zero or more letters or numbers, hyphen seperator permitted"
-		echo "Examples: x  prod  shh  admins-only  top-secret  abc-123-xyz"
+		echo "Must be lowercase ASCII, start with a letter, then zero or more letters or numbers. A hyphen (-) seperator is allowed"
+		echo "Examples: admin  admins-only  super-user  staging  production  top-secret  abc-123-xyz"
 		exit 1
 	fi
 
