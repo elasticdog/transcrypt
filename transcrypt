@@ -596,7 +596,7 @@ uninstall_transcrypt() {
 		# rename helper hooks (don't delete, in case user has custom changes)
 		pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
 		pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
-		if [ -f "$pre_commit_hook" ]; then
+		if [[ -f "$pre_commit_hook" ]]; then
 			hook_md5=$(openssl md5 -hex <"$pre_commit_hook")
 			installed_md5=$(openssl md5 -hex <"$pre_commit_hook_installed")
 			if [[ "$hook_md5" = "$installed_md5" ]]; then
