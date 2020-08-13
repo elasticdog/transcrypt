@@ -1,1 +1,1 @@
-sensitive_file  filter=crypt diff=crypt
+sensitive_file  filter=crypt diff=crypt merge=crypt

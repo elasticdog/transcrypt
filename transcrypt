@@ -16,7 +16,7 @@ set -euo pipefail
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='2.0.0'
+readonly VERSION='2.1.0'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -668,7 +668,7 @@ uninstall_transcrypt() {
 		# rename helper hooks (don't delete, in case user has custom changes)
 		pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
 		pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
-		if [ -f "$pre_commit_hook" ]; then
+		if [[ -f "$pre_commit_hook" ]]; then
 			hook_md5=$(openssl md5 -hex <"$pre_commit_hook")
 			installed_md5=$(openssl md5 -hex <"$pre_commit_hook_installed")
 			if [[ "$hook_md5" = "$installed_md5" ]]; then
@@ -875,7 +875,7 @@ get_contexts_from_git_config() {
 			contexts+=("${BASH_REMATCH[1]}")
 		fi
 	done
-	if [ "${contexts:-}" ]; then
+	if [[ "${contexts:-}" ]]; then
 		trim "$(printf "%q " "${contexts[@]}")"
 	fi
 }
@@ -897,7 +897,7 @@ get_contexts_from_git_attributes() {
 			fi
 		done
 		unset IFS
-		if [ "${contexts:-}" ]; then
+		if [[ "${contexts:-}" ]]; then
 			trim "$(printf "%q " "${contexts[@]}")"
 		fi
 	fi
@@ -907,7 +907,7 @@ get_contexts_from_git_attributes() {
 get_contexts() {
 	combined_contexts="$CONFIGURED_CONTEXTS $GITATTRIBUTES_CONTEXTS"
 	sorted_contexts=$(echo "$combined_contexts" | tr ' ' '\n' | sort -u | tr '\n' ' ')
-	if [ "${sorted_contexts:-}" ]; then
+	if [[ "${sorted_contexts:-}" ]]; then
 		trim "$sorted_contexts"
 	fi
 }
@@ -1059,10 +1059,10 @@ help() {
 		         $ transcrypt
 
 		     Once  a  repository has been configured with transcrypt, you can trans-
-		     parently encrypt files by applying the "crypt" filter  and  diff  to  a
-		     pattern in the top-level .gitattributes config. If that pattern matches
-		     a file in your repository, the file  will  be  transparently  encrypted
-		     once you stage and commit it:
+		     parently encrypt files by applying the "crypt" filter,  diff and  merge
+		     to a pattern in the  top-level .gitattributes config.  If that  pattern
+		     matches  a file in your  repository,  the file  will  be  transparently
+		     encrypted once you stage and commit it:
 
 		         $ echo >> .gitattributes \\
 		         'sensitive_file  filter=crypt diff=crypt merge=crypt'
