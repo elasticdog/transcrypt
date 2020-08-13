@@ -1063,8 +1063,9 @@ help() {
 		     a file in your repository, the file  will  be  transparently  encrypted
 		     once you stage and commit it:
 
-		         $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' \\
-		            >> .gitattributes
+		         $ echo >> .gitattributes \\
+		         'sensitive_file  filter=crypt diff=crypt merge=crypt'
+
 		         $ git add .gitattributes sensitive_file
 		         $ git commit -m 'Add encrypted version of a sensitive file'
 
@@ -1080,22 +1081,24 @@ help() {
 		     their transcrypt credentials, fetch and merge the new  encrypted  files
 		     via Git, and then re-configure transcrypt with the new credentials.
 
-		     To use multiple passphrases for files with different security contexts,
-		     specify a new  context name  when you initialise  transcrypt or display
-		     credentials. You can list all the contexts configured in the repository
-		     and their status. For example:
+		     You can use context names to encrypt files for different audiences with
+		     different passwords, such as normal users versus admins.  The 'default'
+		     context applies unless you set a context name.
+		     To add a context, initialise transcrypt with the context's name and add
+		     a .gitattributes pattern including 'crypt-context=<name>'. For example:
 
-		         # Initialise a new context "ts" for top-secret file 'plan'
-		         $ transcrypt --context=ts
+		         # Initialise a new context "admin", and set a different password
+		         $ transcrypt --context=admin
 
-		         # Add an extra 'crypt-context=ts' attribute in .gitattributes
-		         $ echo 'plan filter=crypt diff=crypt merge=crypt crypt-context=ts'\\
-		            >> .gitattributes
+		         # Add a pattern with 'crypt-context=admin' to .gitattributes
+		         $ echo >> .gitattributes \\
+		         'admin.txt filter=crypt diff=crypt merge=crypt crypt-context=admin'
 
-		         $ git add .gitattributes plan
-		         $ git commit -m 'Add encrypted plan in top-secret context'
+		         # Add and commit your secret and .gitattribute files
+		         $ git add .gitattributes admin.txt
+		         $ git commit -m "Add encrypted admin-only file in 'admin' context"
 
-		         # List all contexts and their status
+		         # List all contexts
 		         $ transcrypt --list-contexts
 
 		AUTHOR
