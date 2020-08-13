@@ -16,7 +16,7 @@ set -euo pipefail
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='2.0.0'
+readonly VERSION='2.1.0'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -596,7 +596,7 @@ uninstall_transcrypt() {
 		# rename helper hooks (don't delete, in case user has custom changes)
 		pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
 		pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
-		if [ -f "$pre_commit_hook" ]; then
+		if [[ -f "$pre_commit_hook" ]]; then
 			hook_md5=$(openssl md5 -hex <"$pre_commit_hook")
 			installed_md5=$(openssl md5 -hex <"$pre_commit_hook_installed")
 			if [[ "$hook_md5" = "$installed_md5" ]]; then
@@ -680,7 +680,7 @@ upgrade_transcrypt() {
 	save_configuration
 
 	# Re-instate contents of .gitattributes
-	echo "$ORIG_GITATTRIBUTES" > "$GIT_ATTRIBUTES"
+	echo "$ORIG_GITATTRIBUTES" >"$GIT_ATTRIBUTES"
 
 	# Update .gitattributes for transcrypt'ed files to include "merge=crypt" config
 	case $OSTYPE in
@@ -880,10 +880,10 @@ help() {
 		         $ transcrypt
 
 		     Once  a  repository has been configured with transcrypt, you can trans-
-		     parently encrypt files by applying the "crypt" filter  and  diff  to  a
-		     pattern in the top-level .gitattributes config. If that pattern matches
-		     a file in your repository, the file  will  be  transparently  encrypted
-		     once you stage and commit it:
+		     parently encrypt files by applying the "crypt" filter,  diff and  merge
+		     to a pattern in the  top-level .gitattributes config.  If that  pattern
+		     matches  a file in your  repository,  the file  will  be  transparently
+		     encrypted once you stage and commit it:
 
 		         $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' >> .gitattributes
 		         $ git add .gitattributes sensitive_file
