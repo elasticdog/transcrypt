@@ -471,7 +471,9 @@ save_helper_hooks() {
 save_configuration() {
 	# prevent clobbering existing configuration
 	# shellcheck disable=SC2086
-	if is_item_in_array "$CONTEXT" ${CONFIGURED_CONTEXTS}; then
+	if [[ $upgrade ]]; then
+		: # Bypass safety check on upgrade; we know we just called uninstall_transcrypt
+	elif is_item_in_array "$CONTEXT" ${CONFIGURED_CONTEXTS}; then
 		if [[ "$CONTEXT" = 'default' ]]; then
 			die 1 "the current repository is already configured; see 'transcrypt --display'"
 		else
