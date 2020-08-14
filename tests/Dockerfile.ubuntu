@@ -2,7 +2,10 @@ ARG version
 
 FROM ubuntu:$version
 
-# Install git
+# Install git, but PPA tool first so we can get newer git on 16.04
+RUN apt-get update \
+    && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:git-core/ppa
 RUN apt-get update \
     && apt-get install -y git bsdmainutils
 
