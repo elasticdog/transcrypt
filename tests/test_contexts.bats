@@ -346,3 +346,24 @@ function teardown {
   "$BATS_TEST_DIRNAME"/../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
   "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
 }
+
+@test "contexts: --upgrade retains all context configs" {
+  # Init transcrypt with encrypted files then reset to be like a new clone
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+  encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
+
+  # We use context names without warning notes as a surrogate for checking
+  # that the super-secret context is configured and in .gitattributes
+  run "$BATS_TEST_DIRNAME"/../transcrypt --list-contexts
+  [[ "$status" -eq 0 ]]
+  [[ "${lines[0]}" = 'default' ]]
+  [[ "${lines[1]}" = 'super-secret' ]]
+
+  # Upgrade removes and *should* re-create config for all contexts
+  run "$BATS_TEST_DIRNAME"/../transcrypt --upgrade --yes
+
+  run "$BATS_TEST_DIRNAME"/../transcrypt --list-contexts
+  [[ "$status" -eq 0 ]]
+  [[ "${lines[0]}" = 'default' ]]
+  [[ "${lines[1]}" = 'super-secret' ]]
+}

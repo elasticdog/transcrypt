@@ -756,15 +756,33 @@ upgrade_transcrypt() {
 		fi
 	fi
 
-	# Keep current cipher and password
-	cipher=$(git config --get --local transcrypt.cipher)
-	password=$(git config --get --local transcrypt.password)
-
 	# Keep contents of .gitattributes
 	ORIG_GITATTRIBUTES=$(cat "$GIT_ATTRIBUTES")
 
+	# Keep current cipher and password for each context
+	ORIG_CONFIGS=()
+	for context_name in $CONFIGURED_CONTEXTS; do
+		if [[ "$context_name" = 'default' ]]; then
+			cipher=$(git config --get --local transcrypt.cipher)
+			password=$(git config --get --local transcrypt.password)
+		else
+			cipher=$(git config --get --local transcrypt.${context_name}.cipher)
+			password=$(git config --get --local transcrypt.${context_name}.password)
+		fi
+		ORIG_CONFIGS+=("${context_name}|${cipher}|${password}")
+	done
+
 	uninstall_transcrypt
-	save_configuration
+
+	# Reconfigure cipher and password for each context
+	for orig_config_line in ${ORIG_CONFIGS[@]}; do
+		context=$(echo "$orig_config_line" | awk 'BEGIN { FS = "|" }; { print $1 }')
+		cipher=$(echo "$orig_config_line" | awk 'BEGIN { FS = "|" }; { print $2 }')
+		password=$(echo "$orig_config_line" | awk 'BEGIN { FS = "|" }; { print $3 }')
+
+		set_context_variables # This prepares all the variables needed to save config
+		save_configuration
+	done
 
 	# Re-instate contents of .gitattributes
 	echo "$ORIG_GITATTRIBUTES" >"$GIT_ATTRIBUTES"
@@ -772,10 +790,10 @@ upgrade_transcrypt() {
 	# Update .gitattributes for transcrypt'ed files to include "merge=crypt" config
 	case $OSTYPE in
 	darwin*)
-		/usr/bin/sed -i '' 's/=crypt\(.*\)/=crypt diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
+		/usr/bin/sed -i '' 's/diff=crypt$/diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
 		;;
 	linux*)
-		sed -i 's/=crypt\(.*\)/=crypt diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
+		sed -i 's/diff=crypt$/diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
 		;;
 	esac
 
@@ -1258,21 +1276,24 @@ while [[ "${1:-}" != '' ]]; do
 done
 
 # Multi-context support, triggered by optional --context / -C command line option
-if [[ $context ]]; then
-	readonly CONTEXT=$context
-	readonly CONTEXT_DESC_SUFFIX=" for context '$CONTEXT'"
-	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}.cipher
-	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT}.password
-	# For ls-crypt aliases we want one for each context, including 'default'
-	readonly CONTEXT_LS_CRYPT="ls-crypt-$CONTEXT"
-else
-	readonly CONTEXT='default'
-	readonly CONTEXT_DESC_SUFFIX=''
-	readonly CONTEXT_TRANSCRYPT_CIPHER=transcrypt.cipher
-	readonly CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.password
-	# For ls-crypt aliases we want one for each context, including 'default'
-	readonly CONTEXT_LS_CRYPT="ls-crypt-$CONTEXT"
-fi
+set_context_variables() {
+	if [[ "$context" ]] && [[ ! "$context" = 'default' ]]; then
+		CONTEXT=$context
+		CONTEXT_DESC_SUFFIX=" for context '$CONTEXT'"
+		CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}.cipher
+		CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT}.password
+		# For ls-crypt aliases we want one for each context, including 'default'
+		CONTEXT_LS_CRYPT="ls-crypt-$CONTEXT"
+	else
+		CONTEXT='default'
+		CONTEXT_DESC_SUFFIX=''
+		CONTEXT_TRANSCRYPT_CIPHER=transcrypt.cipher
+		CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.password
+		# For ls-crypt aliases we want one for each context, including 'default'
+		CONTEXT_LS_CRYPT="ls-crypt-$CONTEXT"
+	fi
+}
+set_context_variables
 
 gather_repo_metadata
 
