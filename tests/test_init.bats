@@ -84,3 +84,11 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "${lines[7]}" = "  PASSWORD: abc123" ]]
   [[ "${lines[9]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]]
 }
+
+@test "init: cannot re-init, fails with error message" {
+  init_transcrypt
+
+  run ../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
+  [[ "$status" -ne 0 ]]
+  [[ "${lines[0]}" = "transcrypt: the current repository is already configured; see 'transcrypt --display'" ]]
+}

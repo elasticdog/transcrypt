@@ -101,6 +101,18 @@ function teardown {
   [[ "${lines[10]}" = "  transcrypt -C super-secret -c aes-256-cbc -p '321cba'" ]]
 }
 
+@test "contexts: cannot re-init an existing context, fails with error message" {
+  # Cannot re-init 'default' context
+  run ../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
+  [[ "$status" -ne 0 ]]
+  [[ "${lines[0]}" = "transcrypt: the current repository is already configured; see 'transcrypt --display'" ]]
+
+  # Cannot re-init a named context
+  run ../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
+  [[ "$status" -ne 0 ]]
+  [[ "${lines[0]}" = "transcrypt: the current repository is already configured for context 'super-secret'; see 'transcrypt --context=super-secret --display'" ]]
+}
+
 @test "contexts: encrypt a file in default and 'super-secret' contexts" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"

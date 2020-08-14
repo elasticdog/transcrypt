@@ -127,12 +127,8 @@ run_safety_checks() {
 	fi
 
 	# exit if transcrypt is not in the required state
-	if [[ $ignore_config_status ]]; then
-		: # no-op, no need to check $CONFIGURED_CONTEXTS status
-	elif [[ $requires_existing_config ]] && [[ ! $CONFIGURED_CONTEXTS ]]; then
+	if [[ $requires_existing_config ]] && [[ ! $CONFIGURED_CONTEXTS ]]; then
 		die 1 'the current repository is not configured'
-	elif [[ ! $requires_existing_config ]] && is_item_in_array "$CONTEXT" "$CONFIGURED_CONTEXTS"; then
-		die 1 "the current repository is already configured${CONTEXT_DESC_SUFFIX}; see --display"
 	fi
 
 	# check for dependencies
@@ -473,6 +469,16 @@ save_helper_hooks() {
 
 # write the configuration to the repository's git config
 save_configuration() {
+	# prevent clobbering existing configuration
+	# shellcheck disable=SC2086
+	if is_item_in_array "$CONTEXT" ${CONFIGURED_CONTEXTS}; then
+		if [[ "$CONTEXT" = 'default' ]]; then
+			die 1 "the current repository is already configured; see 'transcrypt --display'"
+		else
+			die 1 "the current repository is already configured${CONTEXT_DESC_SUFFIX}; see 'transcrypt --context=$CONTEXT --display'"
+		fi
+	fi
+
 	save_helper_scripts
 	save_helper_hooks
 
@@ -1137,23 +1143,19 @@ upgrade=''
 # used to bypass certain safety checks
 requires_existing_config=''
 requires_clean_repo='true'
-ignore_config_status='' # Set for operations where config can exist or not
 
 # parse command line options
 while [[ "${1:-}" != '' ]]; do
 	case $1 in
 	-C | --context)
 		context=$2
-		ignore_config_status='true'
 		shift
 		;;
 	--context=*)
 		context=${1#*=}
-		ignore_config_status='true'
 		;;
 	--list-contexts)
 		list_ctxs='true'
-		ignore_config_status='true'
 		requires_clean_repo=''
 		;;
 	-c | --cipher)
@@ -1202,7 +1204,6 @@ while [[ "${1:-}" != '' ]]; do
 	-l | --list)
 		list='true'
 		requires_clean_repo=''
-		ignore_config_status='true'
 		;;
 	-s | --show-raw)
 		show_file=$2
