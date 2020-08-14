@@ -1036,15 +1036,14 @@ help() {
 		     -i, --import-gpg=FILE
 		            import the password and cipher from a gpg encrypted file
 
-		     -C, --context=CONTEXT
+		     -C, --context=CONTEXT_NAME
 		            name for a context that can use a different passphrase and cipher
-		            from the "default" context;  use this advanced option, to permit
+		            from the 'default' context;  use this advanced option, to permit
 		            encrypting different files with different passphrases
 
 		     --list-contexts
-		            list all contexts configured in the  repository,  with a warning
-		            message for incompletely configured contexts:
-		            "not initialised" or "no patterns in .gitattributes"
+		            list all contexts configured in the  repository,  and warn about
+		            incompletely configured contexts.
 
 		     -v, --version
 		            print the version information
@@ -1105,6 +1104,9 @@ help() {
 
 		         # List all contexts
 		         $ transcrypt --list-contexts
+
+		         # Display a context's cipher and password
+		         $ transcrypt --context=admin --display
 
 		AUTHOR
 		     Aaron Bull Schaefer <aaron@elasticdog.com>
