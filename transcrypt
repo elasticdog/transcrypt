@@ -643,7 +643,11 @@ uninstall_transcrypt() {
 		printf 'You are about to remove all transcrypt configuration from your repository.\n'
 		printf 'All previously encrypted files will remain decrypted in this working copy, but your\n'
 		printf 'repo will be garbage collected to remove any cached plaintext of secret files.\n\n'
-		printf 'Proceed with uninstall? [y/N] '
+		if [[ $(count_items_in_list "$CONFIGURED_CONTEXTS") -gt "1" ]]; then
+			printf 'Proceed with uninstall of all contexts (%s)? [y/N] ' "$CONFIGURED_CONTEXTS"
+		else
+			printf 'Proceed with uninstall? [y/N] '
+		fi
 		read -r answer
 		printf '\n'
 	else
