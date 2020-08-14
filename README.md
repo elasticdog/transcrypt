@@ -322,8 +322,21 @@ Please use:
 Tests are written using [bats-core](https://github.com/bats-core/bats-core)
 version of "Bash Automated Testing System" and stored in the _tests/_ directory.
 
-To run the tests:
+To run the tests locally:
 
 - [install bats-core](https://github.com/bats-core/bats-core#installation)
 - run all tests with: `bats tests/`
 - run an individual test with e.g: `./tests/test_help.bats`
+
+To run the tests in Docker:
+
+- install Docker
+- `cd tests/`
+- check available test targets (Docker services): `docker-compose ps`
+- build images for all test targets: `docker-compose build`
+  - or for a specific test target: `docker-compose build ubuntu-20.04`
+- run tests on all targets (non-zero exit codes means fail): `docker-compose up`
+  - or run tests on a specific target: `docker-compose run --rm ubuntu-20.04`
+- to manually run and debug tests:
+  - run shell in a specfic target: `docker-compose run --rm ubuntu-20.04`
+  - run tests selectively with something like: `bats tests/test_init.bats -t`

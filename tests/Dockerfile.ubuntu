@@ -1,0 +1,18 @@
+ARG version
+
+FROM ubuntu:$version
+
+# Install git
+RUN apt-get update \
+    && apt-get install -y git bsdmainutils
+
+# Install and set up bats-core
+RUN git clone https://github.com/bats-core/bats-core.git /tmp/bats-core-repo \
+    && mkdir -p /tmp/bats-core \
+    && bash /tmp/bats-core-repo/install.sh /tmp/bats-core
+RUN ln -s /tmp/bats-core/bin/bats /usr/local/bin/bats
+
+# Need to configure git globally to avoid errors when we create and use
+# temporary test-specific Git repos fatal: `empty ident name`
+RUN git config --global user.name github-actions-user \
+    && git config --global user.email github-actions-user@example.com

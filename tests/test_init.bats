@@ -9,7 +9,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: works at all" {
   # Use literal command not function to confirm command works at least once
-  run ../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
+  run "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The repository has been successfully configured by transcrypt." ]]
 }
@@ -31,7 +31,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: applies git config" {
   init_transcrypt
-  VERSION=$(../transcrypt -v | awk '{print $2}')
+  VERSION=$("$BATS_TEST_DIRNAME"/../transcrypt -v | awk '{print $2}')
 
   [[ "$(git config --get transcrypt.version)" = "$VERSION" ]]
   [[ "$(git config --get transcrypt.cipher)" = "aes-256-cbc" ]]
@@ -61,9 +61,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: show details for --display" {
   init_transcrypt
-  VERSION=$(../transcrypt -v | awk '{print $2}')
+  VERSION=$("$BATS_TEST_DIRNAME"/../transcrypt -v | awk '{print $2}')
 
-  run ../transcrypt --display
+  run "$BATS_TEST_DIRNAME"/../transcrypt --display
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]]
   [[ "${lines[5]}" = "  CONTEXT:  default" ]]
@@ -74,9 +74,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: show details for -d" {
   init_transcrypt
-  VERSION=$(../transcrypt -v | awk '{print $2}')
+  VERSION=$("$BATS_TEST_DIRNAME"/../transcrypt -v | awk '{print $2}')
 
-  run ../transcrypt -d
+  run "$BATS_TEST_DIRNAME"/../transcrypt -d
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]]
   [[ "${lines[5]}" = "  CONTEXT:  default" ]]
@@ -88,7 +88,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 @test "init: cannot re-init, fails with error message" {
   init_transcrypt
 
-  run ../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
+  run "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password=abc123 --yes
   [[ "$status" -ne 0 ]]
   [[ "${lines[0]}" = "transcrypt: the current repository is already configured; see 'transcrypt --display'" ]]
 }

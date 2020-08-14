@@ -19,8 +19,8 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   [[ "${output}" = *"+$SECRET_CONTENT" ]]  # Check last line of patch
 
   # Look up notes ref to cached plaintext
-  [[ -f $BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt ]]
-  cached_plaintext_obj=$(cat "$BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt")
+  [[ -f $BATS_TMPDIR/.git/refs/notes/textconv/crypt ]]
+  cached_plaintext_obj=$(cat "$BATS_TMPDIR/.git/refs/notes/textconv/crypt")
 
   # Confirm plaintext is cached
   run git show "$cached_plaintext_obj"
@@ -31,7 +31,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   git repack
 
   # Flush credentials
-  run ../transcrypt -f --yes
+  run "$BATS_TEST_DIRNAME"/../transcrypt -f --yes
   [[ "$status" -eq 0 ]]
 
   # Confirm working copy file is encrypted
@@ -46,7 +46,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   [[ "${output}" = *"+$SECRET_CONTENT_ENC" ]]  # Check last line of patch
 
   # Confirm plaintext cache ref was cleared
-  [[ ! -e $BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt ]]
+  [[ ! -e $BATS_TMPDIR/.git/refs/notes/textconv/crypt ]]
 
   # Confirm plaintext obj was truly cleared and is no longer visible
   run git show "$cached_plaintext_obj"
@@ -67,8 +67,8 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   [[ "${output}" = *"+$SECRET_CONTENT" ]]  # Check last line of patch
 
   # Look up notes ref to cached plaintext
-  [[ -f $BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt ]]
-  cached_plaintext_obj=$(cat "$BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt")
+  [[ -f $BATS_TMPDIR/.git/refs/notes/textconv/crypt ]]
+  cached_plaintext_obj=$(cat "$BATS_TMPDIR/.git/refs/notes/textconv/crypt")
 
   # Confirm plaintext is cached
   run git show "$cached_plaintext_obj"
@@ -79,7 +79,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   git repack
 
   # Uninstall
-  run ../transcrypt --uninstall --yes
+  run "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
   [[ "$status" -eq 0 ]]
 
   # Confirm working copy file remains unencrypted (per uninstall contract)
@@ -94,7 +94,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   [[ "${output}" = *"+$SECRET_CONTENT_ENC" ]]  # Check last line of patch
 
   # Confirm plaintext cache ref was cleared
-  [[ ! -e $BATS_TEST_DIRNAME/.git/refs/notes/textconv/crypt ]]
+  [[ ! -e $BATS_TMPDIR/.git/refs/notes/textconv/crypt ]]
 
   # Confirm plaintext obj was truly cleared and is no longer visible
   run git show "$cached_plaintext_obj"
