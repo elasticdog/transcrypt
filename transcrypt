@@ -302,13 +302,6 @@ save_helper_scripts() {
 		#!/usr/bin/env bash
 		filename=$1
 
-		# Look up file's context name from .gitattributes, fall back to no context
-		context_config_group=""
-		context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-		if [[ ! "$context_name" = 'unspecified' ]]; then
-		  context_config_group="$context_name."
-		fi
-
 		# ignore empty files
 		if [[ -s $filename ]]; then
 		  # cache STDIN to test if it's already encrypted
@@ -320,6 +313,13 @@ save_helper_scripts() {
 		  if [[ $firstbytes == "U2FsdGVk" ]]; then
 		    cat "$tempfile"
 		  else
+		    # Look up file's context name from .gitattributes, fall back to no context
+		    context_config_group=""
+		    context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
+		    if [[ ! "$context_name" = 'unspecified' ]]; then
+		      context_config_group="$context_name."
+		    fi
+
 		    cipher=$(git config --get --local transcrypt.${context_config_group}cipher)
 		    password=$(git config --get --local transcrypt.${context_config_group}password)
 		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
@@ -350,15 +350,15 @@ save_helper_scripts() {
 		#!/usr/bin/env bash
 		filename=$1
 
-		# Look up file's context name from .gitattributes, fall back to no context
-		context_config_group=""
-		context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-		if [[ ! "$context_name" = 'unspecified' ]]; then
-		  context_config_group="$context_name."
-		fi
-
 		# ignore empty files
 		if [[ -s $filename ]]; then
+		  # Look up file's context name from .gitattributes, fall back to no context
+		  context_config_group=""
+		  context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
+		  if [[ ! "$context_name" = 'unspecified' ]]; then
+		    context_config_group="$context_name."
+		  fi
+
 		  cipher=$(git config --get --local transcrypt.${context_config_group}cipher)
 		  password=$(git config --get --local transcrypt.${context_config_group}password)
 		  ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
