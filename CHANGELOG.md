@@ -1,17 +1,23 @@
-# Changelog
+# Changelog for transcrypt
 
-This is a summary of transcrypt releases, dates, and key changes.
+All notable changes to the project will be documented in this file.
 
-See also https://github.com/elasticdog/transcrypt/releases
+The format is based on [Keep a Changelog][1], and this project adheres to
+[Semantic Versioning][2].
 
-## transcrypt v2.1.0 (7 Sep 2020)
+[1]: https://keepachangelog.com/en/1.0.0/
+[2]: https://semver.org/spec/v2.0.0.html
+
+## [Unreleased]
+
+## [2.1.0] - 2020-09-07
 
 This release includes features to make it easier and safer to use transcrypt, in
 particular: fix merge of encrypted files with conflicts, preventing accidental
 commit of plain text files by incompatible Git tools, and upgrade easily with
 `--upgrade`.
 
-### Steps to upgrade
+### Steps to Upgrade
 
 1. Make sure you are running the latest version of _transcrypt_:
 
@@ -32,13 +38,22 @@ commit of plain text files by incompatible Git tools, and upgrade easily with
    sensitive_file  filter=crypt diff=crypt merge=crypt
    ```
 
-### New features
+### Added
 
 - Add `--upgrade` command to apply the latest transcrypt scripts in an already
   configured repository without the need to re-apply existing settings.
 - Install a Git pre-commit hook to reject accidental commit of unencrypted plain
   text version of sensitive files, which could otherwise happen if a tool does
   not respect the `.gitattribute` filters Transcrypt needs to do its job.
+
+### Changed
+
+- Add a functional test suite built on
+  [bats-core](https://github.com/bats-core/bats-core#installation).
+- Apply Continuous Integration: run functional tests with GitHub Actions.
+- Fix [EditorConfig](https://editorconfig.org/) file config for Markdown files.
+- Add [CHANGELOG.md](CHANGELOG.md) file to make it easier to find notes about
+  project changes (see also Release)
 
 ### Fixed
 
@@ -54,16 +69,7 @@ commit of plain text files by incompatible Git tools, and upgrade easily with
   repository. (#68)
 - The `--list` command now works in a repository that has not yet been init-ed.
 
-### Changed
-
-- Add a functional test suite built on
-  [bats-core](https://github.com/bats-core/bats-core#installation).
-- Apply Continuous Integration: run functional tests with GitHub Actions.
-- Fix [EditorConfig](https://editorconfig.org/) file config for Markdown files.
-- Add [CHANGELOG.md](CHANGELOG.md) file to make it easier to find notes about
-  project changes (see also Release)
-
-## transcrypt v2.0.0 (20 Jul 2019)
+## [2.0.0] - 2019-07-20
 
 **\*\*\* WARNING: Re-encryption will be required when updating to version 2.0.0!
 \*\*\***
@@ -115,12 +121,6 @@ After you've upgraded to v2.0.0...
    $ git commit --message="Re-encrypt files protected by transcrypt using new salt value"
    ```
 
-### Fixed
-
-- Force the use of macOS's system `sed` binary to prevent errors (#50)
-- Fix cross-platform compatibility by making salt generation logic consistent
-  (#57)
-
 ### Changed
 
 - Add an [EditorConfig](https://editorconfig.org/) file to help with consistency
@@ -133,28 +133,34 @@ After you've upgraded to v2.0.0...
 - Ensure that `transcrypt` addresses all
   [ShellCheck](https://github.com/koalaman/shellcheck) static analysis warnings
 
-## transcrypt v1.1.0 (26 May 2018)
+### Fixed
+
+- Force the use of macOS's system `sed` binary to prevent errors (#50)
+- Fix cross-platform compatibility by making salt generation logic consistent
+  (#57)
+
+## [1.1.0] - 2018-05-26
 
 ### Fixed
 
 - Fix broken cipher validation safety check when running with OpenSSL v1.1.0+.
   (#48)
 
-## transcrypt v1.0.3 (21 Aug 2017)
+## [1.0.3] - 2017-08-21
 
 ### Fixed
 
 - Explicitly set digest hash function to match default settings before OpenSSL
   v1.1.0. (#41)
 
-## transcrypt v1.0.2 (6 Apr 2017)
+## [1.0.2] - 2017-04-06
 
 ### Fixed
 
 - Ensure realpath function does not incorrectly return the current directory for
   certain inputs. (#38)
 
-## transcrypt v1.0.1 (6 Jan 2017)
+## [1.0.1] - 2017-01-06
 
 ### Fixed
 
@@ -163,7 +169,7 @@ After you've upgraded to v2.0.0...
 - Prevent unexpected error output when running transcrypt outside of a Git
   repository.
 
-## transcrypt v1.0.0 (2 Jan 2017)
+## [1.0.0] - 2017-01-02
 
 Since the v0.9.9 release, these are the notable improvements made to transcrypt:
 
@@ -171,7 +177,7 @@ Since the v0.9.9 release, these are the notable improvements made to transcrypt:
 - adjust usage of `mktemp` utility to be more cross-platform
 - additional safety checks for all required cli utility dependencies
 
-## transcrypt v0.9.9 (5 Sep 2016)
+## [0.9.9] - 2016-09-05
 
 Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 
@@ -192,12 +198,27 @@ Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 - support for unencrypted archive exporting via
   [git-archive](https://git-scm.com/docs/git-archive)
 
-## transcrypt v0.9.8 (5 Sep 2016)
+## [0.9.8] - 2016-09-05
 
-## transcrypt v0.9.7 ( 23 Mar 2015)
+## [0.9.7] - 2015-03-23
 
-## transcrypt v0.9.6 (30 Aug 2014 )
+## [0.9.6] - 2014-08-30
 
-## transcrypt v0.9.5 (23 Aug 2014)
+## [0.9.5] - 2014-08-23
 
-## transcrypt v0.9.4 (3 Mar 2014)
+## [0.9.4] - 2014-03-03
+
+[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/elasticdog/transcrypt/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/elasticdog/transcrypt/compare/v1.1.0...v2.0.0
+[1.1.0]: https://github.com/elasticdog/transcrypt/compare/v1.0.3...v1.1.0
+[1.0.3]: https://github.com/elasticdog/transcrypt/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/elasticdog/transcrypt/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/elasticdog/transcrypt/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/elasticdog/transcrypt/compare/v0.9.9...v1.0.0
+[0.9.9]: https://github.com/elasticdog/transcrypt/compare/v0.9.8...v0.9.9
+[0.9.8]: https://github.com/elasticdog/transcrypt/compare/v0.9.7...v0.9.8
+[0.9.7]: https://github.com/elasticdog/transcrypt/compare/v0.9.6...v0.9.7
+[0.9.6]: https://github.com/elasticdog/transcrypt/compare/v0.9.5...v0.9.6
+[0.9.5]: https://github.com/elasticdog/transcrypt/compare/v0.9.4...v0.9.5
+[0.9.4]: https://github.com/elasticdog/transcrypt/releases/tag/v0.9.4
