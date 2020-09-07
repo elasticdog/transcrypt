@@ -9,7 +9,7 @@ license=('MIT')
 depends=('git' 'openssl')
 optdepends=('gnupg: config import/export support')
 source=("https://github.com/elasticdog/${pkgname}/archive/v${pkgver}.tar.gz")
-sha256sums=('12b891bcee50c71f5ee00c3c3e992c591ad6146ece3d3c5efa065d966a010d65')
+sha256sums=('0075a25f7fb48ddfcfb33dd834a5f12fe0644ed4fb5ab0a5f2f7dca06e9ed48c')
 
 package() {
   cd "${pkgname}-${pkgver}/"
