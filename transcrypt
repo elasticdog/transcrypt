@@ -296,7 +296,7 @@ save_helper_scripts() {
 		  else
 		    cipher=$(git config --get --local transcrypt.cipher)
 		    password=$(git config --get --local transcrypt.password)
-		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
+		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c16)
 		    ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
 		  fi
 		fi
@@ -384,7 +384,7 @@ save_helper_hooks() {
 		IFS=$'\n'
 		for secret_file in $(git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
 		  # Get prefix of raw file in Git's index using the :FILENAME revision syntax
-		  firstbytes=$(git show :$secret_file | head -c 8)
+		  firstbytes=$(git show :$secret_file | head -c8)
 		  # An empty file does not need to be, and is not, encrypted
 		  if [[ $firstbytes == "" ]]; then
 		    :  # Do nothing
