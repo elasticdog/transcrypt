@@ -8,6 +8,9 @@ function init_git_repo {
   else
     # Initialise test git repo at the same path as the test files
     git init "$BATS_TEST_DIRNAME"
+    # Tests will fail if name and email aren't set
+    git config user.name "John Doe"
+    git config user.email johndoe@example.com
     # Flag test git repo as 100% the test one, for safety before later removal
     touch "$BATS_TEST_DIRNAME"/.git/repo-for-transcrypt-bats-tests
   fi
