@@ -9,6 +9,16 @@ on:
     branches: [master]
 
 jobs:
+
+  lint:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Run shellcheck
+      uses: ludeeus/action-shellcheck@master
+      with:
+        ignore: tests
+
   test:
     # Test on older Ubuntu with OpenSSL < 1.1 and newer with OpenSSL >= 1.1
     runs-on: ${{ matrix.os }}
