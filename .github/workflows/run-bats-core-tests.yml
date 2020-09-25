@@ -16,10 +16,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Run shellcheck
-      uses: ludeeus/action-shellcheck@master
+    # https://github.com/luizm/action-sh-checker
+    - name: Run shellcheck and shfmt
+      uses: luizm/action-sh-checker@master
       with:
-        ignore: tests
+        sh_checker_exclude: tests
+        sh_checker_comment: true
 
   test:
     # Test on older Ubuntu with OpenSSL < 1.1 and newer with OpenSSL >= 1.1
