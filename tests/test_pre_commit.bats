@@ -51,6 +51,20 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
   [[ "${output}" = *"    git add sensitive_file"* ]]
 }
 
+@test "pre-commit: pre-commit hook ignores symlinks to encrypted files" {
+  echo "Secret stuff" > sensitive_file
+  encrypt_named_file sensitive_file
+
+  ln -s sensitive_file symlink_to_sensitive_file
+  echo "\"symlink_to_sensitive_file\" filter=crypt diff=crypt merge=crypt" >> .gitattributes
+  git add .gitattributes symlink_to_sensitive_file
+
+  git commit -m "Commit symlink to encrypted file"
+  [[ "$status" -eq 0 ]]
+
+  rm symlink_to_sensitive_file
+}
+
 @test "pre-commit: warn and don't clobber existing pre-commit hook on init" {
   # Uninstall pre-existing transcrypt config from setup()
   run "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
