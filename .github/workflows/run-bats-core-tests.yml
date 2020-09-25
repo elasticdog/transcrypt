@@ -29,12 +29,5 @@ jobs:
         mkdir -p /tmp/bats-core
         bash /tmp/bats-core-repo/install.sh /tmp/bats-core
 
-    # Need to configure git globally to avoid errors when we create and use
-    # temporary test-specific Git repos fatal: `empty ident name`
-    - name: Configure dummy Git user.[name,email] values
-      run: |
-        git config --global user.name github-actions-user
-        git config --global user.email github-actions-user@example.com
-
     - name: Run tests
       run: /tmp/bats-core/bin/bats tests/
