@@ -771,8 +771,8 @@ upgrade_transcrypt() {
 			cipher=$(git config --get --local transcrypt.cipher)
 			password=$(git config --get --local transcrypt.password)
 		else
-			cipher=$(git config --get --local transcrypt.${context_name}.cipher)
-			password=$(git config --get --local transcrypt.${context_name}.password)
+			cipher=$(git config --get --local transcrypt."${context_name}".cipher)
+			password=$(git config --get --local transcrypt."${context_name}".password)
 		fi
 		ORIG_CONFIGS+=("${context_name}|${cipher}|${password}")
 	done
@@ -780,7 +780,7 @@ upgrade_transcrypt() {
 	uninstall_transcrypt
 
 	# Reconfigure cipher and password for each context
-	for orig_config_line in ${ORIG_CONFIGS[@]}; do
+	for orig_config_line in "${ORIG_CONFIGS[@]}"; do
 		context=$(echo "$orig_config_line" | awk 'BEGIN { FS = "|" }; { print $1 }')
 		cipher=$(echo "$orig_config_line" | awk 'BEGIN { FS = "|" }; { print $2 }')
 		password=$(echo "$orig_config_line" | awk 'BEGIN { FS = "|" }; { print $3 }')
