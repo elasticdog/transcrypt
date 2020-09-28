@@ -9,12 +9,26 @@ on:
     branches: [master]
 
 jobs:
+
+  lint:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    # https://github.com/luizm/action-sh-checker
+    - name: Run shellcheck and shfmt
+      uses: luizm/action-sh-checker@master
+      with:
+        sh_checker_exclude: tests
+        sh_checker_comment: true
+
   test:
     # Test on older Ubuntu with OpenSSL < 1.1 and newer with OpenSSL >= 1.1
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04, macos-latest]
 
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -28,13 +42,6 @@ jobs:
         git clone https://github.com/bats-core/bats-core.git /tmp/bats-core-repo
         mkdir -p /tmp/bats-core
         bash /tmp/bats-core-repo/install.sh /tmp/bats-core
-
-    # Need to configure git globally to avoid errors when we create and use
-    # temporary test-specific Git repos fatal: `empty ident name`
-    - name: Configure dummy Git user.[name,email] values
-      run: |
-        git config --global user.name github-actions-user
-        git config --global user.email github-actions-user@example.com
 
     - name: Run tests
       run: /tmp/bats-core/bin/bats tests/

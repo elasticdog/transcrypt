@@ -30,6 +30,13 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK
   [[ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]]
 }
 
+@test "crypt: encrypted file contents can be decrypted (via git show)" {
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+  run git show HEAD:sensitive_file --textconv
+  [[ "$status" -eq 0 ]]
+  [[ "${lines[0]}" = "$SECRET_CONTENT" ]]
+}
+
 @test "crypt: transcrypt --show-raw shows encrypted content" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   run "$BATS_TEST_DIRNAME"/../transcrypt --show-raw sensitive_file
