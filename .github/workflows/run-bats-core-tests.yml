@@ -34,6 +34,9 @@ jobs:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
+    - name: Print bash version
+      run: bash --version
+
     - name: Print OpenSSL version
       run: openssl version
 
