@@ -65,6 +65,15 @@ The transcrypt source code and full documentation may be downloaded from
   * `-i`, `--import-gpg`=<file>:
     import the password and cipher from a gpg encrypted file
 
+  * `-C`, `--context`=<context_name>
+    name for a context that can use a different passphrase and cipher
+    from the 'default' context; use this advanced option, to permit
+    encrypting different files with different passphrases
+
+  * `--list-contexts`
+    list all contexts configured in the repository, and warn about
+    incompletely configured contexts.
+
   * `-v`, `--version`:
     print the version information
 
@@ -101,6 +110,29 @@ force a checkout of any existing encrypted files in order to decrypt them.
 If the origin repository has just rekeyed, all clones should flush their
 transcrypt credentials, fetch and merge the new encrypted files via Git, and
 then re-configure transcrypt with the new credentials.
+
+You can use context names to encrypt files for different audiences with
+different passwords, such as normal users versus admins. The 'default'
+context applies unless you set a context name.
+To add a context, initialise transcrypt with the context's name and add
+a .gitattributes pattern including 'crypt-context=<name>'. For example:
+
+    # Initialise a new context "admin", and set a different password
+    $ transcrypt --context=admin
+
+    # Add a pattern with 'crypt-context=admin' to .gitattributes
+    $ echo >> .gitattributes \\
+    'admin.txt filter=crypt diff=crypt merge=crypt crypt-context=admin'
+
+    # Add and commit your secret and .gitattribute files
+    $ git add .gitattributes admin.txt
+    $ git commit -m "Add encrypted admin-only file in 'admin' context"
+
+    # List all contexts
+    $ transcrypt --list-contexts
+
+    # Display a context's cipher and password
+    $ transcrypt --context=admin --display
 
 ## AUTHOR
 

@@ -5,10 +5,6 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
 SECRET_CONTENT="My secret content"
 SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK9gPn"
 
-function check_repo_is_clean {
-  git diff-index --quiet HEAD --
-}
-
 @test "crypt: git ls-crypt command is available" {
   # No encrypted file yet, so command should work with no output
   run git ls-crypt
@@ -43,7 +39,7 @@ function check_repo_is_clean {
 
 @test "crypt: transcrypt --show-raw shows encrypted content" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
-  run ../transcrypt --show-raw sensitive_file
+  run "$BATS_TEST_DIRNAME"/../transcrypt --show-raw sensitive_file
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "==> sensitive_file <==" ]]
   [[ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]]
@@ -60,7 +56,7 @@ function check_repo_is_clean {
 @test "crypt: transcrypt --list lists encrypted file" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  run ../transcrypt --list
+  run "$BATS_TEST_DIRNAME"/../transcrypt --list
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "sensitive_file" ]]
 }
@@ -68,7 +64,7 @@ function check_repo_is_clean {
 @test "crypt: transcrypt --uninstall leaves decrypted file and repo dirty" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  run ../transcrypt --uninstall --yes
+  run "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
   [[ "$status" -eq 0 ]]
 
   run cat sensitive_file
@@ -85,7 +81,7 @@ function check_repo_is_clean {
 @test "crypt: git reset after uninstall leaves encrypted file" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  ../transcrypt --uninstall --yes
+  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
 
   git reset --hard
   check_repo_is_clean
@@ -121,7 +117,7 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]]
 
   # transcrypt --show-raw shows encrypted content
-  run ../transcrypt --show-raw "$FILENAME"
+  run "$BATS_TEST_DIRNAME"/../transcrypt --show-raw "$FILENAME"
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "==> $FILENAME <==" ]]
   [[ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]]
@@ -132,7 +128,7 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
-  run ../transcrypt --list
+  run "$BATS_TEST_DIRNAME"/../transcrypt --list
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "$FILENAME" ]]
 
@@ -140,7 +136,7 @@ function check_repo_is_clean {
 }
 
 @test "crypt: transcrypt --upgrade applies new merge driver" {
-  VERSION=$(../transcrypt -v | awk '{print $2}')
+  VERSION=$("$BATS_TEST_DIRNAME"/../transcrypt -v | awk '{print $2}')
 
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
@@ -170,7 +166,7 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$SECRET_CONTENT" ]]
 
   # Perform re-install
-  run ../transcrypt --upgrade --yes
+  run "$BATS_TEST_DIRNAME"/../transcrypt --upgrade --yes
   [[ "$status" -eq 0 ]]
 
   run git config --get --local transcrypt.version
@@ -199,7 +195,7 @@ function check_repo_is_clean {
 @test "crypt: transcrypt --force handles files missing from working copy" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  ../transcrypt --uninstall --yes
+  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
 
   # Reset repo to restore .gitattributes file
   git reset --hard
@@ -208,7 +204,7 @@ function check_repo_is_clean {
   rm sensitive_file
 
   # Re-init with --force should check out deleted secret file
-  ../transcrypt --force --cipher=aes-256-cbc --password=abc123 --yes
+  "$BATS_TEST_DIRNAME"/../transcrypt --force --cipher=aes-256-cbc --password=abc123 --yes
 
   # Check sensitive_file is present and decrypted
   run cat sensitive_file
