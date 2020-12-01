@@ -72,6 +72,9 @@ gather_repo_metadata() {
 	# the current git repository's .git directory
 	readonly RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
 	readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
+	
+	# remove any trailing slash from core.hooksPath, or use default hooks dir if not defined
+	readonly GIT_HOOKS=$(git config core.hooksPath | sed 's:/*$::' 2>/dev/null || printf "%s/hooks" "${RELATIVE_GIT_DIR}")
 
 	# the current git repository's gitattributes file
 	local CORE_ATTRIBUTES
@@ -212,7 +215,8 @@ confirm_configuration() {
 	printf '\nRepository metadata:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
-	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	printf '  GIT_ATTRIBUTES: %s\n' "$GIT_ATTRIBUTES"
+	printf '  GIT_HOOKS:      %s\n\n' "$GIT_HOOKS"
 	printf 'The following configuration will be saved:\n\n'
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
@@ -235,7 +239,8 @@ confirm_rekey() {
 	printf '\nRepository metadata:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
-	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	printf '  GIT_ATTRIBUTES: %s\n' "$GIT_ATTRIBUTES"
+	printf '  GIT_HOOKS:      %s\n\n' "$GIT_HOOKS"
 	printf 'The following configuration will be saved:\n\n'
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
@@ -377,7 +382,8 @@ save_helper_scripts() {
 # save helper hooks under the repository's git directory
 save_helper_hooks() {
 	# Install pre-commit-crypt hook script
-	pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
+	[[ ! -d "${GIT_HOOKS}" ]] && mkdir -p "${GIT_HOOKS}"
+	pre_commit_hook_installed="${GIT_HOOKS}/pre-commit-crypt"
 	cat <<-'EOF' >"$pre_commit_hook_installed"
 		#!/usr/bin/env bash
 		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
@@ -453,7 +459,7 @@ save_helper_hooks() {
 	EOF
 
 	# Activate hook by copying it to the pre-commit script name, if safe to do so
-	pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
+	pre_commit_hook="${GIT_HOOKS}/pre-commit"
 	if [[ -f "$pre_commit_hook" ]]; then
 		printf 'WARNING:\n' >&2
 		printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' "$pre_commit_hook" >&2
@@ -519,7 +525,8 @@ display_configuration() {
 	printf 'and has the following configuration:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
-	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	printf '  GIT_ATTRIBUTES: %s\n' "$GIT_ATTRIBUTES"
+	printf '  GIT_HOOKS:      %s\n\n' "$GIT_HOOKS"
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
@@ -639,8 +646,8 @@ uninstall_transcrypt() {
 		[[ ! -d "${GIT_DIR}/crypt" ]] || rmdir "${GIT_DIR}/crypt"
 
 		# rename helper hooks (don't delete, in case user has custom changes)
-		pre_commit_hook="${RELATIVE_GIT_DIR}/hooks/pre-commit"
-		pre_commit_hook_installed="${RELATIVE_GIT_DIR}/hooks/pre-commit-crypt"
+		pre_commit_hook="${GIT_HOOKS}/pre-commit"
+		pre_commit_hook_installed="${GIT_HOOKS}/pre-commit-crypt"
 		if [[ -f "$pre_commit_hook" ]]; then
 			hook_md5=$(openssl md5 -hex <"$pre_commit_hook")
 			installed_md5=$(openssl md5 -hex <"$pre_commit_hook_installed")
