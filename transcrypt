@@ -72,7 +72,7 @@ gather_repo_metadata() {
 	# the current git repository's .git directory
 	readonly RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
 	readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
-	
+
 	# remove any trailing slash from core.hooksPath, or use default hooks dir if not defined
 	readonly GIT_HOOKS=$(git config core.hooksPath | sed 's:/*$::' 2>/dev/null || printf "%s/hooks" "${RELATIVE_GIT_DIR}")
 
