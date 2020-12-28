@@ -18,7 +18,7 @@ _transcrypt() {
 		'(-f --flush-credentials -c --cipher -p --password -r --rekey -u --uninstall)'{-f,--flush-credentials}'[flush cached credentials]' \
 		'(-F --force -d --display -u --uninstall)'{-F,--force}'[ignore repository clean state]' \
 		'(-u --uninstall -c --cipher -d --display -f --flush-credentials -p --password -r --rekey)'{-u,--uninstall}'[uninstall transcrypt]' \
-		'(--upgrade -c --cipher -d --display -f --flush-credentials -p --password -r --rekey)'{--upgrade}'[upgrade transcrypt]' \
+		'(--upgrade -c --cipher -d --display -f --flush-credentials -p --password -r --rekey)--upgrade[upgrade transcrypt]' \
 		'(-i --import-gpg -c --cipher -p --password -d --display -f --flush-credentials -u --uninstall)'{-i,--import-gpg=}'[import config from gpg file]:file:->file' \
 		&& return 0
 
