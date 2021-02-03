@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- Respect Git `core.hooksPath` setting when installing the pre-commit hook. (#104)
+
 ## [2.1.0] - 2020-09-07
 
 This release includes features to make it easier and safer to use transcrypt, in
