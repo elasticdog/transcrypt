@@ -73,7 +73,7 @@ gather_repo_metadata() {
 	readonly RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
 	readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
 
-	# remove any trailing slash from core.hooksPath, or use default hooks dir if not defined
+	# respect core.hooksPath setting, without trailing slash. Fall back to default hooks dir
 	readonly GIT_HOOKS=$(git config core.hooksPath | sed 's:/*$::' 2>/dev/null || printf "%s/hooks" "${RELATIVE_GIT_DIR}")
 
 	# the current git repository's gitattributes file
@@ -215,8 +215,7 @@ confirm_configuration() {
 	printf '\nRepository metadata:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
-	printf '  GIT_ATTRIBUTES: %s\n' "$GIT_ATTRIBUTES"
-	printf '  GIT_HOOKS:      %s\n\n' "$GIT_HOOKS"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
@@ -239,8 +238,7 @@ confirm_rekey() {
 	printf '\nRepository metadata:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
-	printf '  GIT_ATTRIBUTES: %s\n' "$GIT_ATTRIBUTES"
-	printf '  GIT_HOOKS:      %s\n\n' "$GIT_HOOKS"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
@@ -525,8 +523,7 @@ display_configuration() {
 	printf 'and has the following configuration:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
-	printf '  GIT_ATTRIBUTES: %s\n' "$GIT_ATTRIBUTES"
-	printf '  GIT_HOOKS:      %s\n\n' "$GIT_HOOKS"
+	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CIPHER:   %s\n' "$current_cipher"
 	printf '  PASSWORD: %s\n\n' "$current_password"
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'

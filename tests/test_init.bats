@@ -64,10 +64,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   run ../transcrypt --display
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]]
-  [[ "${lines[5]}" = "  GIT_HOOKS:      .git/hooks" ]]
-  [[ "${lines[6]}" = "  CIPHER:   aes-256-cbc" ]]
-  [[ "${lines[7]}" = "  PASSWORD: abc123" ]]
-  [[ "${lines[9]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]]
+  [[ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]]
+  [[ "${lines[6]}" = "  PASSWORD: abc123" ]]
+  [[ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]]
 }
 
 @test "init: show details for -d" {
@@ -77,10 +76,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   run ../transcrypt -d
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]]
-  [[ "${lines[5]}" = "  GIT_HOOKS:      .git/hooks" ]]
-  [[ "${lines[6]}" = "  CIPHER:   aes-256-cbc" ]]
-  [[ "${lines[7]}" = "  PASSWORD: abc123" ]]
-  [[ "${lines[9]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]]
+  [[ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]]
+  [[ "${lines[6]}" = "  PASSWORD: abc123" ]]
+  [[ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]]
 }
 
 @test "init: respects core.hooksPath setting" {
@@ -95,8 +93,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   run ../transcrypt --display
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]]
-  [[ "${lines[5]}" = "  GIT_HOOKS:      .git/myhooks" ]]
-  [[ "${lines[6]}" = "  CIPHER:   aes-256-cbc" ]]
-  [[ "${lines[7]}" = "  PASSWORD: abc123" ]]
-  [[ "${lines[9]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]]
+  [[ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]]
+  [[ "${lines[6]}" = "  PASSWORD: abc123" ]]
+  [[ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]]
 }
