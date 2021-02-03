@@ -127,6 +127,8 @@ run_safety_checks() {
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
 	# checkout files without the destruction of uncommitted changes
 	if [[ $requires_clean_repo ]] && [[ $HEAD_EXISTS ]] && [[ $IS_BARE == 'false' ]]; then
+		# ensure index is up-to-date before dirty check
+		git update-index -q --really-refresh
 		# check if the repo is dirty
 		if ! git diff-index --quiet HEAD --; then
 			die 1 'the repo is dirty; commit or stash your changes before running transcrypt'
