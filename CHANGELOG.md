@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 
 ### Fixed
 
+- Respect Git `core.hooksPath` setting when installing the pre-commit hook. (#104)
 - Zsh completion. (#107)
 
 ## [2.1.0] - 2020-09-07
