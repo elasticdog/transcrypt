@@ -123,7 +123,7 @@ run_safety_checks() {
 	fi
 
 	# check for dependencies
-	for cmd in {column,grep,mktemp,openssl,sed,tee}; do
+	for cmd in {column,grep,mktemp,"${openssl_path}",sed,tee}; do
 		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 
@@ -140,12 +140,12 @@ run_safety_checks() {
 # unset the cipher variable if it is not supported by openssl
 validate_cipher() {
 	local list_cipher_commands
-	if openssl list-cipher-commands &>/dev/null; then
+	if "${openssl_path}" list-cipher-commands &>/dev/null; then
 		# OpenSSL < v1.1.0
-		list_cipher_commands='openssl list-cipher-commands'
+		list_cipher_commands="${openssl_path} list-cipher-commands"
 	else
 		# OpenSSL >= v1.1.0
-		list_cipher_commands='openssl list -cipher-commands'
+		list_cipher_commands="${openssl_path} list -cipher-commands"
 	fi
 
 	local supported
@@ -198,7 +198,7 @@ get_password() {
 		if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
 			local password_length=30
 			local random_base64
-			random_base64=$(openssl rand -base64 $password_length)
+			random_base64=$(${openssl_path} rand -base64 $password_length)
 			password=$random_base64
 		else
 			printf 'Password: '
@@ -299,8 +299,9 @@ save_helper_scripts() {
 		  else
 		    cipher=$(git config --get --local transcrypt.cipher)
 		    password=$(git config --get --local transcrypt.password)
-		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c16)
-		    ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		    openssl_path=$(git config --get --local transcrypt.openssl-path)
+		    salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c16)
+		    ENC_PASS=$password "$openssl_path" enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
 		  fi
 		fi
 	EOF
@@ -311,7 +312,8 @@ save_helper_scripts() {
 		trap 'rm -f "$tempfile"' EXIT
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
-		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+		openssl_path=$(git config --get --local transcrypt.openssl-path)
+		tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc -$cipher -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
 	EOF
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/textconv"
@@ -321,7 +323,8 @@ save_helper_scripts() {
 		if [[ -s $filename ]]; then
 		  cipher=$(git config --get --local transcrypt.cipher)
 		  password=$(git config --get --local transcrypt.password)
-		  ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+		  openssl_path=$(git config --get --local transcrypt.openssl-path)
+		  ENC_PASS=$password "$openssl_path" enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
 		fi
 	EOF
 
@@ -478,6 +481,7 @@ save_configuration() {
 	git config transcrypt.version "$VERSION"
 	git config transcrypt.cipher "$cipher"
 	git config transcrypt.password "$password"
+	git config transcrypt.openssl-path "$openssl_path"
 
 	# write the filter settings
 	if [[ -d $(git rev-parse --git-common-dir) ]]; then
@@ -646,8 +650,8 @@ uninstall_transcrypt() {
 		pre_commit_hook="${GIT_HOOKS}/pre-commit"
 		pre_commit_hook_installed="${GIT_HOOKS}/pre-commit-crypt"
 		if [[ -f "$pre_commit_hook" ]]; then
-			hook_md5=$(openssl md5 -hex <"$pre_commit_hook")
-			installed_md5=$(openssl md5 -hex <"$pre_commit_hook_installed")
+			hook_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook")
+			installed_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook_installed")
 			if [[ "$hook_md5" = "$installed_md5" ]]; then
 				rm "$pre_commit_hook"
 			else
@@ -721,6 +725,10 @@ upgrade_transcrypt() {
 	# Keep current cipher and password
 	cipher=$(git config --get --local transcrypt.cipher)
 	password=$(git config --get --local transcrypt.password)
+	# Keep current openssl-path, unless an explicit argument was given
+	if [[ ! $openssl_path_given ]]; then
+		openssl_path=$(git config --get --local transcrypt.openssl-path 2>/dev/null || printf "openssl")
+	fi
 
 	# Keep contents of .gitattributes
 	ORIG_GITATTRIBUTES=$(cat "$GIT_ATTRIBUTES")
@@ -912,6 +920,10 @@ help() {
 		     -i, --import-gpg=FILE
 		            import the password and cipher from a gpg encrypted file
 
+		     --openssl-path=PATH_TO_OPENSSL
+		            use a specific openssl binary instead of the version in \$PATH.
+		            Use this with --upgrade to update transcrypt's openssl path
+
 		     -v, --version
 		            print the version information
 
@@ -973,6 +985,8 @@ rekey=''
 show_file=''
 uninstall=''
 upgrade=''
+openssl_path='openssl'
+openssl_path_given=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -995,6 +1009,10 @@ while [[ "${1:-}" != '' ]]; do
 		;;
 	--password=*)
 		password=${1#*=}
+		;;
+	--openssl-path=*)
+		openssl_path=${1#*=}
+		openssl_path_given='true'
 		;;
 	-y | --yes)
 		interactive=''
