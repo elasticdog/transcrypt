@@ -47,4 +47,4 @@ jobs:
         bash /tmp/bats-core-repo/install.sh /tmp/bats-core
 
     - name: Run tests
-      run: /tmp/bats-core/bin/bats tests/
+      run: /tmp/bats-core/bin/bats tests/ -t
