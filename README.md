@@ -201,6 +201,11 @@ directory.
              the password to derive the key from;
              defaults to 30 random base64 characters
 
+      --openssl-path=PATH_TO_OPENSSL
+             use OpenSSL at this path; defaults to 'openssl' in $PATH.
+             To change after initialization:
+                 git config transcrypt.openssl-path NEW_PATH
+
       -y, --yes
              assume yes and accept defaults for non-specified options
 

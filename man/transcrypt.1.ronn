@@ -25,6 +25,11 @@ The transcrypt source code and full documentation may be downloaded from
     the password to derive the key from;
     defaults to 30 random base64 characters
 
+  * `--openssl-path`=<path_to_openssl>:
+    use OpenSSL at this path; defaults to 'openssl' in $PATH.
+    To change after initialization:
+        git config transcrypt.openssl-path NEW_PATH
+
   * `-y`, `--yes`:
     assume yes and accept defaults for non-specified options
 
