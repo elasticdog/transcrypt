@@ -170,7 +170,7 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$SECRET_CONTENT" ]]
 
   # Perform re-install
-  run git transcrypt --upgrade --yes
+  run ../transcrypt --upgrade --yes
   [[ "$status" -eq 0 ]]
 
   run git config --get --local transcrypt.version
