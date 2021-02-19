@@ -725,10 +725,8 @@ upgrade_transcrypt() {
 	# Keep current cipher and password
 	cipher=$(git config --get --local transcrypt.cipher)
 	password=$(git config --get --local transcrypt.password)
-	# Keep current openssl-path, unless an explicit argument was given
-	if [[ ! $openssl_path_given ]]; then
-		openssl_path=$(git config --get --local transcrypt.openssl-path 2>/dev/null || printf "openssl")
-	fi
+	# Keep current openssl-path, or set to default if no existing value
+	openssl_path=$(git config --get --local transcrypt.openssl-path 2>/dev/null || printf '%s' "$openssl_path")
 
 	# Keep contents of .gitattributes
 	ORIG_GITATTRIBUTES=$(cat "$GIT_ATTRIBUTES")
@@ -880,6 +878,11 @@ help() {
 		            the password to derive the key from;
 		            defaults to 30 random base64 characters
 
+		     --openssl-path=PATH_TO_OPENSSL
+		            use OpenSSL at this path; defaults to 'openssl' in \$PATH.
+		            To change after initialization:
+		                git config transcrypt.openssl-path NEW_PATH
+
 		     -y, --yes
 		            assume yes and accept defaults for non-specified options
 
@@ -919,10 +922,6 @@ help() {
 
 		     -i, --import-gpg=FILE
 		            import the password and cipher from a gpg encrypted file
-
-		     --openssl-path=PATH_TO_OPENSSL
-		            use a specific openssl binary instead of the version in \$PATH.
-		            Use this with --upgrade to update transcrypt's openssl path
 
 		     -v, --version
 		            print the version information
@@ -986,7 +985,6 @@ show_file=''
 uninstall=''
 upgrade=''
 openssl_path='openssl'
-openssl_path_given=''
 
 # used to bypass certain safety checks
 requires_existing_config=''
@@ -1012,7 +1010,6 @@ while [[ "${1:-}" != '' ]]; do
 		;;
 	--openssl-path=*)
 		openssl_path=${1#*=}
-		openssl_path_given='true'
 		;;
 	-y | --yes)
 		interactive=''
