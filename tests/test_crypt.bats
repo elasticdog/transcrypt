@@ -116,7 +116,6 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$SECRET_CONTENT" ]]
 
   # Git internal copy is encrypted
-  git show HEAD:"$FILENAME" --no-textconv
   run git show HEAD:"$FILENAME" --no-textconv
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]]
