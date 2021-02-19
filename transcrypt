@@ -108,6 +108,91 @@ die() {
 	exit "$st"
 }
 
+# The `decryption -> encryption` process on an unchanged file must be
+# deterministic for everything to work transparently. To do that, the same
+# salt must be used each time we encrypt the same file. An HMAC has been
+# proven to be a PRF, so we generate an HMAC-SHA256 for each decrypted file
+# (keyed with a combination of the filename and transcrypt password), and
+# then use the last 16 bytes of that HMAC for the file's unique salt.
+
+git_clean() {
+	filename=$1
+	# ignore empty files
+	if [[ ! -s $filename ]]; then
+		return
+	fi
+	# cache STDIN to test if it's already encrypted
+	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
+	trap 'rm -f "$tempfile"' EXIT
+	tee "$tempfile" &>/dev/null
+	# the first bytes of an encrypted file are always "Salted" in Base64
+	read -n 8 firstbytes <"$tempfile"
+	if [[ $firstbytes == "U2FsdGVk" ]]; then
+		cat "$tempfile"
+	else
+		cipher=$(git config --get --local transcrypt.cipher)
+		password=$(git config --get --local transcrypt.password)
+		salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c16)
+		ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+	fi
+}
+
+git_smudge() {
+	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
+	trap 'rm -f "$tempfile"' EXIT
+	cipher=$(git config --get --local transcrypt.cipher)
+	password=$(git config --get --local transcrypt.password)
+	tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+}
+
+git_textconv() {
+	filename=$1
+	# ignore empty files
+	if [[ ! -s $filename ]]; then
+		return
+	fi
+	cipher=$(git config --get --local transcrypt.cipher)
+	password=$(git config --get --local transcrypt.password)
+	ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+}
+
+git_merge() {
+	# Look up name of local branch/ref to which changes are being merged
+	OURS_LABEL=$(git rev-parse --abbrev-ref HEAD)
+	# Look up name of the incoming "theirs" branch/ref being merged in.
+	# TODO There must be a better way of doing this than relying on this reflog
+	#      action environment variable, but I don't know what it is
+	if [[ "$GIT_REFLOG_ACTION" = "merge "* ]]; then
+		THEIRS_LABEL=$(echo $GIT_REFLOG_ACTION | awk '{print $2}')
+	fi
+	if [[ ! "$THEIRS_LABEL" ]]; then
+		THEIRS_LABEL="theirs"
+	fi
+	# Decrypt BASE $1, LOCAL $2, and REMOTE $3 versions of file being merged
+	echo "$(cat "$1" | ./.git/crypt/smudge)" > "$1"
+	echo "$(cat "$2" | ./.git/crypt/smudge)" > "$2"
+	echo "$(cat "$3" | ./.git/crypt/smudge)" > "$3"
+	# Merge the decrypted files to the temp file named by $2
+	git merge-file --marker-size=$4 -L "$OURS_LABEL" -L base -L "$THEIRS_LABEL" "$2" "$1" "$3"
+	# If the merge was not successful (has conflicts) exit with an error code to
+	# leave the partially-merged file in place for a manual merge.
+	if [[ "$?" != "0" ]]; then
+		exit 1
+	fi
+	# If the merge was successful (no conflicts) re-encrypt the merged temp file $2
+	# which git will then update in the index in a following "Auto-merging" step.
+	# We must explicitly encrypt/clean the file, rather than leave Git to do it,
+	# because we can otherwise trigger safety check failure errors like:
+	#     error: add_cacheinfo failed to refresh for path 'FILE'; merge aborting.
+	# To re-encrypt we must first copy the merged file to $5 (the name of the
+	# working-copy file) so the crypt `clean` script can generate the correct hash
+	# salt based on the file's real name, instead of the $2 temp file name.
+	cp "$2" "$5"
+	# Now we use the `clean` script to encrypt the merged file contents back to the
+	# temp file $2 where Git expects to find the merge result content.
+	cat "$5" | ./.git/crypt/clean "$5" > "$2"
+}
+
 # verify that all requirements have been met
 run_safety_checks() {
 	# validate that we're in a git repository
@@ -276,103 +361,31 @@ stage_rekeyed_files() {
 save_helper_scripts() {
 	mkdir -p "${GIT_DIR}/crypt"
 
-	# The `decryption -> encryption` process on an unchanged file must be
-	# deterministic for everything to work transparently. To do that, the same
-	# salt must be used each time we encrypt the same file. An HMAC has been
-	# proven to be a PRF, so we generate an HMAC-SHA256 for each decrypted file
-	# (keyed with a combination of the filename and transcrypt password), and
-	# then use the last 16 bytes of that HMAC for the file's unique salt.
+	local current_transcrypt="$0"
+	cp "$current_transcrypt" "${GIT_DIR}/crypt/transcrypt"
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/clean"
 		#!/usr/bin/env bash
-		filename=$1
-		# ignore empty files
-		if [[ -s $filename ]]; then
-		  # cache STDIN to test if it's already encrypted
-		  tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
-		  trap 'rm -f "$tempfile"' EXIT
-		  tee "$tempfile" &>/dev/null
-		  # the first bytes of an encrypted file are always "Salted" in Base64
-		  read -n 8 firstbytes <"$tempfile"
-		  if [[ $firstbytes == "U2FsdGVk" ]]; then
-		    cat "$tempfile"
-		  else
-		    cipher=$(git config --get --local transcrypt.cipher)
-		    password=$(git config --get --local transcrypt.password)
-		    salt=$(openssl dgst -hmac "${filename}:${password}" -sha256 "$filename" | tr -d '\r\n' | tail -c16)
-		    ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
-		  fi
-		fi
+		git transcrypt clean $@
 	EOF
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/smudge"
 		#!/usr/bin/env bash
-		tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
-		trap 'rm -f "$tempfile"' EXIT
-		cipher=$(git config --get --local transcrypt.cipher)
-		password=$(git config --get --local transcrypt.password)
-		tee "$tempfile" | ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+		git transcrypt smudge $@
 	EOF
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/textconv"
 		#!/usr/bin/env bash
-		filename=$1
-		# ignore empty files
-		if [[ -s $filename ]]; then
-		  cipher=$(git config --get --local transcrypt.cipher)
-		  password=$(git config --get --local transcrypt.password)
-		  ENC_PASS=$password openssl enc -$cipher -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
-		fi
+		git transcrypt textconv $@
 	EOF
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/merge"
 		#!/usr/bin/env bash
-
-		# Look up name of local branch/ref to which changes are being merged
-		OURS_LABEL=$(git rev-parse --abbrev-ref HEAD)
-
-		# Look up name of the incoming "theirs" branch/ref being merged in.
-		# TODO There must be a better way of doing this than relying on this reflog
-		#      action environment variable, but I don't know what it is
-		if [[ "$GIT_REFLOG_ACTION" = "merge "* ]]; then
-		  THEIRS_LABEL=$(echo $GIT_REFLOG_ACTION | awk '{print $2}')
-		fi
-		if [[ ! "$THEIRS_LABEL" ]]; then
-		  THEIRS_LABEL="theirs"
-		fi
-
-		# Decrypt BASE $1, LOCAL $2, and REMOTE $3 versions of file being merged
-		echo "$(cat "$1" | ./.git/crypt/smudge)" > "$1"
-		echo "$(cat "$2" | ./.git/crypt/smudge)" > "$2"
-		echo "$(cat "$3" | ./.git/crypt/smudge)" > "$3"
-
-		# Merge the decrypted files to the temp file named by $2
-		git merge-file --marker-size=$4 -L "$OURS_LABEL" -L base -L "$THEIRS_LABEL" "$2" "$1" "$3"
-
-		# If the merge was not successful (has conflicts) exit with an error code to
-		# leave the partially-merged file in place for a manual merge.
-		if [[ "$?" != "0" ]]; then
-		  exit 1
-		fi
-
-		# If the merge was successful (no conflicts) re-encrypt the merged temp file $2
-		# which git will then update in the index in a following "Auto-merging" step.
-		# We must explicitly encrypt/clean the file, rather than leave Git to do it,
-		# because we can otherwise trigger safety check failure errors like:
-		#     error: add_cacheinfo failed to refresh for path 'FILE'; merge aborting.
-
-		# To re-encrypt we must first copy the merged file to $5 (the name of the
-		# working-copy file) so the crypt `clean` script can generate the correct hash
-		# salt based on the file's real name, instead of the $2 temp file name.
-		cp "$2" "$5"
-
-		# Now we use the `clean` script to encrypt the merged file contents back to the
-		# temp file $2 where Git expects to find the merge result content.
-		cat "$5" | ./.git/crypt/clean "$5" > "$2"
+		git transcrypt merge $@
 	EOF
 
 	# make scripts executable
-	for script in {clean,smudge,textconv,merge}; do
+	for script in {transcrypt,clean,smudge,textconv,merge}; do
 		chmod 0755 "${GIT_DIR}/crypt/${script}"
 	done
 }
@@ -507,6 +520,9 @@ save_configuration() {
 	git config merge.renormalize 'true'
 	git config merge.crypt.name 'Merge transcrypt secret files'
 
+	# add a git alias to run transcrypt installed in the repo
+	git config alias.transcrypt "!${GIT_DIR}/crypt/transcrypt"
+
 	# add a git alias for listing encrypted files
 	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
 }
@@ -637,7 +653,7 @@ uninstall_transcrypt() {
 		fi
 
 		# remove helper scripts
-		for script in {clean,smudge,textconv,merge}; do
+		for script in {transcrypt,clean,smudge,textconv,merge}; do
 			[[ ! -f "${GIT_DIR}/crypt/${script}" ]] || rm "${GIT_DIR}/crypt/${script}"
 		done
 		[[ ! -d "${GIT_DIR}/crypt" ]] || rmdir "${GIT_DIR}/crypt"
@@ -982,6 +998,26 @@ ignore_config_status='' # Set for operations where config can exist or not
 # parse command line options
 while [[ "${1:-}" != '' ]]; do
 	case $1 in
+	clean)
+		shift
+		git_clean "$@"
+		exit $?
+		;;
+	smudge)
+		shift
+		git_smudge "$@"
+		exit $?
+		;;
+	textconv)
+		shift
+		git_textconv "$@"
+		exit $?
+		;;
+	merge)
+		shift
+		git_merge "$@"
+		exit $?
+		;;
 	-c | --cipher)
 		cipher=$2
 		shift

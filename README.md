@@ -27,11 +27,12 @@ the areas of usability and safety.
 - transcrypt uses OpenSSL's symmetric cipher routines rather than implementing
   its own crypto
 - transcrypt does not have to remain installed after the initial repository
-  configuration
+  configuration, it copies itself into the repository's git config
 - transcrypt generates a unique salt for each encrypted file
 - transcrypt uses safety checks to avoid clobbering or duplicating configuration
   data
 - transcrypt facilitates setting up additional clones as well as rekeying
+- transcrypt adds an alias `git transcrypt` to run itself
 - transcrypt adds an alias `git ls-crypt` to list all encrypted files
 
 ### Salt Generation
@@ -123,7 +124,7 @@ the currently encrypted files in a repository:
 
 Alternatively, you can use the `--list` command line option:
 
-    $ transcrypt --list
+    $ git transcrypt --list
     sensitive_file
 
 You can also use this to verify your _.gitattributes_ patterns when designating
@@ -139,7 +140,7 @@ The `<path-to-file>` in the above command must be relative to the _top-level_ of
 the repository. Alternatively, you can use the `--show-raw` command line option
 and provide a path relative to your current directory:
 
-    $ transcrypt --show-raw sensitive_file
+    $ git transcrypt --show-raw sensitive_file
 
 ### Initialize a Clone of a Configured Repository
 
@@ -148,7 +149,7 @@ want to configure transcrypt with the same cipher and password as the origin
 repository. The owner of the origin repository can dump the credentials for you
 by running the `--display` command line option:
 
-    $ transcrypt --display
+    $ git transcrypt --display
     The current repository was configured using transcrypt v0.2.0
     and has the following configuration:
 
@@ -168,7 +169,7 @@ Periodically, you may want to change the encryption cipher or password used to
 encrypt the files in your repository. You can do that easily with transcrypt's
 rekey option:
 
-    $ transcrypt --rekey
+    $ git transcrypt --rekey
 
 > As a warning, rekeying will remove your ability to see historical diffs of the
 > encrypted files in plain text. Changes made with the new key will still be
@@ -181,10 +182,10 @@ After rekeying, all clones of your repository should flush their transcrypt
 credentials, fetch and merge the new encrypted files via Git, and then
 re-configure transcrypt with the new credentials.
 
-    $ transcrypt --flush-credentials
+    $ git transcrypt --flush-credentials
     $ git fetch origin
     $ git merge origin/master
-    $ transcrypt -c aes-256-cbc -p 'the-new-password'
+    $ git transcrypt -c aes-256-cbc -p 'the-new-password'
 
 ### Command Line Options
 
