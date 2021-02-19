@@ -367,22 +367,22 @@ save_helper_scripts() {
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/clean"
 		#!/usr/bin/env bash
-		git transcrypt clean $@
+		git transcrypt clean "$@"
 	EOF
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/smudge"
 		#!/usr/bin/env bash
-		git transcrypt smudge $@
+		git transcrypt smudge "$@"
 	EOF
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/textconv"
 		#!/usr/bin/env bash
-		git transcrypt textconv $@
+		git transcrypt textconv "$@"
 	EOF
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/merge"
 		#!/usr/bin/env bash
-		git transcrypt merge $@
+		git transcrypt merge "$@"
 	EOF
 
 	# make scripts executable
