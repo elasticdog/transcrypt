@@ -362,7 +362,8 @@ stage_rekeyed_files() {
 save_helper_scripts() {
 	mkdir -p "${GIT_DIR}/crypt"
 
-	local current_transcrypt=$(realpath "$0" 2>/dev/null)
+	local current_transcrypt
+	current_transcrypt=$(realpath "$0" 2>/dev/null)
 	cp "$current_transcrypt" "${GIT_DIR}/crypt/transcrypt"
 
 	cat <<-'EOF' >"${GIT_DIR}/crypt/clean"
