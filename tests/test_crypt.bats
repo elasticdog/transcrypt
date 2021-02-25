@@ -43,7 +43,7 @@ function check_repo_is_clean {
 
 @test "crypt: transcrypt --show-raw shows encrypted content" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
-  run git transcrypt --show-raw sensitive_file
+  run ../transcrypt --show-raw sensitive_file
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "==> sensitive_file <==" ]]
   [[ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]]
@@ -60,7 +60,7 @@ function check_repo_is_clean {
 @test "crypt: transcrypt --list lists encrypted file" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  run git transcrypt --list
+  run ../transcrypt --list
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "sensitive_file" ]]
 }
@@ -68,7 +68,7 @@ function check_repo_is_clean {
 @test "crypt: transcrypt --uninstall leaves decrypted file and repo dirty" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  run git transcrypt --uninstall --yes
+  run ../transcrypt --uninstall --yes
   [[ "$status" -eq 0 ]]
 
   run cat sensitive_file
@@ -85,7 +85,7 @@ function check_repo_is_clean {
 @test "crypt: git reset after uninstall leaves encrypted file" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  git transcrypt --uninstall --yes
+  ../transcrypt --uninstall --yes
 
   git reset --hard
   check_repo_is_clean
@@ -121,7 +121,7 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]]
 
   # transcrypt --show-raw shows encrypted content
-  run git transcrypt --show-raw "$FILENAME"
+  run ../transcrypt --show-raw "$FILENAME"
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "==> $FILENAME <==" ]]
   [[ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]]
@@ -132,7 +132,7 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
-  run git transcrypt --list
+  run ../transcrypt --list
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "$FILENAME" ]]
 
@@ -140,7 +140,7 @@ function check_repo_is_clean {
 }
 
 @test "crypt: transcrypt --upgrade applies new merge driver" {
-  VERSION=$(git transcrypt -v | awk '{print $2}')
+  VERSION=$(../transcrypt -v | awk '{print $2}')
 
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
@@ -199,7 +199,7 @@ function check_repo_is_clean {
 @test "crypt: transcrypt --force handles files missing from working copy" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  git transcrypt --uninstall --yes
+  ../transcrypt --uninstall --yes
 
   # Reset repo to restore .gitattributes file
   git reset --hard

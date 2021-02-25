@@ -31,7 +31,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: applies git config" {
   init_transcrypt
-  VERSION=$(git transcrypt -v | awk '{print $2}')
+  VERSION=$(../transcrypt -v | awk '{print $2}')
 
   [[ "$(git config --get transcrypt.version)" = "$VERSION" ]]
   [[ "$(git config --get transcrypt.cipher)" = "aes-256-cbc" ]]
@@ -59,9 +59,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: show details for --display" {
   init_transcrypt
-  VERSION=$(git transcrypt -v | awk '{print $2}')
+  VERSION=$(../transcrypt -v | awk '{print $2}')
 
-  run git transcrypt --display
+  run ../transcrypt --display
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]]
   [[ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]]
@@ -71,9 +71,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: show details for -d" {
   init_transcrypt
-  VERSION=$(git transcrypt -v | awk '{print $2}')
+  VERSION=$(../transcrypt -v | awk '{print $2}')
 
-  run git transcrypt -d
+  run ../transcrypt -d
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]]
   [[ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]]
@@ -89,8 +89,8 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ -d .git/myhooks ]]
   [[ -f .git/myhooks/pre-commit ]]
 
-  VERSION=$(git transcrypt -v | awk '{print $2}')
-  run git transcrypt --display
+  VERSION=$(../transcrypt -v | awk '{print $2}')
+  run ../transcrypt --display
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]]
   [[ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]]

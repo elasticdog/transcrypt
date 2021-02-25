@@ -67,7 +67,7 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
 
 @test "pre-commit: warn and don't clobber existing pre-commit hook on init" {
   # Uninstall pre-existing transcrypt config from setup()
-  run git transcrypt --uninstall --yes
+  run "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
 
   # Create a pre-existing pre-commit hook
   touch .git/hooks/pre-commit
@@ -86,7 +86,7 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
 }
 
 @test "pre-commit: de-activate and remove transcrypt's pre-commit hook" {
-  git transcrypt --uninstall --yes
+  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
   [[ ! -f .git/hooks/pre-commit ]]
   [[ ! -f .git/hooks/pre-commit-crypt ]]
 }
@@ -95,7 +95,7 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
   # Customise transcrypt's pre-commit hook
   echo "#" >> .git/hooks/pre-commit
 
-  run git transcrypt --uninstall --yes
+  run "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
   [[ "$status" -eq 0 ]]
   [[ "${lines[0]}" = 'WARNING: Cannot safely disable Git pre-commit hook .git/hooks/pre-commit please check it yourself' ]]
   [[ -f .git/hooks/pre-commit ]]
