@@ -157,7 +157,11 @@ function check_repo_is_clean {
   run cat .gitattributes
   [[ "${lines[0]}" = "sensitive_file filter=crypt diff=crypt" ]]
   # Check merge driver is not installed
-  [[ ! "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt merge %O %A %B %L %P' ]]
+  if [[ -d $(git rev-parse --git-common-dir) ]]; then
+    [[ ! "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-common-dir)"/crypt/transcrypt merge %O %A %B %L %P' ]]
+  else
+    [[ ! "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt merge %O %A %B %L %P' ]]
+  fi
 
   run git config --get --local transcrypt.version
   [[ "${lines[0]}" = "0.0" ]]
@@ -187,7 +191,11 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$SECRET_CONTENT" ]]
 
   # Check merge driver is installed
-  [[ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt merge %O %A %B %L %P' ]]
+  if [[ -d $(git rev-parse --git-common-dir) ]]; then
+    [[ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-common-dir)"/crypt/transcrypt merge %O %A %B %L %P' ]]
+  else
+    [[ "$(git config --get merge.crypt.driver)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt merge %O %A %B %L %P' ]]
+  fi
 
   # Check .gitattributes is updated to include merge driver
   run cat .gitattributes
