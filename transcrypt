@@ -459,8 +459,7 @@ save_helper_hooks() {
 		#!/usr/bin/env bash
 		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
 		RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
-		GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
-		"${GIT_DIR}/crypt/transcrypt" pre_commit
+		"${RELATIVE_GIT_DIR}/crypt/transcrypt" pre_commit
 	EOF
 
 	# Activate hook by copying it to the pre-commit script name, if safe to do so
