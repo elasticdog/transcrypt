@@ -10,6 +10,13 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- Add `--set-openssl-path` option to configure transcrypt to use a specific
+  openssl version instead of the default version found in `$PATH`. This will be
+  most useful to macOS users who might want to use a newer version of OpenSSL.
+  This option can be used on init, on upgrade, or by itself.
+
 ### Fixed
 
 - Respect Git `core.hooksPath` setting when installing the pre-commit hook. (#104)

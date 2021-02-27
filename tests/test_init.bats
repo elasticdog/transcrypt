@@ -97,3 +97,45 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "${lines[6]}" = "  PASSWORD: abc123" ]]
   [[ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc123'" ]]
 }
+
+@test "init: transcrypt.openssl-path config setting defaults to 'openssl'" {
+  init_transcrypt
+  [[ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]]
+}
+
+@test "init: --set-openssl-path changes transcrypt.openssl-path" {
+  init_transcrypt
+  [[ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]]
+}
+
+@test "init: --set-openssl-path is applied during init" {
+  init_transcrypt
+  run ../transcrypt --set-openssl-path=/test/path
+  [[ "$(git config --get transcrypt.openssl-path)" = "/test/path" ]]
+}
+
+@test "init: --set-openssl-path is applied during upgrade" {
+  init_transcrypt
+  [[ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]]
+
+  # Set openssl path
+  FULL_OPENSSL_PATH=$(which openssl)
+
+  "$BATS_TEST_DIRNAME"/../transcrypt --upgrade --yes --set-openssl-path="$FULL_OPENSSL_PATH"
+  [[ "$(git config --get transcrypt.openssl-path)" = "$FULL_OPENSSL_PATH" ]]
+  [[ ! "$(git config --get transcrypt.openssl-path)" = 'openssl' ]]
+}
+
+@test "init: transcrypt.openssl-path config setting is retained with --upgrade" {
+  init_transcrypt
+  [[ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]]
+
+  # Set openssl path
+  FULL_OPENSSL_PATH=$(which openssl)
+  run ../transcrypt --set-openssl-path="$FULL_OPENSSL_PATH"''
+
+  # Retain transcrypt.openssl-path config setting on upgrade
+  "$BATS_TEST_DIRNAME"/../transcrypt --upgrade --yes
+  [[ "$(git config --get transcrypt.openssl-path)" = "$FULL_OPENSSL_PATH" ]]
+  [[ ! "$(git config --get transcrypt.openssl-path)" = 'openssl' ]]
+}
