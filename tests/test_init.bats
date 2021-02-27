@@ -24,9 +24,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 @test "init: creates scripts in .git/crypt/" {
   init_transcrypt
   [[ -d .git/crypt ]]
-  [[ -f .git/crypt/clean ]]
-  [[ -f .git/crypt/smudge ]]
-  [[ -f .git/crypt/textconv ]]
+  [[ -f .git/crypt/transcrypt ]]
 }
 
 @test "init: applies git config" {
@@ -40,13 +38,13 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
   # shellcheck disable=SC2016
   if [[ -d $(git rev-parse --git-common-dir) ]]; then
-    [[ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-common-dir)"/crypt/clean %f' ]]
-    [[ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-common-dir)"/crypt/smudge' ]]
-    [[ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-common-dir)"/crypt/textconv' ]]
+    [[ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-common-dir)"/crypt/transcrypt clean %f' ]]
+    [[ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-common-dir)"/crypt/transcrypt smudge' ]]
+    [[ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-common-dir)"/crypt/transcrypt textconv' ]]
   else
-    [[ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-dir)"/crypt/clean %f' ]]
-    [[ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-dir)"/crypt/smudge' ]]
-    [[ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-dir)"/crypt/textconv' ]]
+    [[ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt clean %f' ]]
+    [[ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt smudge' ]]
+    [[ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt textconv' ]]
   fi
 
   [[ "$(git config --get filter.crypt.required)" = "true" ]]

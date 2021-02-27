@@ -17,6 +17,12 @@ The format is based on [Keep a Changelog][1], and this project adheres to
   most useful to macOS users who might want to use a newer version of OpenSSL.
   This option can be used on init, on upgrade, or by itself.
 
+### Changed
+
+- No longer need stand-along scripts for git operations clean, smudge,
+  textconv, and merge in the repository's _crypt/_ directory; a single
+  `transcrypt` script is stored there instead.
+
 ### Fixed
 
 - Respect Git `core.hooksPath` setting when installing the pre-commit hook. (#104)

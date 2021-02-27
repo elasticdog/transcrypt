@@ -151,12 +151,13 @@ function check_repo_is_clean {
 
   git config --local transcrypt.version "0.0"
 
-  rm .git/crypt/merge
+  git config --local --unset merge.crypt.driver
 
   # Check .gitattributes and sensitive_file before re-install
   run cat .gitattributes
   [[ "${lines[0]}" = "sensitive_file filter=crypt diff=crypt" ]]
-  [[ ! -f .git/crypt/merge ]]
+  # Check merge driver is not installed
+  [[ ! "$(git config --get merge-crypt-driver)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt merge %O %A %B %L %P' ]]
 
   run git config --get --local transcrypt.version
   [[ "${lines[0]}" = "0.0" ]]
@@ -186,7 +187,7 @@ function check_repo_is_clean {
   [[ "${lines[0]}" = "$SECRET_CONTENT" ]]
 
   # Check merge driver is installed
-  [[ -f .git/crypt/merge ]]
+  [[ "$(git config --get merge-crypt-driver)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt merge %O %A %B %L %P' ]]
 
   # Check .gitattributes is updated to include merge driver
   run cat .gitattributes
