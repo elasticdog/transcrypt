@@ -34,7 +34,6 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "$(git config --get transcrypt.version)" = "$VERSION" ]]
   [[ "$(git config --get transcrypt.cipher)" = "aes-256-cbc" ]]
   [[ "$(git config --get transcrypt.password)" = "abc123" ]]
-  [[ "$(git config --get transcrypt.crypt-dir)" = ".git/crypt" ]]
   [[ "$(git config --get transcrypt.openssl-path)" = "openssl" ]]
 
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
