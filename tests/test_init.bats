@@ -137,3 +137,37 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "$(git config --get transcrypt.openssl-path)" = "$FULL_OPENSSL_PATH" ]]
   [[ ! "$(git config --get transcrypt.openssl-path)" = 'openssl' ]]
 }
+
+@test "init: transcrypt.crypt-dir config setting is applied during init" {
+  # Set a custom location for the crypt/ directory
+  git config transcrypt.crypt-dir /tmp/crypt
+
+  init_transcrypt
+
+  # Confirm crypt/ directory is populated in custom location
+  [[ ! -d .git/crypt ]]
+  [[ ! -f .git/crypt/transcrypt ]]
+  [[ -d /tmp/crypt ]]
+  [[ -f /tmp/crypt/transcrypt ]]
+}
+
+@test "crypt: transcrypt.crypt-dir config setting produces working scripts" {
+  # Set a custom location for the crypt/ directory
+  git config transcrypt.crypt-dir /tmp/crypt
+
+  init_transcrypt
+
+  SECRET_CONTENT="My secret content"
+  SECRET_CONTENT_ENC="U2FsdGVkX1/kkWK36bn3fbq5DY2d+JXL2YWoN/eoXA1XJZEk9JS7j/856rXK9gPn"
+
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+
+  run cat sensitive_file
+  [[ "$status" -eq 0 ]]
+  [[ "${lines[0]}" = "$SECRET_CONTENT" ]]
+
+  run ../transcrypt --show-raw sensitive_file
+  [[ "$status" -eq 0 ]]
+  [[ "${lines[0]}" = "==> sensitive_file <==" ]]
+  [[ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]]
+}

@@ -73,8 +73,11 @@ gather_repo_metadata() {
 	readonly RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
 	readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
 
+	# Respect transcrypt.crypt-dir if present. Default to crypt/ in Git dir
+	readonly CRYPT_DIR=$(git config transcrypt.crypt-dir 2>/dev/null || printf "%s/crypt" "${GIT_DIR}")
+
 	# respect core.hooksPath setting, without trailing slash. Fall back to default hooks dir
-	readonly GIT_HOOKS=$(git config core.hooksPath | sed 's:/*$::' 2>/dev/null || printf "%s/hooks" "${RELATIVE_GIT_DIR}")
+	readonly GIT_HOOKS=$(git config core.hooksPath | sed 's:/*$::' 2>/dev/null || printf "%s/hooks" "${GIT_DIR}")
 
 	# the current git repository's gitattributes file
 	local CORE_ATTRIBUTES
@@ -438,15 +441,15 @@ stage_rekeyed_files() {
 
 # save helper scripts under the repository's git directory
 save_helper_scripts() {
-	mkdir -p "${GIT_DIR}/crypt"
+	mkdir -p "${CRYPT_DIR}"
 
 	local current_transcrypt
 	current_transcrypt=$(realpath "$0" 2>/dev/null)
-	cp "$current_transcrypt" "${GIT_DIR}/crypt/transcrypt"
+	cp "$current_transcrypt" "${CRYPT_DIR}/transcrypt"
 
 	# make scripts executable
 	for script in {transcrypt,}; do
-		chmod 0755 "${GIT_DIR}/crypt/${script}"
+		chmod 0755 "${CRYPT_DIR}/${script}"
 	done
 }
 
@@ -458,8 +461,7 @@ save_helper_hooks() {
 	cat <<-'EOF' >"$pre_commit_hook_installed"
 		#!/usr/bin/env bash
 		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
-		RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
-		"${RELATIVE_GIT_DIR}/crypt/transcrypt" pre_commit
+		"$(git config transcrypt.crypt-dir 2>/dev/null)/transcrypt" pre_commit
 	EOF
 
 	# Activate hook by copying it to the pre-commit script name, if safe to do so
@@ -484,30 +486,18 @@ save_configuration() {
 	git config transcrypt.version "$VERSION"
 	git config transcrypt.cipher "$cipher"
 	git config transcrypt.password "$password"
+	git config transcrypt.crypt-dir "$CRYPT_DIR"
 	git config transcrypt.openssl-path "$openssl_path"
 
 	# write the filter settings
-	if [[ -d $(git rev-parse --git-common-dir) ]]; then
-		# this allows us to support multiple working trees via git-worktree
-		# ...but the --git-common-dir flag was only added in November 2014
-		# shellcheck disable=SC2016
-		git config filter.crypt.clean '"$(git rev-parse --git-common-dir)"/crypt/transcrypt clean %f'
-		# shellcheck disable=SC2016
-		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/transcrypt smudge'
-		# shellcheck disable=SC2016
-		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/transcrypt textconv'
-		# shellcheck disable=SC2016
-		git config merge.crypt.driver '"$(git rev-parse --git-common-dir)"/crypt/transcrypt merge %O %A %B %L %P'
-	else
-		# shellcheck disable=SC2016
-		git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/transcrypt clean %f'
-		# shellcheck disable=SC2016
-		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/transcrypt smudge'
-		# shellcheck disable=SC2016
-		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/transcrypt textconv'
-		# shellcheck disable=SC2016
-		git config merge.crypt.driver '"$(git rev-parse --git-dir)"/crypt/transcrypt merge %O %A %B %L %P'
-	fi
+	# shellcheck disable=SC2016
+	git config filter.crypt.clean '"$(git config transcrypt.crypt-dir)"/transcrypt clean %f'
+	# shellcheck disable=SC2016
+	git config filter.crypt.smudge '"$(git config transcrypt.crypt-dir)"/transcrypt smudge'
+	# shellcheck disable=SC2016
+	git config diff.crypt.textconv '"$(git config transcrypt.crypt-dir)"/transcrypt textconv'
+	# shellcheck disable=SC2016
+	git config merge.crypt.driver '"$(git config transcrypt.crypt-dir)"/transcrypt merge %O %A %B %L %P'
 	git config filter.crypt.required 'true'
 	git config diff.crypt.cachetextconv 'true'
 	git config diff.crypt.binary 'true'
@@ -646,9 +636,9 @@ uninstall_transcrypt() {
 		# remove helper scripts
 		# Keep obsolete clean,smudge,textconv,merge refs here to remove them on upgrade
 		for script in {transcrypt,clean,smudge,textconv,merge}; do
-			[[ ! -f "${GIT_DIR}/crypt/${script}" ]] || rm "${GIT_DIR}/crypt/${script}"
+			[[ ! -f "${CRYPT_DIR}/${script}" ]] || rm "${CRYPT_DIR}/${script}"
 		done
-		[[ ! -d "${GIT_DIR}/crypt" ]] || rmdir "${GIT_DIR}/crypt"
+		[[ ! -d "${CRYPT_DIR}" ]] || rmdir "${CRYPT_DIR}"
 
 		# rename helper hooks (don't delete, in case user has custom changes)
 		pre_commit_hook="${GIT_HOOKS}/pre-commit"
@@ -808,10 +798,10 @@ export_gpg() {
 	current_cipher=$(git config --get --local transcrypt.cipher)
 	local current_password
 	current_password=$(git config --get --local transcrypt.password)
-	mkdir -p "${GIT_DIR}/crypt"
+	mkdir -p "${CRYPT_DIR}"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
-	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd >"${GIT_DIR}/crypt/${gpg_recipient}.asc"
+	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
 	printf "The transcrypt configuration has been encrypted and exported to:\n%s/crypt/%s.asc\n" "$GIT_DIR" "$gpg_recipient"
 }
 
@@ -821,10 +811,10 @@ import_gpg() {
 	command -v gpg >/dev/null || die 'required command "gpg" was not found'
 
 	local path
-	if [[ -f "${GIT_DIR}/crypt/${gpg_import_file}" ]]; then
-		path="${GIT_DIR}/crypt/${gpg_import_file}"
-	elif [[ -f "${GIT_DIR}/crypt/${gpg_import_file}.asc" ]]; then
-		path="${GIT_DIR}/crypt/${gpg_import_file}.asc"
+	if [[ -f "${CRYPT_DIR}/${gpg_import_file}" ]]; then
+		path="${CRYPT_DIR}/${gpg_import_file}"
+	elif [[ -f "${CRYPT_DIR}/${gpg_import_file}.asc" ]]; then
+		path="${CRYPT_DIR}/${gpg_import_file}.asc"
 	elif [[ ! -f $gpg_import_file ]]; then
 		die 1 'the file "%s" does not exist' "$gpg_import_file"
 	else
