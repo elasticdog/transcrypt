@@ -34,23 +34,21 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "$(git config --get transcrypt.version)" = "$VERSION" ]]
   [[ "$(git config --get transcrypt.cipher)" = "aes-256-cbc" ]]
   [[ "$(git config --get transcrypt.password)" = "abc123" ]]
+  [[ "$(git config --get transcrypt.crypt-dir)" = ".git/crypt" ]]
+  [[ "$(git config --get transcrypt.openssl-path)" = "openssl" ]]
 
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
   # shellcheck disable=SC2016
-  if [[ -d $(git rev-parse --git-common-dir) ]]; then
-    [[ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-common-dir)"/crypt/transcrypt clean %f' ]]
-    [[ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-common-dir)"/crypt/transcrypt smudge' ]]
-    [[ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-common-dir)"/crypt/transcrypt textconv' ]]
-  else
-    [[ "$(git config --get filter.crypt.clean)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt clean %f' ]]
-    [[ "$(git config --get filter.crypt.smudge)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt smudge' ]]
-    [[ "$(git config --get diff.crypt.textconv)" = '"$(git rev-parse --git-dir)"/crypt/transcrypt textconv' ]]
-  fi
+  [[ "$(git config --get filter.crypt.clean)" = '"$(git config transcrypt.crypt-dir)/transcrypt clean %f' ]]
+  [[ "$(git config --get filter.crypt.smudge)" = '"$(git config transcrypt.crypt-dir)/transcrypt smudge' ]]
+  [[ "$(git config --get diff.crypt.textconv)" = '"$(git config transcrypt.crypt-dir)/transcrypt textconv' ]]
+  [[ "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir)/transcrypt textconv' ]]
 
   [[ "$(git config --get filter.crypt.required)" = "true" ]]
   [[ "$(git config --get diff.crypt.cachetextconv)" = "true" ]]
   [[ "$(git config --get diff.crypt.binary)" = "true" ]]
   [[ "$(git config --get merge.renormalize)" = "true" ]]
+  [[ "$(git config --get merge.crypt.name)" = "Merge transcrypt secret files" ]]
 
   [[ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'" ]]
 }
