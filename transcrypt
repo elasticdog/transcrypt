@@ -238,7 +238,7 @@ validate_cipher() {
 	fi
 
 	local supported
-	supported=$($list_cipher_commands | tr -s ' ' '\n' | grep --line-regexp "$cipher") || true
+	supported=$($list_cipher_commands | tr -s ' ' '\n' | grep -Fx "$cipher") || true
 	if [[ ! $supported ]]; then
 		if [[ $interactive ]]; then
 			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
