@@ -44,8 +44,8 @@ jobs:
       run: git version
 
     # Configure default Git branch name to suppress hint warnings
-    - name: Configure default Git branch to "master"
-      run: git config --global init.defaultBranch master
+    - name: Configure default Git branch to "main"
+      run: git config --global init.defaultBranch main
 
     - name: Install and set up bats-core
       run: |
