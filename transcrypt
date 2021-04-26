@@ -202,6 +202,7 @@ git_merge() {
 	cat "$5" | "${TRANSCRYPT_PATH}" clean "$5" >"$2"
 }
 
+# shellcheck disable=SC2155
 git_pre_commit() {
 	# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
 	tmp=$(mktemp)
@@ -214,7 +215,7 @@ git_pre_commit() {
 			fi
 
 			# Get prefix of raw file in Git's index using the :FILENAME revision syntax
-			firstbytes=$(git show :"${secret_file}" | head -c8)
+			local firstbytes=$(git show :"${secret_file}" | head -c8)
 			# An empty file does not need to be, and is not, encrypted
 			if [[ $firstbytes == "" ]]; then
 				: # Do nothing
@@ -245,7 +246,7 @@ git_pre_commit() {
 		fi
 		# Get prefix of raw file in Git's index using the :FILENAME revision syntax
 		# The first bytes of an encrypted file are always "Salted" in Base64
-		firstbytes=$(git show :"${secret_file}" | head -c8)
+		local firstbytes=$(git show :"${secret_file}" | head -c8)
 		if [[ $firstbytes != "U2FsdGVk" ]]; then
 			echo "true" >>"${tmp}"
 		fi
