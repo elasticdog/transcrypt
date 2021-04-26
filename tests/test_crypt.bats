@@ -139,6 +139,81 @@ function check_repo_is_clean {
   rm "$FILENAME"
 }
 
+@test "crypt: handle very small file" {
+  FILENAME="small file.txt"
+  SECRET_CONTENT="sh"
+  SECRET_CONTENT_ENC="U2FsdGVkX1/NlZCZ0ho/TL+5kTxm/R/X5nfATzQLKfI="
+
+  encrypt_named_file "$FILENAME" "$SECRET_CONTENT"
+  [[ "${output}" = *"Encrypt file \"$FILENAME\""* ]]
+
+  # Working copy is decrypted
+  run cat "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Git internal copy is encrypted
+  run git show HEAD:"$FILENAME" --no-textconv
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
+
+  # transcrypt --show-raw shows encrypted content
+  run ../transcrypt --show-raw "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "==> $FILENAME <==" ]
+  [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
+
+  # git ls-crypt lists encrypted file
+  run git ls-crypt
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$FILENAME" ]
+
+  # transcrypt --list lists encrypted file"
+  run ../transcrypt --list
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$FILENAME" ]
+
+  rm "$FILENAME"
+}
+
+@test "crypt: handle file with null byte near beginning" {
+  FILENAME="null byte file.txt"
+  SECRET_CONTENT="sh\0x"
+  SECRET_CONTENT_ENC="U2FsdGVkX1+Reih89cbf2wxlqmEo58bBctT4S1Jw95M="
+
+  encrypt_named_file "$FILENAME" "$SECRET_CONTENT"
+  [[ "${output}" = *"Encrypt file \"$FILENAME\""* ]]
+
+  # Working copy is decrypted
+  run cat "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Git internal copy is encrypted
+  git show HEAD:"$FILENAME" --no-textconv
+  run git show HEAD:"$FILENAME" --no-textconv
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
+
+  # transcrypt --show-raw shows encrypted content
+  run ../transcrypt --show-raw "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "==> $FILENAME <==" ]
+  [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
+
+  # git ls-crypt lists encrypted file
+  run git ls-crypt
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$FILENAME" ]
+
+  # transcrypt --list lists encrypted file"
+  run ../transcrypt --list
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$FILENAME" ]
+
+  rm "$FILENAME"
+}
+
 @test "crypt: transcrypt --upgrade applies new merge driver" {
   VERSION=$(../transcrypt -v | awk '{print $2}')
 
