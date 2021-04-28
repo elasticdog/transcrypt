@@ -176,21 +176,17 @@ function check_repo_is_clean {
   rm "$FILENAME"
 }
 
-@test "crypt: handle file with null byte near beginning" {
-  FILENAME="null byte file.txt"
-  SECRET_CONTENT="sh\0x"
-  SECRET_CONTENT_ENC="U2FsdGVkX1+Reih89cbf2wxlqmEo58bBctT4S1Jw95M="
+@test "crypt: handle file with problematic bytes" {
+  FILENAME="problem bytes file.txt"
+  SECRET_CONTENT_ENC="U2FsdGVkX1/RVkIfYCsbUMcvQlC2vWZJVQtZSuppd7Q="
 
-  encrypt_named_file "$FILENAME" "$SECRET_CONTENT"
+  # Write octal byte 375 and null byte as file contents
+  printf "\375 \0 shh" > "$FILENAME"
+
+  encrypt_named_file "$FILENAME"
   [[ "${output}" = *"Encrypt file \"$FILENAME\""* ]]
 
-  # Working copy is decrypted
-  run cat "$FILENAME"
-  [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "$SECRET_CONTENT" ]
-
   # Git internal copy is encrypted
-  git show HEAD:"$FILENAME" --no-textconv
   run git show HEAD:"$FILENAME" --no-textconv
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
