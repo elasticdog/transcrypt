@@ -25,6 +25,8 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 
 ### Fixed
 
+- Ensure Git index is up-to-date before checking for dirty repo, to avoid
+  failures seen in CI systems where the repo seems dirty when it isn't. (#37)
 - Respect Git `core.hooksPath` setting when installing the pre-commit hook. (#104)
 - Zsh completion. (#107)
 - Fix salt generation for partial (patch) commits (#118)
