@@ -197,6 +197,15 @@ git_merge() {
 	cat "$5" | ./.git/crypt/clean "$5" >"$2"
 }
 
+git_add() {
+  gather_repo_metadata
+  for var in "$@"; do
+    line="$var  filter=crypt diff=crypt merge=crypt"
+    grep -qxF "$line" "${GIT_ATTRIBUTES}" || echo "$line" >> "${GIT_ATTRIBUTES}"
+    sync
+  done
+}
+
 # verify that all requirements have been met
 run_safety_checks() {
 	# validate that we're in a git repository
@@ -504,24 +513,16 @@ save_configuration() {
 	if [[ -d $(git rev-parse --git-common-dir) ]]; then
 		# this allows us to support multiple working trees via git-worktree
 		# ...but the --git-common-dir flag was only added in November 2014
-		# shellcheck disable=SC2016
-		git config filter.crypt.clean '"$(git rev-parse --git-common-dir)"/crypt/clean %f'
-		# shellcheck disable=SC2016
-		git config filter.crypt.smudge '"$(git rev-parse --git-common-dir)"/crypt/smudge'
-		# shellcheck disable=SC2016
-		git config diff.crypt.textconv '"$(git rev-parse --git-common-dir)"/crypt/textconv'
-		# shellcheck disable=SC2016
-		git config merge.crypt.driver '"$(git rev-parse --git-common-dir)"/crypt/merge %O %A %B %L %P'
+	  # shellcheck disable=SC2016
+    git_dir='"$(git rev-parse --git-common-dir)"'
 	else
-		# shellcheck disable=SC2016
-		git config filter.crypt.clean '"$(git rev-parse --git-dir)"/crypt/clean %f'
-		# shellcheck disable=SC2016
-		git config filter.crypt.smudge '"$(git rev-parse --git-dir)"/crypt/smudge'
-		# shellcheck disable=SC2016
-		git config diff.crypt.textconv '"$(git rev-parse --git-dir)"/crypt/textconv'
-		# shellcheck disable=SC2016
-		git config merge.crypt.driver '"$(git rev-parse --git-dir)"/crypt/merge %O %A %B %L %P'
+	  # shellcheck disable=SC2016
+    git_dir='"$(git rev-parse --git-dir)"'
 	fi
+	git config filter.crypt.clean "$git_dir"'/crypt/clean %f'
+	git config filter.crypt.smudge "$git_dir"'/crypt/smudge'
+	git config diff.crypt.textconv "$git_dir"'/crypt/textconv'
+	git config merge.crypt.driver "$git_dir"'/crypt/merge %O %A %B %L %P'
 	git config filter.crypt.required 'true'
 	git config diff.crypt.cachetextconv 'true'
 	git config diff.crypt.binary 'true'
@@ -530,6 +531,7 @@ save_configuration() {
 
 	# add a git alias for listing encrypted files
 	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
+	git config alias.add-crypt "!$git_dir"'/crypt/transcrypt add'
 }
 
 # display the current configuration settings
@@ -1027,6 +1029,11 @@ while [[ "${1:-}" != '' ]]; do
 	merge)
 		shift
 		git_merge "$@"
+		exit $?
+		;;
+	add)
+		shift
+		git_add "$@"
 		exit $?
 		;;
 	-c | --cipher)

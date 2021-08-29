@@ -139,6 +139,43 @@ function check_repo_is_clean {
   rm "$FILENAME"
 }
 
+@test "crypt: add file to crypt" {
+  # git add-crypt add file to gitattributes
+
+  # add file 1
+  git add-crypt foobar
+  run cat .gitattributes
+  echo "${lines[@]}"
+  [[ "$status" -eq 0 ]]
+  [[ "${#lines[@]}" = "2" ]]
+  [[ "${lines[1]}" = "foobar  filter=crypt diff=crypt merge=crypt" ]]
+
+  # add pattern 2
+  git add-crypt config/*.json
+  run cat .gitattributes
+  [[ "$status" -eq 0 ]]
+  [[ "${#lines[@]}" = "3" ]]
+  [[ "${lines[2]}" = "config/*.json  filter=crypt diff=crypt merge=crypt" ]]
+
+  # add pattern 2
+  git add-crypt pattern2
+  run cat .gitattributes
+  [[ "$status" -eq 0 ]]
+  [[ "${#lines[@]}" = "4" ]]
+  [[ "${lines[3]}" = "pattern2  filter=crypt diff=crypt merge=crypt" ]]
+
+  # test ignore adding duplicate pattern
+  git add-crypt pattern2
+  git add-crypt foobar
+  git add-crypt config/*.json
+  run cat .gitattributes
+  [[ "$status" -eq 0 ]]
+  [[ "${#lines[@]}" = "4" ]]  # no new line added
+  [[ "${lines[1]}" = "foobar  filter=crypt diff=crypt merge=crypt" ]]
+  [[ "${lines[2]}" = "config/*.json  filter=crypt diff=crypt merge=crypt" ]]
+  [[ "${lines[3]}" = "pattern2  filter=crypt diff=crypt merge=crypt" ]]
+}
+
 @test "crypt: transcrypt --upgrade applies new merge driver" {
   VERSION=$(../transcrypt -v | awk '{print $2}')
 
