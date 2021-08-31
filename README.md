@@ -152,12 +152,12 @@ by running the `--display` command line option:
     The current repository was configured using transcrypt v0.2.0
     and has the following configuration:
 
-      CIPHER:   aes-256-cbc
+      CIPHER:   aes-256-cbc:pbkdf2:1024
       PASSWORD: correct horse battery staple
 
     Copy and paste the following command to initialize a cloned repository:
 
-      transcrypt -c aes-256-cbc -p 'correct horse battery staple'
+      transcrypt -c aes-256-cbc:pbkdf2:1024 -p 'correct horse battery staple'
 
 Once transcrypt has stored the matching credentials, it will force a checkout of
 any exising encrypted files in order to decrypt them.
@@ -184,7 +184,7 @@ re-configure transcrypt with the new credentials.
     $ transcrypt --flush-credentials
     $ git fetch origin
     $ git merge origin/main
-    $ transcrypt -c aes-256-cbc -p 'the-new-password'
+    $ transcrypt -c aes-256-cbcaes-256-cbc:pbkdf2:1024 -p 'the-new-password'
 
 ### Command Line Options
 
@@ -194,8 +194,10 @@ directory.
     transcrypt [option...]
 
       -c, --cipher=CIPHER
-             the symmetric cipher to utilize for encryption;
-             defaults to aes-256-cbc
+             the symmetric cipher to utilize for encryption, can
+             include cipher, key derivation, and iteration components
+             separated by ':';
+             defaults to aes-256-cbc:pbkdf2:1024
 
       -p, --password=PASSWORD
              the password to derive the key from;
