@@ -198,12 +198,12 @@ git_merge() {
 }
 
 git_add() {
-  gather_repo_metadata
-  for var in "$@"; do
-    line="$var  filter=crypt diff=crypt merge=crypt"
-    grep -qxF "$line" "${GIT_ATTRIBUTES}" || echo "$line" >> "${GIT_ATTRIBUTES}"
-    sync
-  done
+	gather_repo_metadata
+	for var in "$@"; do
+		line="$var  filter=crypt diff=crypt merge=crypt"
+		grep -qxF "$line" "${GIT_ATTRIBUTES}" || echo "$line" >>"${GIT_ATTRIBUTES}"
+		sync
+	done
 }
 
 # verify that all requirements have been met
@@ -513,11 +513,11 @@ save_configuration() {
 	if [[ -d $(git rev-parse --git-common-dir) ]]; then
 		# this allows us to support multiple working trees via git-worktree
 		# ...but the --git-common-dir flag was only added in November 2014
-	  # shellcheck disable=SC2016
-    git_dir='"$(git rev-parse --git-common-dir)"'
+		# shellcheck disable=SC2016
+		git_dir='"$(git rev-parse --git-common-dir)"'
 	else
-	  # shellcheck disable=SC2016
-    git_dir='"$(git rev-parse --git-dir)"'
+		# shellcheck disable=SC2016
+		git_dir='"$(git rev-parse --git-dir)"'
 	fi
 	git config filter.crypt.clean "$git_dir"'/crypt/clean %f'
 	git config filter.crypt.smudge "$git_dir"'/crypt/smudge'
