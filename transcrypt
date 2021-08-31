@@ -19,7 +19,7 @@ set -euo pipefail
 readonly VERSION='3.0-pre'
 
 # the default cipher to utilize
-readonly DEFAULT_CIPHER='aes-256-cbc'
+readonly DEFAULT_CIPHER='aes-256-cbc:pbkdf2:1024'
 
 ##### FUNCTIONS
 
@@ -130,21 +130,35 @@ git_clean() {
 	if [[ $firstbytes == "U2FsdGVk" ]]; then
 		cat "$tempfile"
 	else
-		cipher=$(git config --get --local transcrypt.cipher)
+		cipher_key_deriv_iter=$(git config --get --local transcrypt.cipher)
+		cipher=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $1 }')
+		key_deriv=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $2 }')
+		iter=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $3 }')
 		password=$(git config --get --local transcrypt.password)
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
-		ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		if [[ -z "$key_deriv" ]]; then
+			ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		else
+			ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		fi
 	fi
 }
 
 git_smudge() {
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
-	cipher=$(git config --get --local transcrypt.cipher)
+	cipher_key_deriv_iter=$(git config --get --local transcrypt.cipher)
+	cipher=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $1 }')
+	key_deriv=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $2 }')
+	iter=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $3 }')
 	password=$(git config --get --local transcrypt.password)
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
-	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+	if [[ -z "$key_deriv" ]]; then
+		tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+	else
+		tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+	fi
 }
 
 git_textconv() {
@@ -153,10 +167,17 @@ git_textconv() {
 	if [[ ! -s $filename ]]; then
 		return
 	fi
-	cipher=$(git config --get --local transcrypt.cipher)
+	cipher_key_deriv_iter=$(git config --get --local transcrypt.cipher)
+	cipher=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $1 }')
+	key_deriv=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $2 }')
+	iter=$(echo "$cipher_key_deriv_iter" | awk 'BEGIN { FS = ":" }; { print $3 }')
 	password=$(git config --get --local transcrypt.password)
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
-	ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+	if [[ -z "$key_deriv" ]]; then
+		ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+	else
+		ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+	fi
 }
 
 # shellcheck disable=SC2005,SC2002,SC2181
@@ -239,17 +260,20 @@ validate_cipher() {
 		list_cipher_commands="${openssl_path} list -cipher-commands"
 	fi
 
+	local cipher_only
+	cipher_only=$(echo "$cipher" | cut -d: -f1)
+
 	local supported
-	supported=$($list_cipher_commands | tr -s ' ' '\n' | grep -Fx "$cipher") || true
+	supported=$($list_cipher_commands | tr -s ' ' '\n' | grep -Fx "$cipher_only") || true
 	if [[ ! $supported ]]; then
 		if [[ $interactive ]]; then
-			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
+			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher_only"
 			$list_cipher_commands | column -c 80
 			printf '\n'
 			cipher=''
 		else
 			# shellcheck disable=SC2016
-			die 1 '"%s" is not a valid cipher; see `%s`' "$cipher" "$list_cipher_commands"
+			die 1 '"%s" is not a valid cipher; see `%s`' "$cipher_only" "$list_cipher_commands"
 		fi
 	fi
 }
@@ -999,7 +1023,7 @@ rekey=''
 show_file=''
 uninstall=''
 upgrade=''
-openssl_path='openssl'
+openssl_path=$(git config --get --local transcrypt.openssl-path || echo 'openssl')
 
 # used to bypass certain safety checks
 requires_existing_config=''
