@@ -141,7 +141,7 @@ git_clean() {
 		if [[ -z "$key_deriv" ]]; then
 			ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
 		else
-			ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+			ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md SHA512 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
 		fi
 	fi
 }
@@ -158,7 +158,7 @@ git_smudge() {
 	if [[ -z "$key_deriv" ]]; then
 		tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
 	else
-		tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+		tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md SHA512 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
 	fi
 }
 
@@ -177,7 +177,7 @@ git_textconv() {
 	if [[ -z "$key_deriv" ]]; then
 		ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
 	else
-		ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+		ENC_PASS=$password "$openssl_path" enc "-${cipher}" "-${key_deriv}" -iter "${iter}" -md SHA512 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
 	fi
 }
 
