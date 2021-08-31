@@ -52,6 +52,7 @@ realpath() {
 }
 
 # establish repository metadata and directory handling
+# shellcheck disable=SC2155
 gather_repo_metadata() {
 	# whether or not transcrypt is already configured
 	readonly CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
