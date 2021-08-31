@@ -55,6 +55,8 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "$(git config --get merge.renormalize)" = "true" ]]
 
   [[ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'" ]]
+  # shellcheck disable=SC2016
+  [[ "$(git config --get alias.add-crypt)" = '!"$(git rev-parse --git-common-dir)"/crypt/transcrypt add' ]]
 }
 
 @test "init: show details for --display" {
