@@ -1,12 +1,12 @@
 name: Tests
 
 on:
-  # Only run tests on push to master branch
+  # Only run tests on push to main branch
   push:
-    branches: [master]
-  # Run tests for all pull request changes targeting master
+    branches: [main]
+  # Run tests for all pull request changes targeting main
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
 
@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04, macos-latest]
+        os: [ubuntu-18.04, ubuntu-20.04, macos-latest]
 
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -39,6 +39,13 @@ jobs:
 
     - name: Print OpenSSL version
       run: openssl version
+
+    - name: Print Git version
+      run: git version
+
+    # Configure default Git branch name to suppress hint warnings
+    - name: Configure default Git branch to "main"
+      run: git config --global init.defaultBranch main
 
     - name: Install and set up bats-core
       run: |

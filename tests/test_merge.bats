@@ -90,7 +90,7 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
 
   run cat sensitive_file
   [[ "$status" -eq 0 ]]
-  [[ "${lines[0]}" = "<<<<<<< master" ]]
+  [[ "${lines[0]}" = "<<<<<<< main" ]]
   [[ "${lines[1]}" = "a. First step" ]]
   [[ "${lines[2]}" = "=======" ]]
   [[ "${lines[3]}" = "1. Step the first" ]]

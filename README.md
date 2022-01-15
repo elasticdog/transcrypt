@@ -183,7 +183,7 @@ re-configure transcrypt with the new credentials.
 
     $ transcrypt --flush-credentials
     $ git fetch origin
-    $ git merge origin/master
+    $ git merge origin/main
     $ transcrypt -c aes-256-cbc -p 'the-new-password'
 
 ### Command Line Options
