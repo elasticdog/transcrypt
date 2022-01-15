@@ -54,27 +54,35 @@ realpath() {
 # establish repository metadata and directory handling
 gather_repo_metadata() {
 	# whether or not transcrypt is already configured
-	readonly CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
+	readonly CONFIGURED
+	CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
 
 	# the current git repository's top-level directory
-	readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
+	readonly REPO
+	REPO=$(git rev-parse --show-toplevel 2>/dev/null)
 
 	# whether or not a HEAD revision exists
-	readonly HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2>/dev/null)
+	readonly HEAD_EXISTS
+	HEAD_EXISTS=$(git rev-parse --verify --quiet HEAD 2>/dev/null)
 
 	# https://github.com/RichiH/vcsh
 	# whether or not the git repository is running under vcsh
-	readonly IS_VCSH=$(git config --get --local --bool vcsh.vcsh 2>/dev/null)
+	readonly IS_VCSH
+	IS_VCSH=$(git config --get --local --bool vcsh.vcsh 2>/dev/null)
 
 	# whether or not the git repository is bare
-	readonly IS_BARE=$(git rev-parse --is-bare-repository 2>/dev/null || printf 'false')
+	readonly IS_BARE
+	IS_BARE=$(git rev-parse --is-bare-repository 2>/dev/null || printf 'false')
 
 	# the current git repository's .git directory
-	readonly RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
-	readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
+	readonly RELATIVE_GIT_DIR
+	RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
+	readonly GIT_DIR
+	GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
 
 	# respect core.hooksPath setting, without trailing slash. Fall back to default hooks dir
-	readonly GIT_HOOKS=$(git config core.hooksPath | sed 's:/*$::' 2>/dev/null || printf "%s/hooks" "${RELATIVE_GIT_DIR}")
+	readonly GIT_HOOKS
+	GIT_HOOKS=$(git config core.hooksPath | sed 's:/*$::' 2>/dev/null || printf "%s/hooks" "${RELATIVE_GIT_DIR}")
 
 	# the current git repository's gitattributes file
 	local CORE_ATTRIBUTES
