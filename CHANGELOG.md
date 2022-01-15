@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 - Zsh completion. (#107)
 - Fix salt generation for partial (patch) commits (#118)
 - Improve command hint to fix secret files not encrypted in index (#120)
+- Fix handling of files with null in first 8 bytes (#116)
 
 ## [2.1.0] - 2020-09-07
 
