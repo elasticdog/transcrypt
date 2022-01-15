@@ -127,7 +127,8 @@ git_clean() {
 	trap 'rm -f "$tempfile"' EXIT
 	tee "$tempfile" &>/dev/null
 	# the first bytes of an encrypted file are always "Salted" in Base64
-	read -rn 8 firstbytes <"$tempfile"
+	# The `head + LC_ALL=C tr` command handles binary data in old and new Bash (#116)
+	firstbytes=$(head -c8 "$tempfile" | LC_ALL=C tr -d '\0')
 	if [[ $firstbytes == "U2FsdGVk" ]]; then
 		cat "$tempfile"
 	else
