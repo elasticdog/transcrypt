@@ -16,6 +16,16 @@ The format is based on [Keep a Changelog][1], and this project adheres to
   openssl version instead of the default version found in `$PATH`. This will be
   most useful to macOS users who might want to use a newer version of OpenSSL.
   This option can be used on init, on upgrade, or by itself.
+- Add support for an optional `transcrypt.crypt-dir` setting for advanced users
+  to override the path of the _.git/crypt/_ directory to permit things like
+  installing transcrypt in a repository on a device without execute
+  permissions (#104)
+
+### Changed
+
+- No longer need stand-alone scripts for git operations `clean`, `smudge`,
+  `textconv`, and `merge` in the repository's _crypt/_ directory; the single
+  consolidated `transcrypt` script is stored there instead.
 
 ### Fixed
 

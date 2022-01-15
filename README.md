@@ -328,4 +328,4 @@ To run the tests:
 
 - [install bats-core](https://github.com/bats-core/bats-core#installation)
 - run all tests with: `bats tests/`
-- run an individual test with e.g: `./tests/test_help.bats`
+- run an individual test with e.g: `bats tests/test_crypt.bats`
