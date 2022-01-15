@@ -47,7 +47,7 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
   [[ "${output}" = *"Transcrypt managed file is not encrypted in the Git index: sensitive_file"* ]]
   [[ "${output}" = *"You probably staged this file using a tool that does not apply .gitattribute filters as required by Transcrypt."* ]]
   [[ "${output}" = *"Fix this by re-staging the file with a compatible tool or with Git on the command line:"* ]]
-  [[ "${output}" = *"    git reset -- sensitive_file"* ]]
+  [[ "${output}" = *"    git rm --cached -- sensitive_file"* ]]
   [[ "${output}" = *"    git add sensitive_file"* ]]
 }
 
