@@ -52,6 +52,7 @@ realpath() {
 }
 
 # establish repository metadata and directory handling
+# shellcheck disable=SC2155
 gather_repo_metadata() {
 	# whether or not transcrypt is already configured
 	readonly CONFIGURED=$(git config --get --local transcrypt.version 2>/dev/null)
@@ -429,7 +430,7 @@ save_helper_hooks() {
 		      printf 'Fix this by re-staging the file with a compatible tool or with'
 		      printf ' Git on the command line:\n' >&2
 		      printf '\n' >&2
-		      printf '    git reset -- %s\n' "$secret_file" >&2
+		      printf '    git rm --cached -- %s\n' "$secret_file" >&2
 		      printf '    git add %s\n' "$secret_file" >&2
 		      printf '\n' >&2
 		      exit 1
