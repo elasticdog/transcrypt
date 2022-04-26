@@ -120,39 +120,60 @@ die() {
 # then use the last 16 bytes of that HMAC for the file's unique salt.
 
 git_clean() {
+
+	# The clean script encrypts files before git sends them to the remote.
+	# Note the "Salted" check is part of openssl and not anything we do here.
+	# It allows anyone (including us) to check if a file was already encrypted
+	# but this does compromise the encrypted stream of data (which starts on
+	# the 17th byte).
+	# References: https://crypto.stackexchange.com/questions/8776/what-is-u2fsdgvkx1
 	filename=$1
 	# ignore empty files
 	if [[ ! -s $filename ]]; then
 		return
 	fi
 	# cache STDIN to test if it's already encrypted
+	# First, create the tempfile, then
+	# set a trap to remove the tempfile when we exit or if anything goes wrong 
+	# finally write the stdin of this script to the tempfile
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
 	tee "$tempfile" &>/dev/null
 	# the first bytes of an encrypted file are always "Salted" in Base64
 	# The `head + LC_ALL=C tr` command handles binary data in old and new Bash (#116)
+	# this is an openssl standard. The actual encrypted stream starts on the 17th byte.
 	firstbytes=$(head -c8 "$tempfile" | LC_ALL=C tr -d '\0')
 	if [[ $firstbytes == "U2FsdGVk" ]]; then
+		# The file is already encrypted, so just pass it back
 		cat "$tempfile"
 	else
 		cipher=$(git config --get --local transcrypt.cipher)
 		password=$(git config --get --local transcrypt.password)
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
-		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
-		ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		#salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
+		#ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -e -a -S "$salt" -in "$tempfile"
+		# NOTE: salt must be 16 bytes, its openssl standard
+		salt=$("$openssl_path" dgst -hmac "${filename}:${password}" -sha512 "$filename" | tr -d '\r\n' | tail -c 16)
+		ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md SHA512 -pass env:ENC_PASS -pbkdf2 -e -a -S "$salt" -in "$tempfile"
 	fi
 }
 
 git_smudge() {
+	# The smudge script decrypts files when they are checked out by an authenticated repository.
+	# the file contents are passed via stdin
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
 	cipher=$(git config --get --local transcrypt.cipher)
 	password=$(git config --get --local transcrypt.password)
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
-	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+	#tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a 2>/dev/null || cat "$tempfile"
+	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md SHA512 -pass env:ENC_PASS -pbkdf2 -d -a 2>/dev/null || cat "$tempfile"
 }
 
 git_textconv() {
+	# The textconv script allows users to see git diffs in plaintext. 
+	# It does this by decrypting the encrypted git globs into plain text before
+	# passing them to the diff command. 
 	filename=$1
 	# ignore empty files
 	if [[ ! -s $filename ]]; then
@@ -161,7 +182,8 @@ git_textconv() {
 	cipher=$(git config --get --local transcrypt.cipher)
 	password=$(git config --get --local transcrypt.password)
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
-	ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+	#ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md MD5 -pass env:ENC_PASS -d -a -in "$filename" 2>/dev/null || cat "$filename"
+	ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md SHA512 -pass env:ENC_PASS -pbkdf2 -d -a -in "$filename" 2>/dev/null || cat "$filename"
 }
 
 # shellcheck disable=SC2005,SC2002,SC2181
