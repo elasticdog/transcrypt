@@ -682,7 +682,7 @@ save_helper_hooks() {
 	fi
 }
 
-# write the configuration to the repository's git config
+# "install" transcrypt by writing the configuration to the repository's git config
 save_configuration() {
 	save_helper_scripts
 	save_helper_hooks
