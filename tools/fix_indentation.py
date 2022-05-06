@@ -26,3 +26,13 @@ def main():
             new_indent = space_pat.sub('\t', indent)
         new_line = new_indent + suffix
         new_lines.append(new_line)
+
+    fpath.write_text('\n'.join(new_lines))
+
+
+if __name__ == '__main__':
+    """
+    CommandLine:
+        python tools/fix_indentation.py
+    """
+    main()
