@@ -8,7 +8,6 @@ mkdir -p "$TMP_DIR"
 rm -rf "$TMP_DIR"
 
 
-
 # Make a git repo and add some public content
 DEMO_REPO=$TMP_DIR/repo
 mkdir -p "$DEMO_REPO"
