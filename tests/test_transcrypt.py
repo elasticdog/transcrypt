@@ -469,7 +469,6 @@ def test_configuration_grid():
         self = TestEnvironment(config={'use_pbkdf2': 1})
     """
     # Test that transcrypt works under a variety of config conditions
-
     basis = {
         'cipher': ['aes-256-cbc', 'aes-128-ecb'],
         'password': ['correct horse battery staple'],
@@ -485,6 +484,7 @@ def test_configuration_grid():
         self.setup()
         self.test_round_trip()
         self.test_export_gpg()
+        self.test_rekey()
 
 
 if __name__ == '__main__':
