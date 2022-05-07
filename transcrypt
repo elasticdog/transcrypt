@@ -21,7 +21,7 @@ set -euo pipefail
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='2.2.0-pre'
+readonly VERSION='3.0.0-pre'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
@@ -296,6 +296,33 @@ die() {
 	exit "$st"
 }
 
+
+_openssl_encrypt()
+{
+    # Test the openssl version
+    openssl_major_version=$($openssl_path version  | cut -d' ' -f2 | cut -d'.' -f1)
+    if [ "$openssl_major_version" -ge "3" ]; then
+        # OpenSSL 3.x
+        # In 3.x openssl disabled output of the salt prefix, which we need for determinism.
+        # To reenable the prefix we emit the raw prefix bytes, encrypt in raw bytes, and then
+        # send that entire stream to be base64 encoded
+        (printf "Salted__" && printf "%s" "$salt" | xxd -r -p && \
+            ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
+        ) | base64
+    else
+        # OpenSSL 1.x
+        ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -a -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
+    fi
+}
+
+_openssl_decrypt()
+{
+    # Exepcts that the following variables are set:
+    # password, openssl_path, cipher, digest, pbkdf2_args
+    # This works the same across openssl versions
+	ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS "${pbkdf2_args[@]}" -d -a 
+}
+
 # The `decryption -> encryption` process on an unchanged file must be
 # deterministic for everything to work transparently. To do that, the same
 # salt must be used each time we encrypt the same file. An HMAC has been
@@ -331,9 +358,9 @@ git_clean() {
 		cat "$tempfile"
 	else
 		_load_vars_for_encryption
-		# NOTE: salt must be 16 bytes, its openssl standard
+		# NOTE: the openssl standard for salt is 16 hex bytes.
 		salt=$("$openssl_path" dgst -hmac "${filename}:${extra_salt}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
-		ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -a -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
+        _openssl_encrypt
 	fi
 }
 
@@ -344,7 +371,7 @@ git_smudge() {
 	trap 'rm -f "$tempfile"' EXIT
 	#_load_transcrypt_config_vars
 	_load_vars_for_encryption
-	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS "${pbkdf2_args[@]}" -d -a 2>/dev/null || cat "$tempfile"
+	tee "$tempfile" | _openssl_decrypt 2>/dev/null || cat "$tempfile"
 }
 
 git_textconv() {
@@ -357,7 +384,7 @@ git_textconv() {
 		return
 	fi
 	_load_transcrypt_config_vars
-	ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS "${pbkdf2_args[@]}" -d -a -in "$filename" 2>/dev/null || cat "$filename"
+	_openssl_decrypt -in "$filename" 2>/dev/null || cat "$filename"
 }
 
 # shellcheck disable=SC2005,SC2002,SC2181

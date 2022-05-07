@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 [1]: https://keepachangelog.com/en/1.0.0/
 [2]: https://semver.org/spec/v2.0.0.html
 
+
+## [3.0.0] - [Unreleased]
+
+### Added
+- Add support for pbkdf2
+- Add support for user specified digest
+- Add support for new configured salt method
+- Add .transcrypt versioned directory
+- Support for OpenSSL 3.x
+- Add support for development editable install
+
+
 ## [Unreleased]
 
 ### Added

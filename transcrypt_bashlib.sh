@@ -1,4 +1,71 @@
 #!/usr/bin/env bash
+__doc__='
+This contains the standalone heredoc versions of transcrypt library functions.
+These are not used in the main executable itself. Instead they are ported from
+here to there and stripped of extranious information.
+
+This makes it easier to unit test the individual bash components of the system
+while still providing a fast and reasonably optimized runtime.
+'
+
+
+# shellcheck disable=SC2154
+_openssl_encrypt()
+{
+    __doc__='
+    Example:
+        source ~/code/transcrypt/transcrypt_bashlib.sh
+        pbkdf2_args=("-pbkdf2")
+        salt=deadbeafbad00000
+        digest=sha256
+        password=12345
+        openssl_path=openssl
+        cipher=aes-256-cbc
+        tempfile=$(mktemp)
+        echo "secret" > $tempfile
+        _openssl_encrypt
+    '
+    # Exepcts that the following variables are set:
+    # password, openssl_path, cipher, digest, salt, pbkdf2_args, tempfile
+
+    # Test the openssl version
+    openssl_major_version=$($openssl_path version  | cut -d' ' -f2 | cut -d'.' -f1)
+    if [ "$openssl_major_version" -ge "3" ]; then
+        # OpenSSL 3.x
+        # In 3.x openssl disabled output of the salt prefix, which we need for determinism.
+        # To reenable the prefix we emit the raw prefix bytes, encrypt in raw bytes, and then
+        # send that entire stream to be base64 encoded
+        (printf "Salted__" && printf "%s" "$salt" | xxd -r -p && \
+            ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
+        ) | base64
+    else
+        # OpenSSL 1.x
+        ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -a -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
+    fi
+}
+
+# shellcheck disable=SC2154
+_openssl_decrypt()
+{
+    __doc__='
+    Example:
+        source ~/code/transcrypt/transcrypt_bashlib.sh
+        pbkdf2_args=("-pbkdf2")
+        digest=sha256
+        password=12345
+        openssl_path=openssl
+        cipher=aes-256-cbc
+        echo "U2FsdGVkX1/erb6vutAAADPXEjWJ3l4MEpSGTj5qC/w=" | _openssl_decrypt
+        tempfile=$(mktemp)
+        echo "U2FsdGVkX1/erb6vutAAADPXEjWJ3l4MEpSGTj5qC/w=" > $tempfile
+        _openssl_decrypt -in $tempfile
+    '
+    # Exepcts that the following variables are set:
+    # password, openssl_path, cipher, digest, pbkdf2_args
+    # This works the same across openssl versions
+	ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS "${pbkdf2_args[@]}" -d -a "$@"
+}
+
 
 _is_contained_str(){
     __doc__='
@@ -54,18 +121,6 @@ _is_contained_arr(){
         fi
     done
     return 1
-}
-
-_benchmark_methods(){
-    arg="sha512"
-    source ~/code/transcrypt/bash_helpers.sh
-    time (openssl list -digest-commands | tr -s ' ' '\n'  | grep -Fx "$arg")
-    echo $?
-    time _is_contained_str "$arg" "$(openssl list -digest-commands)"
-    echo $?
-    time (readarray -t available <<< "$(openssl list -digest-commands | tr -s ' ' '\n')" && _is_contained_arr "$arg" "${available[@]}") 
-    echo $?
-    #bash_array_repr "${available[@]}"
 }
 
 
@@ -124,7 +179,7 @@ _validate_variable_arr(){
             echo "$message"
 		else
             die 1 "$message"
-        fi
+     s  fi
     fi
 }
 
@@ -237,4 +292,39 @@ _check_config_poc(){
     git config --file "${VERSIONED_TC_CONFIG}" transcrypt.digest "SHA512"
     git config --file "${VERSIONED_TC_CONFIG}" transcrypt.salt-method "auto"
     git config --file "${VERSIONED_TC_CONFIG}" transcrypt.extra-salt "${extra_salt}"
+}
+
+
+# print a message to stderr
+warn() {
+	local fmt="$1"
+	shift
+	# shellcheck disable=SC2059
+	printf "transcrypt: $fmt\n" "$@" >&2
+}
+
+# print a message to stderr and exit with either
+# the given status or that of the most recent command
+die() {
+	local st="$?"
+	if [[ "$1" != *[^0-9]* ]]; then
+		st="$1"
+		shift
+	fi
+	warn "$@"
+	exit "$st"
+}
+
+_benchmark_methods(){
+    arg="sha512"
+    source ~/code/transcrypt/bash_helpers.sh
+    time (openssl list -digest-commands | tr -s ' ' '\n'  | grep -Fx "$arg")
+    echo $?
+    time _is_contained_str "$arg" "$(openssl list -digest-commands)"
+    echo $?
+    # Odd vim syntax issue?
+    # ~/.pyenv/versions/3.9.9/share/vim/vim82/syntax/sh.vim
+    time (readarray -t available <<< "$(openssl list -digest-commands | tr -s ' ' '\n')" && _is_contained_arr "$arg" "${available[@]}") 
+    echo $?
+    #bash_array_repr "${available[@]}"
 }

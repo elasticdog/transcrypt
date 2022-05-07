@@ -5,9 +5,15 @@ Requirements:
     pip install GitPython
 """
 import ubelt as ub
-import base64
 
-SALTED = base64.b64encode(b'Salted').decode('utf8')
+# U2FsdGVkX18=
+# 53616c7465645f5f
+__salt_notes__ = '''
+    import base64
+    salted_bytes = b'Salted'
+    base64.b64encode(salted_bytes)
+'''
+SALTED_B64 = 'U2FsdGVk'
 
 
 class Transcrypt(ub.NiceRepr):
@@ -18,16 +24,17 @@ class Transcrypt(ub.NiceRepr):
         >>> import sys, ubelt
         >>> sys.path.append(ubelt.expandpath('~/code/transcrypt/tests'))
         >>> from test_transcrypt import *  # NOQA
-        >>> sandbox = DemoSandbox(verbose=0).setup()
+        >>> sandbox = DemoSandbox(verbose=1, dpath='special:cache').setup()
         >>> config = {'digest': 'sha256',
         >>>           'use_pbkdf2': '1',
         >>>           'config_salt': '665896be121e1a0a4a7b18f01780061',
         >>>           'salt_method': 'configured'}
         >>> self = Transcrypt(sandbox.repo_dpath,
-        >>>                   config=config, env=sandbox.env, verbose=0)
+        >>>                   config=config, env=sandbox.env, verbose=1)
         >>> print(self.version())
         >>> self.config['password'] = 'chbs'
         >>> self.login()
+        >>> sandbox.git.commit('-am', 'new salt config')
         >>> print(self.display())
         >>> secret_fpath1 = self.dpath / 'safe/secret1.txt'
         >>> secret_fpath2 = self.dpath / 'safe/secret2.txt'
@@ -36,7 +43,7 @@ class Transcrypt(ub.NiceRepr):
         >>> secret_fpath2.write_text('secret message 2')
         >>> secret_fpath3.write_text('secret message 3')
         >>> sandbox.git.add(secret_fpath1, secret_fpath2, secret_fpath3)
-        >>> sandbox.git.commit('-am add secret messages')
+        >>> sandbox.git.commit('-am', 'add secret messages')
         >>> encrypted_paths = self.list()
         >>> assert len(encrypted_paths) == 3
         >>> assert self.show_raw(secret_fpath1) == 'U2FsdGVkX18147KP5UmqOFywveuOGf4hCwrWpfJDp3Ah0HHbFPEGdJE0kM4npWzI'
@@ -209,10 +216,14 @@ class DemoSandbox(ub.NiceRepr):
     """
     def __init__(self, dpath=None, verbose=0):
         if dpath is None:
+            dpath = 'special:temp'
+
+        if dpath == 'special:temp':
             import tempfile
             self._tmpdir = tempfile.TemporaryDirectory()
             dpath = self._tmpdir.name
-            # dpath = ub.Path.appdir('transcrypt/tests/test_env')
+        elif dpath == 'special:cache':
+            dpath = ub.Path.appdir('transcrypt/tests/test_env')
         self.env = {}
         self.dpath = ub.Path(dpath)
         self.gpg_store = None
@@ -302,14 +313,18 @@ class TestCases:
     Unit tests to be applied to different transcrypt configurations
     """
 
-    def __init__(self, config, verbose=0):
+    def __init__(self, config=None, dpath=None, verbose=0):
+        if config is None:
+            config = Transcrypt.default_config
+            config['password'] = '12345'
         self.config = config
         self.verbose = verbose
         self.sandbox = None
         self.tc = None
+        self.dpath = dpath
 
     def setup(self):
-        self.sandbox = DemoSandbox(verbose=self.verbose)
+        self.sandbox = DemoSandbox(dpath=self.dpath, verbose=self.verbose)
         self.sandbox.setup()
         self.tc = Transcrypt(
             dpath=self.sandbox.repo_dpath,
@@ -328,9 +343,9 @@ class TestCases:
         secret_fpath = self.sandbox.secret_fpath
         ciphertext = self.tc.show_raw(secret_fpath)
         plaintext = secret_fpath.read_text()
-        assert ciphertext.startswith(SALTED)
+        assert ciphertext.startswith(SALTED_B64)
         assert plaintext.startswith('secret content')
-        assert not plaintext.startswith(SALTED)
+        assert not plaintext.startswith(SALTED_B64)
 
         self.tc.logout()
         logged_out_text = secret_fpath.read_text().rstrip()
@@ -455,9 +470,9 @@ def test_configuration_grid():
         >>> import sys, ubelt
         >>> sys.path.append(ubelt.expandpath('~/code/transcrypt/tests'))
         >>> from test_transcrypt import *  # NOQA
-        >>> self = DemoSandbox()
+        >>> self = TestCases()
         >>> self.setup()
-        >>> self.tc._manual_hack_info()
+        >>> self.sandbox._manual_hack_info()
         >>> self.test_round_trip()
         >>> self.test_export_gpg()
 
@@ -478,10 +493,16 @@ def test_configuration_grid():
         'config_salt': ['', 'mylittlecustomsalt'],
     }
     test_grid = list(ub.named_product(basis))
-    for params in ub.ProgIter(test_grid, desc='test configs'):
+    dpath = 'special:temp'
+    dpath = 'special:cache'
+    for params in ub.ProgIter(test_grid, desc='test configs', freq=1):
         config = params.copy()
-        self = TestCases(config=config)
+        self = TestCases(config=config, dpath=dpath)
         self.setup()
+        if 0:
+            # Manual debug
+            self.sandbox._manual_hack_info()
+
         self.test_round_trip()
         self.test_export_gpg()
         self.test_rekey()
