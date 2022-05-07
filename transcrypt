@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# TODO:
-# Remove "salt_method"
-# Just have a setting where the password is allowed to be in the salt and a
-# setting where the user does have a configured salt?
-
 #
 # transcrypt - https://github.com/elasticdog/transcrypt
 #
@@ -37,7 +32,7 @@ readonly VALID_SALT_METHODS="password configured"
 readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path"
 
 # Set to 1 to enable a development editable installation
-readonly EDITABLE_INSTALL=1
+readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=0}
 
 ##### FUNCTIONS
 
@@ -66,6 +61,46 @@ realpath() {
 	else
 		printf 'invalid path: %s\n' "$path" >&2
 		exit 1
+	fi
+}
+
+
+_openssl_encrypt()
+{
+    # Test the openssl version
+    openssl_major_version=$($openssl_path version  | cut -d' ' -f2 | cut -d'.' -f1)
+    if [ "$openssl_major_version" -ge "3" ]; then
+        # OpenSSL 3.x
+        # In 3.x openssl disabled output of the salt prefix, which we need for determinism.
+        # To reenable the prefix we emit the raw prefix bytes, encrypt in raw bytes, and then
+        # send that entire stream to be base64 encoded
+        (printf "Salted__" && printf "%s" "$salt" | xxd -r -p && \
+            ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
+        ) | base64
+    else
+        # OpenSSL 1.x
+        ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -a -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
+    fi
+}
+
+_openssl_decrypt()
+{
+    # Exepcts that the following variables are set:
+    # password, openssl_path, cipher, digest, pbkdf2_args
+    # This works the same across openssl versions
+	ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS "${pbkdf2_args[@]}" -d -a 
+}
+
+
+# compatible openssl list command
+_openssl_list(){
+	arg=$1
+	if "${openssl_path}  list-$arg" &>/dev/null; then
+		# OpenSSL < v1.1.0
+		"${openssl_path}" "list-$arg"
+	else
+		# OpenSSL >= v1.1.0
+		"${openssl_path}" "list" "-$arg"
 	fi
 }
 
@@ -117,18 +152,6 @@ _get_user_input() {
 			${validate_fn}
 		fi
 	done
-}
-
-# compatible openssl list command
-_openssl_list(){
-	arg=$1
-	if "${openssl_path}  list-$arg" &>/dev/null; then
-		# OpenSSL < v1.1.0
-		"${openssl_path}" "list-$arg"
-	else
-		# OpenSSL >= v1.1.0
-		"${openssl_path}" "list" "-$arg"
-	fi
 }
 
 # Check if the first arg is contained in the space separated second arg
@@ -294,33 +317,6 @@ die() {
 	fi
 	warn "$@"
 	exit "$st"
-}
-
-
-_openssl_encrypt()
-{
-    # Test the openssl version
-    openssl_major_version=$($openssl_path version  | cut -d' ' -f2 | cut -d'.' -f1)
-    if [ "$openssl_major_version" -ge "3" ]; then
-        # OpenSSL 3.x
-        # In 3.x openssl disabled output of the salt prefix, which we need for determinism.
-        # To reenable the prefix we emit the raw prefix bytes, encrypt in raw bytes, and then
-        # send that entire stream to be base64 encoded
-        (printf "Salted__" && printf "%s" "$salt" | xxd -r -p && \
-            ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
-        ) | base64
-    else
-        # OpenSSL 1.x
-        ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -a -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile"
-    fi
-}
-
-_openssl_decrypt()
-{
-    # Exepcts that the following variables are set:
-    # password, openssl_path, cipher, digest, pbkdf2_args
-    # This works the same across openssl versions
-	ENC_PASS=$password "$openssl_path" enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS "${pbkdf2_args[@]}" -d -a 
 }
 
 # The `decryption -> encryption` process on an unchanged file must be

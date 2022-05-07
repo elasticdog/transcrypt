@@ -6,8 +6,6 @@ Requirements:
 """
 import ubelt as ub
 
-# U2FsdGVkX18=
-# 53616c7465645f5f
 __salt_notes__ = '''
     import base64
     salted_bytes = b'Salted'
@@ -393,7 +391,6 @@ class TestCases:
         assert plaintext.startswith('secret content')
 
     def test_rekey(self):
-        # TODO
         new_config = {
             'cipher': 'aes-256-cbc',
             'password': '12345',
@@ -464,7 +461,7 @@ def test_configured_salt_changes_on_rekey():
 def test_configuration_grid():
     """
     CommandLine:
-        xdoctest -m /home/joncrall/code/transcrypt/tests/test_transcrypt.py run_tests
+        xdoctest -m tests/test_transcrypt.py test_configuration_grid
 
     Example:
         >>> import sys, ubelt
