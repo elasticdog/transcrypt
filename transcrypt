@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${TRANSCRYPT_TRACE+x}" != "" ]]; then
+    set -x
+fi
+
 #
 # transcrypt - https://github.com/elasticdog/transcrypt
 #
@@ -206,13 +210,13 @@ _load_config_var() {
 # shellcheck disable=SC2155
 _load_transcrypt_config_vars() {
 	# Populate bash vars with our config
-	cipher=$(git config --get --local transcrypt.cipher)
-	digest=$(git config --get --local transcrypt.digest)
-	use_pbkdf2=$(git config --get --local transcrypt.use-pbkdf2)
-	salt_method=$(git config --get --local transcrypt.salt-method)
+	cipher=$(git config --get --local transcrypt.cipher) || (echo "failed to load transcrypt.cipher" && false)
+    digest=$(git config --get --local transcrypt.digest) || (echo "failed to load transcrypt.digest" && false)
+	use_pbkdf2=$(git config --get --local transcrypt.use-pbkdf2) || (echo "failed to load transcrypt.use-pbkdf2" && false)
+	salt_method=$(git config --get --local transcrypt.salt-method) || (echo "failed to load transcrypt.salt-method" && false)
 
-	password=$(git config --get --local transcrypt.password)
-	openssl_path=$(git config --get --local transcrypt.openssl-path)
+	password=$(git config --get --local transcrypt.password) || (echo "failed to load transcrypt.password" && false)
+	openssl_path=$(git config --get --local transcrypt.openssl-path)  || (echo "failed to load transcrypt.openssl-path" && false)
 
 	if [[ "$salt_method" == "configured" ]]; then
 		config_salt=$(_load_versioned_config_var "transcrypt.config-salt")
