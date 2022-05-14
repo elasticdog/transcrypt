@@ -139,7 +139,23 @@ git_clean() {
 		password=$(git config --get --local transcrypt.password)
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
-		ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -a -S "$salt" -in "$tempfile"
+		# Store encrypted data in another temp file in case "Salted" workaround is needed
+		ciphertext_tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
+		trap 'rm -f "$ciphertext_tempfile"' EXIT
+		ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile" >"$ciphertext_tempfile"
+		# Check if encrypted data includes "Salted__" prefix. If not we must add it #133
+		ciphertext_firstbytes=$(head -c8 "$ciphertext_tempfile" | head -c8)
+		# shellcheck disable=SC2002
+		if [[ "${ciphertext_firstbytes}" == 'Salted__' ]]; then
+			cat "$ciphertext_tempfile" | base64
+		else
+			(
+				echo -n "Salted__" &&
+					# Convert hex salt value to binary
+					echo -n "$salt" | xxd -r -p &&
+					cat "$ciphertext_tempfile"
+			) | base64
+		fi
 	fi
 }
 
