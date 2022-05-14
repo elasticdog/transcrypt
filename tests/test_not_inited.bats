@@ -35,12 +35,22 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "not inited: no files listed for --list" {
   run ../transcrypt --list
-  [ "${lines[0]}" = "" ]
+  if [[ "${output}" = *"WARNING"* ]]; then
+    [ "${lines[0]}" = "*** WARNING : deprecated key derivation used." ]
+    [ "${lines[1]}" = "Using -iter or -pbkdf2 would be better." ]
+  else
+    [ "${lines[0]}" = "" ]
+  fi
 }
 
 @test "not inited: no files listed for -l" {
   run ../transcrypt -l
-  [ "${lines[0]}" = "" ]
+  if [[ "${output}" = *"WARNING"* ]]; then
+    [ "${lines[0]}" = "*** WARNING : deprecated key derivation used." ]
+    [ "${lines[1]}" = "Using -iter or -pbkdf2 would be better." ]
+  else
+    [ "${lines[0]}" = "" ]
+  fi
 }
 
 
@@ -49,30 +59,30 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 @test "not inited: error on --display" {
   run ../transcrypt --display
   [ "$status" -ne 0 ]
-  [ "${lines[0]}" = "transcrypt: the current repository is not configured" ]
+  [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
 
 @test "not inited: error on -d" {
   run ../transcrypt -d
   [ "$status" -ne 0 ]
-  [ "${lines[0]}" = "transcrypt: the current repository is not configured" ]
+  [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
 
 @test "not inited: error on --uninstall" {
   run ../transcrypt --uninstall
   [ "$status" -ne 0 ]
-  [ "${lines[0]}" = "transcrypt: the current repository is not configured" ]
+  [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
 
 @test "not inited: error on -u" {
   run ../transcrypt -u
   [ "$status" -ne 0 ]
-  [ "${lines[0]}" = "transcrypt: the current repository is not configured" ]
+  [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
 
 
 @test "not inited: error on --upgrade" {
   run ../transcrypt --upgrade
   [ "$status" -ne 0 ]
-  [ "${lines[0]}" = "transcrypt: the current repository is not configured" ]
+  [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }

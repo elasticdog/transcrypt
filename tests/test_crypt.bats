@@ -62,7 +62,7 @@ function check_repo_is_clean {
 
   run ../transcrypt --list
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "sensitive_file" ]
+  [[ "${output}" = *"sensitive_file" ]]
 }
 
 @test "crypt: transcrypt --uninstall leaves decrypted file and repo dirty" {
@@ -117,7 +117,6 @@ function check_repo_is_clean {
 
   # Git internal copy is encrypted
   run git show HEAD:"$FILENAME" --no-textconv
-  echo "${lines}"
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
 
@@ -130,12 +129,12 @@ function check_repo_is_clean {
   # git ls-crypt lists encrypted file
   run git ls-crypt
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "$FILENAME" ]
+  [[ "${output}" = *"$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
   run ../transcrypt --list
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "$FILENAME" ]
+  [[ "${output}" = *"$FILENAME" ]]
 
   rm "$FILENAME"
 }
@@ -167,12 +166,12 @@ function check_repo_is_clean {
   # git ls-crypt lists encrypted file
   run git ls-crypt
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "$FILENAME" ]
+  [[ "${output}" = *"$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
   run ../transcrypt --list
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "$FILENAME" ]
+  [[ "${output}" = *"$FILENAME" ]]
 
   rm "$FILENAME"
 }
@@ -201,12 +200,12 @@ function check_repo_is_clean {
   # git ls-crypt lists encrypted file
   run git ls-crypt
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "$FILENAME" ]
+  [[ "${output}" = *"$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
   run ../transcrypt --list
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "$FILENAME" ]
+  [[ "${output}" = *"$FILENAME" ]]
 
   rm "$FILENAME"
 }

@@ -11,7 +11,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   # Use literal command not function to confirm command works at least once
   run ../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "The repository has been successfully configured by transcrypt." ]
+  [[ "${output}" = *"The repository has been successfully configured by transcrypt."* ]]
 }
 
 @test "init: creates .gitattributes" {
@@ -58,10 +58,10 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
   run ../transcrypt --display
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]
-  [ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]
-  [ "${lines[6]}" = "  PASSWORD: abc 123" ]
-  [ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc 123'" ]
+  [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
+  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
 @test "init: show details for -d" {
@@ -70,10 +70,10 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
   run ../transcrypt -d
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]
-  [ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]
-  [ "${lines[6]}" = "  PASSWORD: abc 123" ]
-  [ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc 123'" ]
+  [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
+  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
 @test "init: respects core.hooksPath setting" {
@@ -87,10 +87,10 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   VERSION=$(../transcrypt -v | awk '{print $2}')
   run ../transcrypt --display
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]
-  [ "${lines[5]}" = "  CIPHER:   aes-256-cbc" ]
-  [ "${lines[6]}" = "  PASSWORD: abc 123" ]
-  [ "${lines[8]}" = "  transcrypt -c aes-256-cbc -p 'abc 123'" ]
+  [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
+  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
 @test "init: transcrypt.openssl-path config setting defaults to 'openssl'" {
