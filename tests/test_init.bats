@@ -136,6 +136,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 }
 
 @test "init: transcrypt.crypt-dir config setting is applied during init" {
+  # Clear tmp crypt/ directory, in case junk was left there from prior test runs
+  rm -fR /tmp/crypt/
+
   # Set a custom location for the crypt/ directory
   git config transcrypt.crypt-dir /tmp/crypt
 
@@ -149,6 +152,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 }
 
 @test "crypt: transcrypt.crypt-dir config setting produces working scripts" {
+  # Clear tmp crypt/ directory, in case junk was left there from prior test runs
+  rm -fR /tmp/crypt/
+
   # Set a custom location for the crypt/ directory
   git config transcrypt.crypt-dir /tmp/crypt
 
