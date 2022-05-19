@@ -59,7 +59,12 @@ The following is the openssl invocation used in encryption
     ENC_PASS=$password openssl enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS -e -a -S "$salt" "${pbkdf2_args[@]}"
 
 
-Note: For OpenSSL V3.x, which does not prepend the salt to the ciphertext, we manually prepend the raw salt bytes to the raw openssl output (without ``-a`` for base64 encoding) and then perform base64 encoding of the concatenated text as a secondary task. This makes the output from version 3.x match outputs from the 1.x openssl releases. 
+Note: For OpenSSL V3.x, which does not prepend the salt to the ciphertext, we
+manually prepend the raw salt bytes to the raw openssl output (without ``-a``
+for base64 encoding) and then perform base64 encoding of the concatenated text
+as a secondary task. This makes the output from version 3.x match outputs from
+the 1.x openssl releases. (Also note: this is now independently patched in
+https://github.com/elasticdog/transcrypt/pull/135)
    
 
 The Decryption Process
@@ -83,7 +88,7 @@ The following invocation is used for decryption
     # used to decrypt a file. the cipher, digest, password, and key derivation
     # function must be known in advance. the salt is always prepended to the
     # file ciphertext, and ready by openssl, so it does not need to be supplied here.
-	ENC_PASS=$password openssl enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS "${pbkdf2_args[@]}" -d -a
+    ENC_PASS=$password openssl enc "-${cipher}" -md "${digest}" -pass env:ENC_PASS "${pbkdf2_args[@]}" -d -a
 
 
 Configuration
@@ -181,15 +186,20 @@ generated for each file via the following invocation:
 .. code:: bash 
 
     # Used to compute salt for a specific file using "extra-salt" that can be supplied in one of several ways
-	openssl dgst -hmac "${filename}:${extra_salt}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16
+    openssl dgst -hmac "${filename}:${extra_salt}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16
 
-This salt is based on the name of the file, its sha256 hash, and something called "extra-salt", which is determined by the user's choice of ``transcrypt.salt-method``. 
+This salt is based on the name of the file, its sha256 hash, and something
+called "extra-salt", which is determined by the user's choice of
+``transcrypt.salt-method``. 
 
 In the case where ``transcrypt.salt-method=password``, the "extra-salt" is set
 to the user's plaintext password. This exactly mimics the behavior of
 transcrypt 2.x and is used as the default to provide backwards compatibility.
 
-However, as discussed in `#55 <https://github.com/elasticdog/transcrypt/issues/55>_`, this introduces a security weakness that weakens the extra security provided the use of ``-pbkdf2``. Thus transcrypt 3.x introduces a new "configured" method.
+However, as discussed in 
+`#55 <https://github.com/elasticdog/transcrypt/issues/55>_`, this introduces a
+security weakness that weakens the extra security provided the use of
+``-pbkdf2``. Thus transcrypt 3.x introduces a new "configured" method.
 
 In the case where ``transcrypt.salt-method=configured``, the implementation
 will check if a special configuration variable ``transcrypt.config-salt`` is
