@@ -146,7 +146,7 @@ git_clean() {
 				# Encrypt file to binary ciphertext
 				ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile" |
 				# Strip "Salted__" prefix and salt value if also added by OpenSSL (version < 3)
-				LANG=C sed -e "s/^\(Salted__.\{8\}\)\(.*\)/\2/"
+				LC_ALL=C sed -e "s/^\(Salted__.\{8\}\)\(.*\)/\2/"
 		) |
 			base64
 	fi
