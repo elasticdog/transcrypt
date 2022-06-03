@@ -139,23 +139,16 @@ git_clean() {
 		password=$(git config --get --local transcrypt.password)
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
-		# Store encrypted data in another temp file in case "Salted" workaround is needed
-		ciphertext_tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
-		trap 'rm -f "$ciphertext_tempfile"' EXIT
-		ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile" >"$ciphertext_tempfile"
-		# Check if encrypted data includes "Salted__" prefix. If not we must add it #133
-		ciphertext_firstbytes=$(head -c8 "$ciphertext_tempfile" | head -c8)
-		# shellcheck disable=SC2002
-		if [[ "${ciphertext_firstbytes}" == 'Salted__' ]]; then
-			cat "$ciphertext_tempfile" | base64
-		else
-			(
-				echo -n "Salted__" &&
-					# Convert hex salt value to binary
-					echo -n "$salt" | xxd -r -p &&
-					cat "$ciphertext_tempfile"
-			) | base64
-		fi
+		# Encrypt the file to base64, ensuring it always includes the prefix 'Salted__' with the salt. #133
+		(
+			# Always prepend encrypted ciphertext with "Salted__" prefix and binary salt value
+			echo -n "Salted__" && echo -n "$salt" | xxd -r -p &&
+				# Encrypt file to binary ciphertext
+				ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile" |
+				# Strip "Salted__" prefix and salt value if also added by OpenSSL (version < 3)
+				LANG=C sed -e "s/^\(Salted__.\{8\}\)\(.*\)/\2/"
+		) |
+			base64
 	fi
 }
 
