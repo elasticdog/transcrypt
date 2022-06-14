@@ -28,7 +28,7 @@ readonly VERSION='3.0.0-pre'
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
 readonly DEFAULT_DIGEST='MD5'
-readonly DEFAULT_USE_PBKDF2='0'
+readonly DEFAULT_KDF='none'
 readonly DEFAULT_SALT_METHOD='password'
 
 # These are the implemented methods for computing deterministic salt
@@ -246,7 +246,7 @@ _load_transcrypt_config_vars() {
 	# Populate bash vars with our config
 	cipher=$(_load_config_var "transcrypt.cipher") || (echo "failed to load transcrypt.cipher" && false)
 	digest=$(_load_config_var "transcrypt.digest") || (echo "failed to load transcrypt.digest" && false)
-	use_pbkdf2=$(_load_config_var "transcrypt.use-pbkdf2") || (echo "failed to load transcrypt.use-pbkdf2" && false)
+	kdf=$(_load_config_var "transcrypt.kdf") || (echo "failed to load transcrypt.kdf" && false)
 	salt_method=$(_load_config_var "transcrypt.salt-method") || (echo "failed to load transcrypt.salt-method" && false)
 	openssl_path=$(_load_config_var "transcrypt.openssl-path") || (echo "failed to load transcrypt.openssl-path" && false)
 	password=$(_load_unversioned_config_var transcrypt.password) || (echo "failed to load transcrypt.password" && false)
@@ -257,7 +257,7 @@ _load_vars_for_encryption() {
 	# Helper to populate variables needed to call openssl encryption
 	_load_transcrypt_config_vars
 
-	if [[ "$use_pbkdf2" == "1" ]]; then
+	if [[ "$kdf" == "1" ]] || [[ "$kdf" == "pbkdf2" ]]; then
 		pbkdf2_args=('-pbkdf2')
 	else
 		pbkdf2_args=()
@@ -574,8 +574,8 @@ validate_digest() {
 	_validate_variable_str "digest" "$valid_digests"
 }
 
-validate_use_pbkdf2() {
-	_validate_variable_str "use_pbkdf2" "0 1"
+validate_kdf() {
+	_validate_variable_str "kdf" "0 1 none pbkdf2"
 }
 
 validate_salt_method() {
@@ -605,14 +605,14 @@ get_cipher() {
 	_get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$prompt"
 }
 
-get_use_pbkdf2() {
+get_kdf() {
 	local prompt
-	prompt=$(printf 'Use pbkdf2? [%s] ' "$DEFAULT_USE_PBKDF2")
-	if [[ "$use_pbkdf2" == "" ]]; then
-		use_pbkdf2=$(_load_versioned_config_var "transcrypt.use-pbkdf2")
-		# echo "Loaded use_pbkdf2 = $use_pbkdf2 from local config"
+	prompt=$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")
+	if [[ "$kdf" == "" ]]; then
+		kdf=$(_load_versioned_config_var "transcrypt.kdf")
+		# echo "Loaded kdf = $kdf from local config"
 	fi
-	_get_user_input use_pbkdf2 "$DEFAULT_USE_PBKDF2" "validate_use_pbkdf2" "$prompt"
+	_get_user_input kdf "$DEFAULT_KDF" "validate_kdf" "$prompt"
 }
 
 get_salt_method() {
@@ -656,7 +656,6 @@ ensure_salt_method() {
 	# Check if randomized salt needs to be written
 	if [[ "$salt_method" == "random" ]]; then
 		# Replace random with something random.
-		#salt_method=$(_load_versioned_config_var "transcrypt.salt-method")
 		# If we have not configured the salt_method (or we need to rekey),
 		# then generate new random salt
 		salt_method=$(openssl rand -hex 32)
@@ -776,7 +775,7 @@ save_configuration() {
 	_set_config_var "transcrypt.version" "$VERSION"
 	_set_config_var "transcrypt.cipher" "$cipher"
 	_set_config_var "transcrypt.digest" "$digest"
-	_set_config_var "transcrypt.use-pbkdf2" "$use_pbkdf2"
+	_set_config_var "transcrypt.kdf" "$kdf"
 	_set_config_var "transcrypt.salt-method" "$salt_method"
 	_set_unversioned_config_var "transcrypt.openssl-path" "$openssl_path"
 	_set_unversioned_config_var "transcrypt.password" "$password"
@@ -825,7 +824,7 @@ _display_git_configuration() {
 # Show the config of the current runtime
 _display_runtime_configuration() {
 	printf '  DIGEST:  %s\n' "$digest"
-	printf '  USE_PBKDF2: %s\n' "$use_pbkdf2"
+	printf '  USE_PBKDF2: %s\n' "$kdf"
 	printf '  SALT_METHOD: %s\n' "$salt_method"
 	if [[ "$salt_method" == "configured" ]]; then
 		printf '  CONFIG_SALT: %s\n' "$salt_method"
@@ -843,8 +842,8 @@ display_configuration() {
 	_display_git_configuration
 	_display_runtime_configuration
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
-	printf "  transcrypt -c '%s' -p '%s' -md '%s' --use-pbkdf2 '%s' -sm '%s'\n" \
-		"$cipher" "$escaped_password" "$digest" "$use_pbkdf2" "$salt_method"
+	printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -sm '%s'\n" \
+		"$cipher" "$escaped_password" "$digest" "$kdf" "$salt_method"
 }
 
 # remove transcrypt-related settings from the repository's git config
@@ -1124,8 +1123,8 @@ export_gpg() {
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
 	#printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
-	printf 'password=%s\ncipher=%s\ndigest=%s\nuse_pbkdf2=%s\nsalt_method=%s\n\n' \
-		"$password" "$cipher" "$digest" "$use_pbkdf2" "$salt_method" |
+	printf 'password=%s\ncipher=%s\ndigest=%s\nkdf=%s\nsalt_method=%s\n\n' \
+		"$password" "$cipher" "$digest" "$kdf" "$salt_method" |
 		$gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
 	printf "The transcrypt configuration has been encrypted and exported to:\n%s/crypt/%s.asc\n" "$GIT_DIR" "$gpg_recipient"
 }
@@ -1160,7 +1159,7 @@ import_gpg() {
 	cipher=$(printf '%s' "$configuration" | grep '^cipher' | cut -d'=' -f 2-)
 	password=$(printf '%s' "$configuration" | grep '^password' | cut -d'=' -f 2-)
 	digest=$(printf '%s' "$configuration" | grep '^digest' | cut -d'=' -f 2-)
-	use_pbkdf2=$(printf '%s' "$configuration" | grep '^use_pbkdf2' | cut -d'=' -f 2-)
+	kdf=$(printf '%s' "$configuration" | grep '^kdf' | cut -d'=' -f 2-)
 	salt_method=$(printf '%s' "$configuration" | grep '^salt_method' | cut -d'=' -f 2-)
 	salt_method=$(printf '%s' "$configuration" | grep '^salt_method' | cut -d'=' -f 2-)
 }
@@ -1205,9 +1204,12 @@ help() {
 		            the digest used to hash the salted password;
 		            defaults to md5
 
-		     -pbkdf2, --use_pbkdf2=USE_PBKDF2
-		            Use the pbkdf2 openssl encryption feature;
-		            defaults to 0
+		     --kdf=PBKDF2
+                    the key-derivation-function to use. Currently can be either
+                    'pbkdf2' or 'none'. Defaults to none.
+
+             -pbkdf2
+		            equivalent to passing --kdf2='pbkdf2'
 
 		     -sm, --salt_method=SALT_METHOD
 		            Method used to compute deterministic salt; can be password, random,
@@ -1319,7 +1321,7 @@ transcrypt_main() {
 	uninstall=''
 	upgrade=''
 	openssl_path='openssl'
-	use_pbkdf2=''
+	kdf=''
 	digest=''
 	salt_method=''
 	salt_method=''
@@ -1372,14 +1374,14 @@ transcrypt_main() {
 			digest=${1#*=}
 			;;
 		-pbkdf2)
-			use_pbkdf2=1
+			kdf=pbkdf2
 			;;
-		--use-pbkdf2)
-			use_pbkdf2=${2}
+		--kdf)
+			kdf=${2}
 			shift
 			;;
-		--use-pbkdf2=*)
-			use_pbkdf2=${1#*=}
+		--kdf=*)
+			kdf=${1#*=}
 			;;
 		-sm | --salt-method)
 			salt_method=$2
@@ -1526,7 +1528,7 @@ transcrypt_main() {
 	# perform function calls to configure transcrypt
 	get_cipher
 	get_digest
-	get_use_pbkdf2
+	get_kdf
 	get_salt_method
 	get_password
 

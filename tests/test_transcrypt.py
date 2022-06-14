@@ -24,7 +24,7 @@ class Transcrypt(ub.NiceRepr):
         >>> from test_transcrypt import *  # NOQA
         >>> sandbox = DemoSandbox(verbose=1, dpath='special:cache').setup()
         >>> config = {'digest': 'sha256',
-        >>>           'use_pbkdf2': '1',
+        >>>           'kdf': 'pbkdf2',
         >>>           'salt_method': '665896be121e1a0a4a7b18f01780061'}
         >>> self = Transcrypt(sandbox.repo_dpath,
         >>>                   config=config, env=sandbox.env, verbose=1)
@@ -55,7 +55,7 @@ class Transcrypt(ub.NiceRepr):
         'cipher': 'aes-256-cbc',
         'password': None,
         'digest': 'md5',
-        'use_pbkdf2': '0',
+        'kdf': 'none',
         'salt_method': 'password',
     }
 
@@ -87,7 +87,7 @@ class Transcrypt(ub.NiceRepr):
             "-c", self.config['cipher'],
             "-p", self.config['password'],
             "-md", self.config['digest'],
-            "--use-pbkdf2", self.config['use_pbkdf2'],
+            "--kdf", self.config['kdf'],
             "-sm", self.config['salt_method'],
         ]
         args = [template.format(**self.config) for template in arg_templates]
@@ -200,7 +200,7 @@ class Transcrypt(ub.NiceRepr):
         local_config = {
             'cipher': self._cmd('git config --get --local transcrypt.cipher')['out'].strip(),
             'digest': self._cmd('git config --get --local transcrypt.digest')['out'].strip(),
-            'use_pbkdf2': self._cmd('git config --get --local transcrypt.use-pbkdf2')['out'].strip(),
+            'kdf': self._cmd('git config --get --local transcrypt.kdf')['out'].strip(),
             'salt_method': self._cmd('git config --get --local transcrypt.salt-method')['out'].strip(),
             'password': self._cmd('git config --get --local transcrypt.password')['out'].strip(),
             'openssl_path': self._cmd('git config --get --local transcrypt.openssl-path')['out'].strip(),
@@ -371,7 +371,7 @@ class TestCases:
         # FIXME
         is_ok = got_config == config
         if not is_ok:
-            is_ok = all([got_config[k] == config[k] for k in {'digest', 'password', 'cipher', 'use_pbkdf2'}])
+            is_ok = all([got_config[k] == config[k] for k in {'digest', 'password', 'cipher', 'kdf'}])
 
         if not is_ok:
             print(f'got_config={got_config}')
@@ -391,7 +391,7 @@ class TestCases:
             'cipher': 'aes-256-cbc',
             'password': '12345',
             'digest': 'sha256',
-            'use_pbkdf2': '1',
+            'kdf': 'pbkdf2',
             'salt_method': 'random',
         }
         raw_before = self.tc.show_raw(self.sandbox.secret_fpath)
@@ -406,7 +406,7 @@ def test_legacy_defaults():
         'cipher': 'aes-256-cbc',
         'password': 'correct horse battery staple',
         'digest': 'md5',
-        'use_pbkdf2': '0',
+        'kdf': 'none',
         'salt_method': 'password',
     }
     verbose = 1
@@ -421,7 +421,7 @@ def test_secure_defaults():
         'cipher': 'aes-256-cbc',
         'password': 'correct horse battery staple',
         'digest': 'sha512',
-        'use_pbkdf2': '1',
+        'kdf': 'pbkdf2',
         'salt_method': 'random',
     }
     verbose = 1
@@ -436,7 +436,7 @@ def test_configured_salt_changes_on_rekey():
         'cipher': 'aes-256-cbc',
         'password': 'correct horse battery staple',
         'digest': 'sha512',
-        'use_pbkdf2': '1',
+        'kdf': 'pbkdf2',
         'salt_method': 'random',
     }
     verbose = 1
@@ -448,7 +448,7 @@ def test_configured_salt_changes_on_rekey():
     after_config = self.tc._load_unversioned_config()
     assert before_config['password'] != after_config['password']
     assert before_config['cipher'] == after_config['cipher']
-    assert before_config['use_pbkdf2'] == after_config['use_pbkdf2']
+    assert before_config['kdf'] == after_config['kdf']
     assert before_config['salt_method'] == after_config['salt_method']
     assert before_config['openssl_path'] == after_config['openssl_path']
 
@@ -473,7 +473,7 @@ def test_configuration_grid():
         'cipher': ['aes-256-cbc', 'aes-128-ecb'],
         'password': ['correct horse battery staple'],
         'digest': ['md5', 'sha256'],
-        'use_pbkdf2': ['0', '1'],
+        'kdf': ['none', 'pbkdf2'],
         'salt_method': ['password', 'random', 'mylittlecustomsalt'],
     }
     test_grid = list(ub.named_product(basis))
