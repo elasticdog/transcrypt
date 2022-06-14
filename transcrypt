@@ -39,7 +39,7 @@ readonly DEFAULT_SALT_METHOD='password'
 readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path"
 
 # Set to 1 to enable a development editable installation
-readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=1}
+readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=0}
 
 # Proposed option: can remove or disable later
 readonly USE_VERSIONED_CONFIG="0"
@@ -199,14 +199,12 @@ _set_versioned_config_var() {
 _set_unversioned_config_var() {
 	local key=$1
 	local val=$2
-	#git config --file .git/config "${key}" "${val}"
 	git config "${key}" "${val}"
 }
 
 _load_unversioned_config_var() {
 	local key=$1
 	git config --get --local "${key}"
-	#&& (echo "loaded ${key} from .git/config")
 }
 
 # shellcheck disable=SC2181
@@ -218,13 +216,15 @@ _load_config_var() {
 	local key=$1
 	_load_unversioned_config_var "${key}"
 	if [[ "$?" != "0" ]]; then
-		_load_versioned_config_var "${key}"
-		if [[ "$?" != "0" ]]; then
-			#(echo "loaded ${key} from versioned config")
-			true
-		else
-			(echo "unable to load ${key}")
-		fi
+        if [[ "$USE_VERSIONED_CONFIG" == "1" ]]; then 
+            _load_versioned_config_var "${key}"
+            if [[ "$?" != "0" ]]; then
+                #(echo "loaded ${key} from versioned config")
+                true
+            else
+                (echo "unable to load ${key}")
+            fi
+        fi
 	else
 		#(echo "loaded ${key} from unversioned config")
 		true
