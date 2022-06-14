@@ -26,11 +26,25 @@ _transcrypt() {
 
 	case "${prev}" in
 		-c | --cipher)
-			local ciphers=$(openssl list-cipher-commands)
+			local ciphers=$(openssl list-cipher-commands || openssl list -cipher-commands &2>/dev/null)
 			COMPREPLY=( $(compgen -W "${ciphers}" -- ${cur}) )
 			return 0
 			;;
 		-p | --password)
+			return 0
+			;;
+		-md | --digest)
+			local ciphers=$(openssl list-digest-commands || openssl list -digest-commands &2>/dev/null)
+			COMPREPLY=( $(compgen -W "${ciphers}" -- ${cur}) )
+			return 0
+			;;
+        --use-pbkdf2)
+			return 0
+			;;
+		-sm | --salt-method)
+			return 0
+			;;
+		-cs | --config-salt)
 			return 0
 			;;
 		-s | --show-raw)

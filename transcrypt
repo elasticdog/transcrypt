@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	# Running as a script
+	set -euo pipefail
+fi
+
+if [[ "${TRANSCRYPT_TRACE+x}" != "" ]]; then
+	set -x
+fi
 
 #
 # transcrypt - https://github.com/elasticdog/transcrypt
@@ -16,10 +23,26 @@ set -euo pipefail
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='2.2.0'
+readonly VERSION='3.0.0-pre'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
+readonly DEFAULT_DIGEST='MD5'
+readonly DEFAULT_USE_PBKDF2='0'
+readonly DEFAULT_SALT_METHOD='password'
+
+# These are the implemented methods for computing deterministic salt
+#readonly VALID_SALT_METHODS="password configured random"
+
+# These are config variables we do not allow to be used in the versioned
+# configuration
+readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path"
+
+# Set to 1 to enable a development editable installation
+readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=1}
+
+# Proposed option: can remove or disable later
+readonly USE_VERSIONED_CONFIG="0"
 
 ##### FUNCTIONS
 
@@ -48,6 +71,208 @@ realpath() {
 	else
 		printf 'invalid path: %s\n' "$path" >&2
 		exit 1
+	fi
+}
+
+_openssl_encrypt() {
+	# In 3.x openssl disabled output of the salt prefix, which we need for determinism.
+	# We take control over outputting the the prefix 'Salted__' with the salt
+	# to ensure it is always included regardless of the OpenSSL version. #133
+	(
+		# Always prepend encrypted ciphertext with "Salted__" prefix and binary salt value
+		printf "Salted__" && printf "%s" "$salt" | xxd -r -p &&
+			# Encrypt file to binary ciphertext
+			ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md "${digest}" -pass env:ENC_PASS -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile" |
+			# Strip "Salted__" prefix and salt value if also added by OpenSSL (version < 3)
+			LC_ALL=C sed -e "s/^\(Salted__.\{8\}\)\(.*\)/\2/"
+	) | base64
+}
+
+_openssl_decrypt() {
+	# Expects that the following variables are set:
+	# password, openssl_path, cipher, digest, pbkdf2_args
+	# This works the same across openssl versions
+	ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md "${digest}" -pass env:ENC_PASS -a "$@" "${pbkdf2_args[@]}"
+}
+
+# compatible openssl list command
+_openssl_list() {
+	arg=$1
+	if "${openssl_path}" "list-$arg" &>/dev/null; then
+		# OpenSSL < v1.1.0
+		"${openssl_path}" "list-$arg"
+	else
+		# OpenSSL >= v1.1.0
+		"${openssl_path}" "list" "-$arg"
+	fi
+}
+
+# sets a bash global variable by name
+_set_global() {
+	key=$1
+	val=$2
+	printf -v "$key" '%s' "$val"
+}
+
+# Checks if the target variable is in the set of valid values.  If it is not, it
+# unsets the target variable, then if not in interactive mode it calls die.
+_validate_variable_str() {
+	local varname=$1
+	local valid_values=$2
+	local varval=${!varname}
+	if ! _is_contained_str "$varval" "$valid_values"; then
+		message=$(printf '%s is ''%s'', but must be one of: %s' "$varname" "$varval" "$valid_values")
+		if [[ $interactive ]]; then
+			_set_global "$varname" ""
+			echo "$message"
+		else
+			die 1 "$message"
+		fi
+	fi
+}
+
+# Helper to prompt the user, store a response, and validate the result
+_get_user_input() {
+	local varname=$1
+	local default=$2
+	local validate_fn=$3
+	local prompt=$4
+
+	while [[ ! ${!varname} ]]; do
+		local answer=
+		if [[ $interactive ]]; then
+			printf '%s' "$prompt"
+			read -r answer
+		fi
+		# use the default value if the user gave no answer; otherwise call the
+		# validate function, which should set the varname to empty if it is
+		# invalid and the user should continue, otherwise it should die.
+		if [[ ! $answer ]]; then
+			_set_global "$varname" "$default"
+		else
+			_set_global "$varname" "$answer"
+			${validate_fn}
+		fi
+	done
+}
+
+# Check if the first arg is contained in the space separated second arg
+_is_contained_str() {
+	arg=$1
+	values=$2
+	echo "$values" | tr -s ' ' '\n' | grep -Fx "$arg" &>/dev/null
+}
+
+# Load a config var from the versioned config
+# shellcheck disable=SC2155
+_load_versioned_config_var() {
+	# the current git repository's top-level directory
+	if [ -z "${VERSIONED_TC_CONFIG+x}" ]; then
+		readonly REPO=$(git rev-parse --show-toplevel 2>/dev/null)
+		# This is the place where transcrypt can store state that will be
+		# "versioned" (i.e. checked into the repo)
+		readonly VERSIONED_TC_DIR="${REPO}/.transcrypt"
+		readonly VERSIONED_TC_CONFIG="${VERSIONED_TC_DIR}/config"
+	fi
+	local key=$1
+	# Test for blocked variables that should not go into a plaintext config file
+	if _is_contained_str "${key}" "${VERSIONED_CONFIG_BLOCKLIST}"; then
+		warn "Cannot use ${key} in versioned the transcrypt config"
+		return 1
+	fi
+	git config --file "${VERSIONED_TC_CONFIG}" --get "${key}" || true
+}
+
+# Write a config var to the versioned config
+_set_versioned_config_var() {
+	local key=$1
+	local val=$2
+	# Test for blocked variables that should not go into a plaintext config file
+	if _is_contained_str "${key}" "${VERSIONED_CONFIG_BLOCKLIST}"; then
+		warn "Cannot use ${key} in versioned the transcrypt config"
+		return 1
+	fi
+	mkdir -p "${VERSIONED_TC_DIR}"
+	git config --file "${VERSIONED_TC_CONFIG}" "${key}" "${val}"
+}
+
+_set_unversioned_config_var() {
+	local key=$1
+	local val=$2
+	#git config --file .git/config "${key}" "${val}"
+	git config "${key}" "${val}"
+}
+
+_load_unversioned_config_var() {
+	local key=$1
+	git config --get --local "${key}"
+	#&& (echo "loaded ${key} from .git/config")
+}
+
+# shellcheck disable=SC2181
+_load_config_var() {
+	# First try loading from the local checkout-independent .git/config file
+	# If that doesn't work, then look in the .transcrypt/config file
+	# (which is expected to be stored in plaintext and checked into the repo)
+	# Certain values will be blocked from being placed here (like the password)
+	local key=$1
+	_load_unversioned_config_var "${key}"
+	if [[ "$?" != "0" ]]; then
+		_load_versioned_config_var "${key}"
+		if [[ "$?" != "0" ]]; then
+			#(echo "loaded ${key} from versioned config")
+			true
+		else
+			(echo "unable to load ${key}")
+		fi
+	else
+		#(echo "loaded ${key} from unversioned config")
+		true
+	fi
+}
+
+_set_config_var() {
+	# Write to both configs
+	local key=$1
+	local val=$2
+	_set_unversioned_config_var "$key" "$val"
+	if [[ "$USE_VERSIONED_CONFIG" == "1" ]]; then
+		_set_versioned_config_var "$key" "$val"
+	fi
+}
+
+# shellcheck disable=SC2155
+_load_transcrypt_config_vars() {
+	# Populate bash vars with our config
+	cipher=$(_load_config_var "transcrypt.cipher") || (echo "failed to load transcrypt.cipher" && false)
+	digest=$(_load_config_var "transcrypt.digest") || (echo "failed to load transcrypt.digest" && false)
+	use_pbkdf2=$(_load_config_var "transcrypt.use-pbkdf2") || (echo "failed to load transcrypt.use-pbkdf2" && false)
+	salt_method=$(_load_config_var "transcrypt.salt-method") || (echo "failed to load transcrypt.salt-method" && false)
+	openssl_path=$(_load_config_var "transcrypt.openssl-path") || (echo "failed to load transcrypt.openssl-path" && false)
+	password=$(_load_unversioned_config_var transcrypt.password) || (echo "failed to load transcrypt.password" && false)
+	ensure_salt_method
+}
+
+_load_vars_for_encryption() {
+	# Helper to populate variables needed to call openssl encryption
+	_load_transcrypt_config_vars
+
+	if [[ "$use_pbkdf2" == "1" ]]; then
+		pbkdf2_args=('-pbkdf2')
+	else
+		pbkdf2_args=()
+	fi
+
+	if [[ "$salt_method" == "password" ]]; then
+		extra_salt=$password
+	elif [[ "$salt_method" == "" ]]; then
+		die "salt must be specified"
+	else
+		extra_salt=$salt_method
+	fi
+
+	if [[ "$extra_salt" == "" ]]; then
+		die "Extra salt is not set"
 	fi
 }
 
@@ -90,6 +315,13 @@ gather_repo_metadata() {
 	else
 		readonly GIT_ATTRIBUTES="${REPO}/.gitattributes"
 	fi
+
+	# This is the place where transcrypt can store state that will be
+	# "versioned" (i.e. checked into the repo)
+	readonly RELATIVE_VERSIONED_TC_DIR=".transcrypt"
+	readonly RELATIVE_VERSIONED_TC_CONFIG="${RELATIVE_VERSIONED_TC_DIR}/config"
+	readonly VERSIONED_TC_DIR="${REPO}/${RELATIVE_VERSIONED_TC_DIR}"
+	readonly VERSIONED_TC_CONFIG="${REPO}/${RELATIVE_VERSIONED_TC_CONFIG}"
 }
 
 # print a message to stderr
@@ -116,65 +348,65 @@ die() {
 # deterministic for everything to work transparently. To do that, the same
 # salt must be used each time we encrypt the same file. An HMAC has been
 # proven to be a PRF, so we generate an HMAC-SHA256 for each decrypted file
-# (keyed with a combination of the filename and transcrypt password), and
+# (keyed with a combination of the filename and ~~transcrypt password~~), and
 # then use the last 16 bytes of that HMAC for the file's unique salt.
-
 git_clean() {
+
+	# The clean script encrypts files before git sends them to the remote.
+	# Note the "Salted" check is part of openssl and not anything we do here.
+	# It allows anyone (including us) to check if a file was already encrypted
+	# but this does compromise the encrypted stream of data (which starts on
+	# the 17th byte).
+	# References: https://crypto.stackexchange.com/questions/8776/what-is-u2fsdgvkx1
 	filename=$1
 	# ignore empty files
 	if [[ ! -s $filename ]]; then
 		return
 	fi
 	# cache STDIN to test if it's already encrypted
+	# First, create the tempfile, then
+	# set a trap to remove the tempfile when we exit or if anything goes wrong
+	# finally write the stdin of this script to the tempfile
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
 	tee "$tempfile" &>/dev/null
 	# the first bytes of an encrypted file are always "Salted" in Base64
 	# The `head + LC_ALL=C tr` command handles binary data in old and new Bash (#116)
+	# this is an openssl standard. The actual encrypted stream starts on the 17th byte.
 	firstbytes=$(head -c8 "$tempfile" | LC_ALL=C tr -d '\0')
 	if [[ $firstbytes == "U2FsdGVk" ]]; then
+		# The file is already encrypted, so just pass it back
 		cat "$tempfile"
 	else
-		cipher=$(git config --get --local transcrypt.cipher)
-		password=$(git config --get --local transcrypt.password)
-		openssl_path=$(git config --get --local transcrypt.openssl-path)
-		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
-
-		openssl_major_version=$($openssl_path version | cut -d' ' -f2 | cut -d'.' -f1)
-		if [ "$openssl_major_version" -ge "3" ]; then
-			# Encrypt the file to base64, ensuring it includes the prefix 'Salted__' with the salt. #133
-			(
-				echo -n "Salted__" && echo -n "$salt" | xxd -r -p &&
-					# Encrypt file to binary ciphertext
-					ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
-			) |
-				openssl base64
-		else
-			# Encrypt file to base64 ciphertext
-			ENC_PASS=$password "$openssl_path" enc -e -a "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
-		fi
+		_load_vars_for_encryption
+		# NOTE: the openssl standard for salt is 16 hex bytes.
+		salt=$("$openssl_path" dgst -hmac "${filename}:${extra_salt}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
+		_openssl_encrypt
 	fi
 }
 
 git_smudge() {
+	# The smudge script decrypts files when they are checked out by an authenticated repository.
+	# the file contents are passed via stdin
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
-	cipher=$(git config --get --local transcrypt.cipher)
-	password=$(git config --get --local transcrypt.password)
-	openssl_path=$(git config --get --local transcrypt.openssl-path)
-	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a 2>/dev/null || cat "$tempfile"
+	#_load_transcrypt_config_vars
+	_load_vars_for_encryption
+	tee "$tempfile" | _openssl_decrypt 2>/dev/null || cat "$tempfile"
 }
 
 git_textconv() {
+	# The textconv script allows users to see git diffs in plaintext.
+	# It does this by decrypting the encrypted git globs into plain text before
+	# passing them to the diff command.
 	filename=$1
 	# ignore empty files
 	if [[ ! -s $filename ]]; then
 		return
 	fi
-	cipher=$(git config --get --local transcrypt.cipher)
-	password=$(git config --get --local transcrypt.password)
-	openssl_path=$(git config --get --local transcrypt.openssl-path)
-	ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a -in "$filename" 2>/dev/null || cat "$filename"
+	_load_transcrypt_config_vars
+	_load_vars_for_encryption
+	_openssl_decrypt -in "$filename" 2>/dev/null || cat "$filename"
 }
 
 # shellcheck disable=SC2005,SC2002,SC2181
@@ -236,6 +468,7 @@ git_pre_commit() {
 				: # Do nothing
 			# The first bytes of an encrypted file must be "Salted" in Base64
 			elif [[ $firstbytes != "U2FsdGVk" ]]; then
+				echo "firstbytes = $firstbytes"
 				printf 'Transcrypt managed file is not encrypted in the Git index: %s\n' "$secret_file" >&2
 				printf '\n' >&2
 				printf 'You probably staged this file using a tool that does not apply' >&2
@@ -330,48 +563,68 @@ run_safety_checks() {
 
 # unset the cipher variable if it is not supported by openssl
 validate_cipher() {
-	local list_cipher_commands
-	if "${openssl_path}" list-cipher-commands &>/dev/null; then
-		# OpenSSL < v1.1.0
-		list_cipher_commands="${openssl_path} list-cipher-commands"
-	else
-		# OpenSSL >= v1.1.0
-		list_cipher_commands="${openssl_path} list -cipher-commands"
-	fi
+	local valid_ciphers
+	valid_ciphers=$(_openssl_list cipher-commands)
+	_validate_variable_str "cipher" "$valid_ciphers"
+}
 
-	local supported
-	supported=$($list_cipher_commands | tr -s ' ' '\n' | grep -Fx "$cipher") || true
-	if [[ ! $supported ]]; then
-		if [[ $interactive ]]; then
-			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
-			$list_cipher_commands | column -c 80
-			printf '\n'
-			cipher=''
-		else
-			# shellcheck disable=SC2016
-			die 1 '"%s" is not a valid cipher; see `%s`' "$cipher" "$list_cipher_commands"
-		fi
+validate_digest() {
+	local valid_digests
+	valid_digests=$(_openssl_list digest-commands)
+	_validate_variable_str "digest" "$valid_digests"
+}
+
+validate_use_pbkdf2() {
+	_validate_variable_str "use_pbkdf2" "0 1"
+}
+
+validate_salt_method() {
+	#_validate_variable_str "salt_method" "$VALID_SALT_METHODS"
+	_="noop"
+}
+
+# ensure we have a digest to hash the salted password
+get_digest() {
+	local prompt
+	prompt=$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")
+	if [[ "$digest" == "" ]]; then
+		digest=$(_load_versioned_config_var "transcrypt.digest")
+		# echo "Loaded digest = $digest from local config"
 	fi
+	_get_user_input digest "$DEFAULT_DIGEST" "validate_digest" "$prompt"
 }
 
 # ensure we have a cipher to encrypt with
 get_cipher() {
-	while [[ ! $cipher ]]; do
-		local answer=
-		if [[ $interactive ]]; then
-			printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER"
-			read -r answer
-		fi
+	local prompt
+	prompt=$(printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER")
+	if [[ "$cipher" == "" ]]; then
+		cipher=$(_load_versioned_config_var "transcrypt.cipher")
+		# echo "Loaded cipher = $cipher from local config"
+	fi
+	_get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$prompt"
+}
 
-		# use the default cipher if the user gave no answer;
-		# otherwise verify the given cipher is supported by openssl
-		if [[ ! $answer ]]; then
-			cipher=$DEFAULT_CIPHER
-		else
-			cipher=$answer
-			validate_cipher
-		fi
-	done
+get_use_pbkdf2() {
+	local prompt
+	prompt=$(printf 'Use pbkdf2? [%s] ' "$DEFAULT_USE_PBKDF2")
+	if [[ "$use_pbkdf2" == "" ]]; then
+		use_pbkdf2=$(_load_versioned_config_var "transcrypt.use-pbkdf2")
+		# echo "Loaded use_pbkdf2 = $use_pbkdf2 from local config"
+	fi
+	_get_user_input use_pbkdf2 "$DEFAULT_USE_PBKDF2" "validate_use_pbkdf2" "$prompt"
+}
+
+get_salt_method() {
+	local prompt
+	prompt=$(printf 'Compute salt using which method? Can use "password", enter a custom salt, or specify "random". [%s] ' "$DEFAULT_SALT_METHOD")
+	if [[ "$salt_method" == "" ]]; then
+		salt_method=$(_load_versioned_config_var "transcrypt.salt-method")
+		# echo "Loaded salt_method = $salt_method from local config"
+	fi
+	_get_user_input salt_method "$DEFAULT_SALT_METHOD" "validate_salt_method" "$prompt"
+	ensure_salt_method
+	# echo "Got salt_method = $salt_method"
 }
 
 # ensure we have a password to encrypt with
@@ -399,17 +652,28 @@ get_password() {
 	done
 }
 
+ensure_salt_method() {
+	# Check if randomized salt needs to be written
+	if [[ "$salt_method" == "random" ]]; then
+		# Replace random with something random.
+		#salt_method=$(_load_versioned_config_var "transcrypt.salt-method")
+		# If we have not configured the salt_method (or we need to rekey),
+		# then generate new random salt
+		salt_method=$(openssl rand -hex 32)
+	fi
+	if [[ $rekey ]] && [[ $salt_method != "password" ]]; then
+		# Assume we want a new random salt unless we are explicitly using password
+		salt_method=$(openssl rand -hex 32)
+	fi
+}
+
 # confirm the transcrypt configuration
 confirm_configuration() {
 	local answer=
 
-	printf '\nRepository metadata:\n\n'
-	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
-	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
-	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	_display_git_configuration
 	printf 'The following configuration will be saved:\n\n'
-	printf '  CIPHER:   %s\n' "$cipher"
-	printf '  PASSWORD: %s\n\n' "$password"
+	_display_runtime_configuration
 	printf 'Does this look correct? [Y/n] '
 	read -r -n 1 -s answer
 
@@ -426,13 +690,9 @@ confirm_configuration() {
 confirm_rekey() {
 	local answer=
 
-	printf '\nRepository metadata:\n\n'
-	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
-	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
-	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
+	_display_git_configuration
 	printf 'The following configuration will be saved:\n\n'
-	printf '  CIPHER:   %s\n' "$cipher"
-	printf '  PASSWORD: %s\n\n' "$password"
+	_display_runtime_configuration
 	printf 'You are about to re-encrypt all encrypted files using new credentials.\n'
 	printf 'Once you do this, their historical diffs will no longer display in plain text.\n\n'
 	printf 'Proceed with rekey? [y/N] '
@@ -469,8 +729,12 @@ save_helper_scripts() {
 
 	local current_transcrypt
 	current_transcrypt=$(realpath "$0" 2>/dev/null)
-	cp "$current_transcrypt" "${CRYPT_DIR}/transcrypt"
-
+	if [[ "$EDITABLE_INSTALL" == "1" ]]; then
+		# Editable mode is for debugging
+		ln -fs "$current_transcrypt" "${CRYPT_DIR}/transcrypt"
+	else
+		cp -f "$current_transcrypt" "${CRYPT_DIR}/transcrypt"
+	fi
 	# make scripts executable
 	for script in {transcrypt,}; do
 		chmod 0755 "${CRYPT_DIR}/${script}"
@@ -503,16 +767,34 @@ save_helper_hooks() {
 	fi
 }
 
-# write the configuration to the repository's git config
+# "install" transcrypt by writing the configuration to the repository's git config
 save_configuration() {
 	save_helper_scripts
 	save_helper_hooks
 
 	# write the encryption info
-	git config transcrypt.version "$VERSION"
-	git config transcrypt.cipher "$cipher"
-	git config transcrypt.password "$password"
-	git config transcrypt.openssl-path "$openssl_path"
+	_set_config_var "transcrypt.version" "$VERSION"
+	_set_config_var "transcrypt.cipher" "$cipher"
+	_set_config_var "transcrypt.digest" "$digest"
+	_set_config_var "transcrypt.use-pbkdf2" "$use_pbkdf2"
+	_set_config_var "transcrypt.salt-method" "$salt_method"
+	_set_unversioned_config_var "transcrypt.openssl-path" "$openssl_path"
+	_set_unversioned_config_var "transcrypt.password" "$password"
+
+	if [[ "$USE_VERSIONED_CONFIG" == "1" ]]; then
+		if [ -f $RELATIVE_VERSIONED_TC_CONFIG ]; then
+			if ! git ls-files --error-unmatch "$RELATIVE_VERSIONED_TC_CONFIG" >/dev/null 2>&1; then
+				git add "${RELATIVE_VERSIONED_TC_CONFIG}"
+				printf "*** The contents of %s were configured. ***\n" "${RELATIVE_VERSIONED_TC_CONFIG}"
+				printf '*** COMMIT THIS CHANGE RIGHT AWAY! ***\n\n'
+			fi
+			if ! git diff --exit-code "$RELATIVE_VERSIONED_TC_CONFIG" >/dev/null 2>&1; then
+				git add "${RELATIVE_VERSIONED_TC_CONFIG}"
+				printf "*** The contents of %s were updated. ***\n" "${RELATIVE_VERSIONED_TC_CONFIG}"
+				printf '*** COMMIT THIS CHANGE RIGHT AWAY! ***\n\n'
+			fi
+		fi
+	fi
 
 	# write the filter settings. Sorry for the horrific quote escaping below...
 	# shellcheck disable=SC2016
@@ -533,23 +815,36 @@ save_configuration() {
 	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'"
 }
 
-# display the current configuration settings
-display_configuration() {
-	local current_cipher
-	current_cipher=$(git config --get --local transcrypt.cipher)
-	local current_password
-	current_password=$(git config --get --local transcrypt.password)
-	local escaped_password=${current_password//\'/\'\\\'\'}
-
-	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
-	printf 'and has the following configuration:\n\n'
+_display_git_configuration() {
+	printf '\nRepository metadata:\n\n'
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
-	printf '  CIPHER:   %s\n' "$current_cipher"
-	printf '  PASSWORD: %s\n\n' "$current_password"
+}
+
+# Show the config of the current runtime
+_display_runtime_configuration() {
+	printf '  DIGEST:  %s\n' "$digest"
+	printf '  USE_PBKDF2: %s\n' "$use_pbkdf2"
+	printf '  SALT_METHOD: %s\n' "$salt_method"
+	if [[ "$salt_method" == "configured" ]]; then
+		printf '  CONFIG_SALT: %s\n' "$salt_method"
+	fi
+	printf '  CIPHER:   %s\n' "$cipher"
+	printf '  PASSWORD: %s\n\n' "$password"
+}
+
+# display the current configuration settings
+display_configuration() {
+	_load_transcrypt_config_vars
+	local escaped_password=${password//\'/\'\\\'\'}
+	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
+	printf 'and has the following configuration:\n\n'
+	_display_git_configuration
+	_display_runtime_configuration
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
-	printf "  transcrypt -c %s -p '%s'\n" "$current_cipher" "$escaped_password"
+	printf "  transcrypt -c '%s' -p '%s' -md '%s' --use-pbkdf2 '%s' -sm '%s'\n" \
+		"$cipher" "$escaped_password" "$digest" "$use_pbkdf2" "$salt_method"
 }
 
 # remove transcrypt-related settings from the repository's git config
@@ -709,7 +1004,7 @@ uninstall_transcrypt() {
 			sed -i '/filter=crypt diff=crypt merge=crypt[ \t]*$/d' "$GIT_ATTRIBUTES"
 			;;
 		esac
-
+		# TODO: do we remove .transcrypt/config here? ie rm -f VERSIONED_TC_CONFIG?
 		if [[ ! $upgrade ]]; then
 			printf 'The transcrypt configuration has been completely removed from the repository.\n'
 		fi
@@ -819,14 +1114,19 @@ export_gpg() {
 		die 1 'GPG recipient key "%s" does not exist' "$gpg_recipient"
 	fi
 
-	local current_cipher
-	current_cipher=$(git config --get --local transcrypt.cipher)
-	local current_password
-	current_password=$(git config --get --local transcrypt.password)
+	_load_transcrypt_config_vars
+
+	#local current_cipher
+	#current_cipher=$(git config --get --local transcrypt.cipher)
+	#local current_password
+	#current_password=$(git config --get --local transcrypt.password)
 	mkdir -p "${CRYPT_DIR}"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
-	printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
+	#printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
+	printf 'password=%s\ncipher=%s\ndigest=%s\nuse_pbkdf2=%s\nsalt_method=%s\n\n' \
+		"$password" "$cipher" "$digest" "$use_pbkdf2" "$salt_method" |
+		$gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
 	printf "The transcrypt configuration has been encrypted and exported to:\n%s/crypt/%s.asc\n" "$GIT_DIR" "$gpg_recipient"
 }
 
@@ -859,6 +1159,10 @@ import_gpg() {
 
 	cipher=$(printf '%s' "$configuration" | grep '^cipher' | cut -d'=' -f 2-)
 	password=$(printf '%s' "$configuration" | grep '^password' | cut -d'=' -f 2-)
+	digest=$(printf '%s' "$configuration" | grep '^digest' | cut -d'=' -f 2-)
+	use_pbkdf2=$(printf '%s' "$configuration" | grep '^use_pbkdf2' | cut -d'=' -f 2-)
+	salt_method=$(printf '%s' "$configuration" | grep '^salt_method' | cut -d'=' -f 2-)
+	salt_method=$(printf '%s' "$configuration" | grep '^salt_method' | cut -d'=' -f 2-)
 }
 
 # print this script's usage message to stderr
@@ -896,6 +1200,19 @@ help() {
 		     -p, --password=PASSWORD
 		            the password to derive the key from;
 		            defaults to 30 random base64 characters
+
+		     -md, --digest=DIGEST
+		            the digest used to hash the salted password;
+		            defaults to md5
+
+		     -pbkdf2, --use_pbkdf2=USE_PBKDF2
+		            Use the pbkdf2 openssl encryption feature;
+		            defaults to 0
+
+		     -sm, --salt_method=SALT_METHOD
+		            Method used to compute deterministic salt; can be password, random,
+		                    or a custom string to be used as the salt. Unless set to password,
+		                    the salt is randomized on a rekey.
 
 		     --set-openssl-path=PATH_TO_OPENSSL
 		            use OpenSSL at this path; defaults to 'openssl' in \$PATH
@@ -987,221 +1304,265 @@ help() {
 }
 
 ##### MAIN
+transcrypt_main() {
+	# reset all variables that might be set
+	cipher=''
+	display_config=''
+	flush_creds=''
+	gpg_import_file=''
+	gpg_recipient=''
+	interactive='true'
+	list=''
+	password=''
+	rekey=''
+	show_file=''
+	uninstall=''
+	upgrade=''
+	openssl_path='openssl'
+	use_pbkdf2=''
+	digest=''
+	salt_method=''
+	salt_method=''
 
-# reset all variables that might be set
-cipher=''
-display_config=''
-flush_creds=''
-gpg_import_file=''
-gpg_recipient=''
-interactive='true'
-list=''
-password=''
-rekey=''
-show_file=''
-uninstall=''
-upgrade=''
-openssl_path='openssl'
+	# used to bypass certain safety checks
+	requires_existing_config=''
+	requires_clean_repo='true'
+	ignore_config_status='' # Set for operations where config can exist or not
 
-# used to bypass certain safety checks
-requires_existing_config=''
-requires_clean_repo='true'
-ignore_config_status='' # Set for operations where config can exist or not
+	# parse command line options
+	while [[ "${1:-}" != '' ]]; do
+		case $1 in
+		clean)
+			shift
+			git_clean "$@"
+			exit $?
+			;;
+		smudge)
+			shift
+			git_smudge "$@"
+			exit $?
+			;;
+		textconv)
+			shift
+			git_textconv "$@"
+			exit $?
+			;;
+		merge)
+			shift
+			git_merge "$@"
+			exit $?
+			;;
+		pre_commit)
+			shift
+			git_pre_commit "$@"
+			exit $?
+			;;
+		-c | --cipher)
+			cipher=$2
+			shift
+			;;
+		--cipher=*)
+			cipher=${1#*=}
+			;;
+		-md | --digest)
+			digest=$2
+			shift
+			;;
+		--digest=*)
+			digest=${1#*=}
+			;;
+		-pbkdf2)
+			use_pbkdf2=1
+			;;
+		--use-pbkdf2)
+			use_pbkdf2=${2}
+			shift
+			;;
+		--use-pbkdf2=*)
+			use_pbkdf2=${1#*=}
+			;;
+		-sm | --salt-method)
+			salt_method=$2
+			shift
+			;;
+		--salt-method=*)
+			salt_method=${1#*=}
+			;;
+		-p | --password)
+			password=$2
+			shift
+			;;
+		--password=*)
+			password=${1#*=}
+			;;
+		--set-openssl-path=*)
+			openssl_path=${1#*=}
+			# Immediately apply config setting
+			git config transcrypt.openssl-path "$openssl_path"
+			;;
+		-y | --yes)
+			interactive=''
+			;;
+		-d | --display)
+			display_config='true'
+			requires_existing_config='true'
+			requires_clean_repo=''
+			;;
+		-r | --rekey)
+			rekey='true'
+			requires_existing_config='true'
+			;;
+		-f | --flush-credentials)
+			flush_creds='true'
+			requires_existing_config='true'
+			;;
+		-F | --force)
+			requires_clean_repo=''
+			;;
+		-u | --uninstall)
+			uninstall='true'
+			requires_existing_config='true'
+			requires_clean_repo=''
+			;;
+		--upgrade)
+			upgrade='true'
+			requires_existing_config='true'
+			requires_clean_repo=''
+			;;
+		-l | --list)
+			list='true'
+			requires_clean_repo=''
+			ignore_config_status='true'
+			;;
+		-s | --show-raw)
+			show_file=$2
+			show_raw_file
+			exit 0
+			;;
+		--show-raw=*)
+			show_file=${1#*=}
+			show_raw_file
+			exit 0
+			;;
+		-e | --export-gpg)
+			gpg_recipient=$2
+			requires_existing_config='true'
+			requires_clean_repo=''
+			shift
+			;;
+		--export-gpg=*)
+			gpg_recipient=${1#*=}
+			requires_existing_config='true'
+			requires_clean_repo=''
+			;;
+		-i | --import-gpg)
+			gpg_import_file=$2
+			shift
+			;;
+		--import-gpg=*)
+			gpg_import_file=${1#*=}
+			;;
+		-v | --version)
+			printf 'transcrypt %s\n' "$VERSION"
+			exit 0
+			;;
+		-h | --help | -\?)
+			help
+			exit 0
+			;;
+		--*)
+			warn 'unknown option -- %s' "${1#--}"
+			usage
+			exit 1
+			;;
+		*)
+			warn 'unknown option -- %s' "${1#-}"
+			usage
+			exit 1
+			;;
+		esac
+		shift
+	done
 
-# parse command line options
-while [[ "${1:-}" != '' ]]; do
-	case $1 in
-	clean)
-		shift
-		git_clean "$@"
-		exit $?
-		;;
-	smudge)
-		shift
-		git_smudge "$@"
-		exit $?
-		;;
-	textconv)
-		shift
-		git_textconv "$@"
-		exit $?
-		;;
-	merge)
-		shift
-		git_merge "$@"
-		exit $?
-		;;
-	pre_commit)
-		shift
-		git_pre_commit "$@"
-		exit $?
-		;;
-	-c | --cipher)
-		cipher=$2
-		shift
-		;;
-	--cipher=*)
-		cipher=${1#*=}
-		;;
-	-p | --password)
-		password=$2
-		shift
-		;;
-	--password=*)
-		password=${1#*=}
-		;;
-	--set-openssl-path=*)
-		openssl_path=${1#*=}
-		# Immediately apply config setting
-		git config transcrypt.openssl-path "$openssl_path"
-		;;
-	-y | --yes)
-		interactive=''
-		;;
-	-d | --display)
-		display_config='true'
-		requires_existing_config='true'
-		requires_clean_repo=''
-		;;
-	-r | --rekey)
-		rekey='true'
-		requires_existing_config='true'
-		;;
-	-f | --flush-credentials)
-		flush_creds='true'
-		requires_existing_config='true'
-		;;
-	-F | --force)
-		requires_clean_repo=''
-		;;
-	-u | --uninstall)
-		uninstall='true'
-		requires_existing_config='true'
-		requires_clean_repo=''
-		;;
-	--upgrade)
-		upgrade='true'
-		requires_existing_config='true'
-		requires_clean_repo=''
-		;;
-	-l | --list)
-		list='true'
-		requires_clean_repo=''
-		ignore_config_status='true'
-		;;
-	-s | --show-raw)
-		show_file=$2
-		show_raw_file
+	gather_repo_metadata
+
+	# always run our safety checks
+	run_safety_checks
+
+	# regular expression used to test user input
+	readonly YES_REGEX='^[Yy]$'
+
+	# in order to keep behavior consistent no matter what order the options were
+	# specified in, we must run these here rather than in the case statement above
+	if [[ $list ]]; then
+		list_files
 		exit 0
-		;;
-	--show-raw=*)
-		show_file=${1#*=}
-		show_raw_file
+	elif [[ $uninstall ]]; then
+		uninstall_transcrypt
 		exit 0
-		;;
-	-e | --export-gpg)
-		gpg_recipient=$2
-		requires_existing_config='true'
-		requires_clean_repo=''
-		shift
-		;;
-	--export-gpg=*)
-		gpg_recipient=${1#*=}
-		requires_existing_config='true'
-		requires_clean_repo=''
-		;;
-	-i | --import-gpg)
-		gpg_import_file=$2
-		shift
-		;;
-	--import-gpg=*)
-		gpg_import_file=${1#*=}
-		;;
-	-v | --version)
-		printf 'transcrypt %s\n' "$VERSION"
+	elif [[ $upgrade ]]; then
+		upgrade_transcrypt
 		exit 0
-		;;
-	-h | --help | -\?)
-		help
+	elif [[ $display_config ]] && [[ $flush_creds ]]; then
+		display_configuration
+		printf '\n'
+		flush_credentials
 		exit 0
-		;;
-	--*)
-		warn 'unknown option -- %s' "${1#--}"
-		usage
-		exit 1
-		;;
-	*)
-		warn 'unknown option -- %s' "${1#-}"
-		usage
-		exit 1
-		;;
-	esac
-	shift
-done
+	elif [[ $display_config ]]; then
+		display_configuration
+		exit 0
+	elif [[ $flush_creds ]]; then
+		flush_credentials
+		exit 0
+	elif [[ $gpg_recipient ]]; then
+		export_gpg
+		exit 0
+	elif [[ $gpg_import_file ]]; then
+		import_gpg
+	elif [[ $cipher ]]; then
+		validate_cipher
+	fi
 
-gather_repo_metadata
+	# perform function calls to configure transcrypt
+	get_cipher
+	get_digest
+	get_use_pbkdf2
+	get_salt_method
+	get_password
 
-# always run our safety checks
-run_safety_checks
+	if [[ $rekey ]] && [[ $interactive ]]; then
+		confirm_rekey
+	elif [[ $interactive ]]; then
+		confirm_configuration
+	fi
 
-# regular expression used to test user input
-readonly YES_REGEX='^[Yy]$'
+	save_configuration
 
-# in order to keep behavior consistent no matter what order the options were
-# specified in, we must run these here rather than in the case statement above
-if [[ $list ]]; then
-	list_files
-	exit 0
-elif [[ $uninstall ]]; then
-	uninstall_transcrypt
-	exit 0
-elif [[ $upgrade ]]; then
-	upgrade_transcrypt
-	exit 0
-elif [[ $display_config ]] && [[ $flush_creds ]]; then
-	display_configuration
-	printf '\n'
-	flush_credentials
-	exit 0
-elif [[ $display_config ]]; then
-	display_configuration
-	exit 0
-elif [[ $flush_creds ]]; then
-	flush_credentials
-	exit 0
-elif [[ $gpg_recipient ]]; then
-	export_gpg
-	exit 0
-elif [[ $gpg_import_file ]]; then
-	import_gpg
-elif [[ $cipher ]]; then
-	validate_cipher
-fi
+	if [[ $rekey ]]; then
+		stage_rekeyed_files
+	else
+		force_checkout
+	fi
 
-# perform function calls to configure transcrypt
-get_cipher
-get_password
+	# ensure the git attributes file exists
+	if [[ ! -f $GIT_ATTRIBUTES ]]; then
+		mkdir -p "${GIT_ATTRIBUTES%/*}"
+		printf '#pattern  filter=crypt diff=crypt merge=crypt\n' >"$GIT_ATTRIBUTES"
+	fi
 
-if [[ $rekey ]] && [[ $interactive ]]; then
-	confirm_rekey
-elif [[ $interactive ]]; then
-	confirm_configuration
-fi
+	printf 'The repository has been successfully configured by transcrypt.\n'
+	#exit 0
+}
 
-save_configuration
-
-if [[ $rekey ]]; then
-	stage_rekeyed_files
+# bpkg convention
+# https://github.com/bpkg/bpkg
+if [[ ${BASH_SOURCE[0]} != "$0" ]]; then
+	# We are sourcing the library
+	#export -f transcrypt_main
+	echo "Sourcing the library"
+	#export -p
 else
-	force_checkout
+	# Executing file as a script
+	transcrypt_main "${@}"
+	exit $?
 fi
-
-# ensure the git attributes file exists
-if [[ ! -f $GIT_ATTRIBUTES ]]; then
-	mkdir -p "${GIT_ATTRIBUTES%/*}"
-	printf '#pattern  filter=crypt diff=crypt merge=crypt\n' >"$GIT_ATTRIBUTES"
-fi
-
-printf 'The repository has been successfully configured by transcrypt.\n'
-
-exit 0
