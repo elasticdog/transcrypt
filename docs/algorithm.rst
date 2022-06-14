@@ -148,7 +148,7 @@ in the config transcrypt will set ``pbkdf2_args`` to an empty bash array in the
 case where pbkdf2 is disabled, and ``-pbkdf2`` otherwise. This allows us to use
 bash array syntax to express both variants as a single openssl command.
 
-The backwards compatible setting for transcrypt < 3.x is ``--use-pbkdf2=0``.
+The backwards compatible setting for transcrypt < 3.x is ``--kdf=0``.
 
 See Also: 
 

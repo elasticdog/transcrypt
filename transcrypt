@@ -27,12 +27,9 @@ readonly VERSION='3.0.0-pre'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
-readonly DEFAULT_DIGEST='MD5'
+readonly DEFAULT_DIGEST='md5'
 readonly DEFAULT_KDF='none'
 readonly DEFAULT_SALT_METHOD='password'
-
-# These are the implemented methods for computing deterministic salt
-#readonly VALID_SALT_METHODS="password configured random"
 
 # These are config variables we do not allow to be used in the versioned
 # configuration
@@ -42,7 +39,7 @@ readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path
 readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=0}
 
 # Proposed option: can remove or disable later
-readonly USE_VERSIONED_CONFIG="0"
+readonly USE_VERSIONED_CONFIG="1"
 
 ##### FUNCTIONS
 
@@ -125,6 +122,7 @@ _validate_variable_str() {
 		if [[ $interactive ]]; then
 			_set_global "$varname" ""
 			echo "$message"
+            return 1
 		else
 			die 1 "$message"
 		fi
@@ -154,6 +152,7 @@ _get_user_input() {
 			${validate_fn}
 		fi
 	done
+    ${validate_fn} || die "Invalid setting"
 }
 
 # Check if the first arg is contained in the space separated second arg
@@ -180,7 +179,7 @@ _load_versioned_config_var() {
 		warn "Cannot use ${key} in versioned the transcrypt config"
 		return 1
 	fi
-	git config --file "${VERSIONED_TC_CONFIG}" --get "${key}" || true
+	git config --file "${VERSIONED_TC_CONFIG}" --get "${key}"
 }
 
 # Write a config var to the versioned config
@@ -214,21 +213,8 @@ _load_config_var() {
 	# (which is expected to be stored in plaintext and checked into the repo)
 	# Certain values will be blocked from being placed here (like the password)
 	local key=$1
-	_load_unversioned_config_var "${key}"
-	if [[ "$?" != "0" ]]; then
-		if [[ "$USE_VERSIONED_CONFIG" == "1" ]]; then 
-			_load_versioned_config_var "${key}"
-			if [[ "$?" != "0" ]]; then
-				#(echo "loaded ${key} from versioned config")
-				true
-			else
-				(echo "unable to load ${key}")
-			fi
-		fi
-	else
-		#(echo "loaded ${key} from unversioned config")
-		true
-	fi
+	_load_unversioned_config_var "${key}" || \
+        ([[ "$USE_VERSIONED_CONFIG" == "1" ]] && _load_versioned_config_var "${key}")
 }
 
 _set_config_var() {
@@ -251,6 +237,8 @@ _load_transcrypt_config_vars() {
 	openssl_path=$(_load_config_var "transcrypt.openssl-path") || (echo "failed to load transcrypt.openssl-path" && false)
 	password=$(_load_unversioned_config_var transcrypt.password) || (echo "failed to load transcrypt.password" && false)
 	ensure_salt_method
+    validate_kdf || die "invalid value of kdf in config"
+    validate_digest || die "invalid value of digest in config"
 }
 
 _load_vars_for_encryption() {
@@ -579,8 +567,7 @@ validate_kdf() {
 }
 
 validate_salt_method() {
-	#_validate_variable_str "salt_method" "$VALID_SALT_METHODS"
-	_="noop"
+	true
 }
 
 # ensure we have a digest to hash the salted password
@@ -588,7 +575,7 @@ get_digest() {
 	local prompt
 	prompt=$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")
 	if [[ "$digest" == "" ]]; then
-		digest=$(_load_versioned_config_var "transcrypt.digest")
+		digest=$(_load_versioned_config_var "transcrypt.digest" || echo "")
 		# echo "Loaded digest = $digest from local config"
 	fi
 	_get_user_input digest "$DEFAULT_DIGEST" "validate_digest" "$prompt"
@@ -599,7 +586,7 @@ get_cipher() {
 	local prompt
 	prompt=$(printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER")
 	if [[ "$cipher" == "" ]]; then
-		cipher=$(_load_versioned_config_var "transcrypt.cipher")
+		cipher=$(_load_versioned_config_var "transcrypt.cipher" || echo "")
 		# echo "Loaded cipher = $cipher from local config"
 	fi
 	_get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$prompt"
@@ -609,7 +596,7 @@ get_kdf() {
 	local prompt
 	prompt=$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")
 	if [[ "$kdf" == "" ]]; then
-		kdf=$(_load_versioned_config_var "transcrypt.kdf")
+		kdf=$(_load_versioned_config_var "transcrypt.kdf" || echo "")
 		# echo "Loaded kdf = $kdf from local config"
 	fi
 	_get_user_input kdf "$DEFAULT_KDF" "validate_kdf" "$prompt"
@@ -617,9 +604,9 @@ get_kdf() {
 
 get_salt_method() {
 	local prompt
-	prompt=$(printf 'Compute salt using which method? Can use "password", enter a custom salt, or specify "random". [%s] ' "$DEFAULT_SALT_METHOD")
+	prompt=$(printf 'Which salt method? [%s] ' "$DEFAULT_SALT_METHOD")
 	if [[ "$salt_method" == "" ]]; then
-		salt_method=$(_load_versioned_config_var "transcrypt.salt-method")
+		salt_method=$(_load_versioned_config_var "transcrypt.salt-method" || echo "")
 		# echo "Loaded salt_method = $salt_method from local config"
 	fi
 	_get_user_input salt_method "$DEFAULT_SALT_METHOD" "validate_salt_method" "$prompt"
@@ -732,6 +719,7 @@ save_helper_scripts() {
 		# Editable mode is for debugging
 		ln -fs "$current_transcrypt" "${CRYPT_DIR}/transcrypt"
 	else
+        rm -f "${CRYPT_DIR}/transcrypt"  # unlink if it already exist 
 		cp -f "$current_transcrypt" "${CRYPT_DIR}/transcrypt"
 	fi
 	# make scripts executable
@@ -824,7 +812,7 @@ _display_git_configuration() {
 # Show the config of the current runtime
 _display_runtime_configuration() {
 	printf '  DIGEST:  %s\n' "$digest"
-	printf '  USE_PBKDF2: %s\n' "$kdf"
+	printf '  KDF: %s\n' "$kdf"
 	printf '  SALT_METHOD: %s\n' "$salt_method"
 	if [[ "$salt_method" == "configured" ]]; then
 		printf '  CONFIG_SALT: %s\n' "$salt_method"

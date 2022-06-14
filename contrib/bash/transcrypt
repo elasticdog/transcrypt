@@ -38,7 +38,7 @@ _transcrypt() {
 			COMPREPLY=( $(compgen -W "${ciphers}" -- ${cur}) )
 			return 0
 			;;
-        --use-pbkdf2)
+			--kdf)
 			return 0
 			;;
 		-sm | --salt-method)
