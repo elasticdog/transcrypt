@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 [1]: https://keepachangelog.com/en/1.0.0/
 [2]: https://semver.org/spec/v2.0.0.html
 
-## [Unreleased]
+## [2.2.0] - 2022-06-14
 
 ### Added
 
@@ -237,7 +237,8 @@ Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 
 ## [0.9.4] - 2014-03-03
 
-[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.1.0...HEAD
+[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/elasticdog/transcrypt/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/elasticdog/transcrypt/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/elasticdog/transcrypt/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/elasticdog/transcrypt/compare/v1.0.3...v1.1.0
