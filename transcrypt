@@ -80,9 +80,9 @@ _openssl_encrypt() {
 	# to ensure it is always included regardless of the OpenSSL version. #133
 	(
 		# Always prepend encrypted ciphertext with "Salted__" prefix and binary salt value
-		printf "Salted__" && printf "%s" "$salt" | xxd -r -p &&
+		printf "Salted__" && printf "%s" "$final_salt" | xxd -r -p &&
 			# Encrypt file to binary ciphertext
-			ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md "${digest}" -pass env:ENC_PASS -S "$salt" "${pbkdf2_args[@]}" -in "$tempfile" |
+			ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md "${digest}" -pass env:ENC_PASS -S "$final_salt" "${pbkdf2_args[@]}" -in "$tempfile" |
 			# Strip "Salted__" prefix and salt value if also added by OpenSSL (version < 3)
 			LC_ALL=C sed -e "s/^\(Salted__.\{8\}\)\(.*\)/\2/"
 	) | base64
@@ -216,15 +216,15 @@ _load_config_var() {
 	local key=$1
 	_load_unversioned_config_var "${key}"
 	if [[ "$?" != "0" ]]; then
-        if [[ "$USE_VERSIONED_CONFIG" == "1" ]]; then 
-            _load_versioned_config_var "${key}"
-            if [[ "$?" != "0" ]]; then
-                #(echo "loaded ${key} from versioned config")
-                true
-            else
-                (echo "unable to load ${key}")
-            fi
-        fi
+		if [[ "$USE_VERSIONED_CONFIG" == "1" ]]; then 
+			_load_versioned_config_var "${key}"
+			if [[ "$?" != "0" ]]; then
+				#(echo "loaded ${key} from versioned config")
+				true
+			else
+				(echo "unable to load ${key}")
+			fi
+		fi
 	else
 		#(echo "loaded ${key} from unversioned config")
 		true
@@ -380,7 +380,7 @@ git_clean() {
 	else
 		_load_vars_for_encryption
 		# NOTE: the openssl standard for salt is 16 hex bytes.
-		salt=$("$openssl_path" dgst -hmac "${filename}:${extra_salt}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
+		final_salt=$("$openssl_path" dgst -hmac "${filename}:${extra_salt}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
 		_openssl_encrypt
 	fi
 }
@@ -1205,16 +1205,16 @@ help() {
 		            defaults to md5
 
 		     --kdf=PBKDF2
-                    the key-derivation-function to use. Currently can be either
-                    'pbkdf2' or 'none'. Defaults to none.
+		            the key-derivation-function to use. Currently can be either
+		            'pbkdf2' or 'none'. Defaults to none.
 
-             -pbkdf2
+		     -pbkdf2
 		            equivalent to passing --kdf2='pbkdf2'
 
 		     -sm, --salt_method=SALT_METHOD
-		            Method used to compute deterministic salt; can be password, random,
-		                    or a custom string to be used as the salt. Unless set to password,
-		                    the salt is randomized on a rekey.
+		            Method used to compute deterministic salt; can be 'password', 'random',
+		            or a custom string to be used as the salt. Unless set to password,
+		            the salt is randomized on a rekey.
 
 		     --set-openssl-path=PATH_TO_OPENSSL
 		            use OpenSSL at this path; defaults to 'openssl' in \$PATH
