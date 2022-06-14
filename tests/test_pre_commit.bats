@@ -74,14 +74,14 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
 
   run "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "WARNING:" ]
-  [ "${lines[1]}" = "Cannot install Git pre-commit hook script because file already exists: .git/hooks/pre-commit" ]
-  [ "${lines[2]}" = "Please manually install the pre-commit script saved as: .git/hooks/pre-commit-crypt" ]
+  [[ "${output}" = *"WARNING:"* ]]
+  [[ "${output}" = *"Cannot install Git pre-commit hook script because file already exists: .git/hooks/pre-commit"* ]]
+  [[ "${output}" = *"Please manually install the pre-commit script saved as: .git/hooks/pre-commit-crypt"* ]]
 
   # Confirm pre-commit-crypt file is installed, but not copied to pre-commit
   run cat .git/hooks/pre-commit-crypt
   [ "$status" -eq 0 ]
-  [ "${lines[1]}" = '# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64' ]
+  [[ "${output}" = *'# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64'* ]]
   [ ! -s .git/hooks/pre-commit ] # Zero file size]
 }
 
@@ -97,7 +97,7 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
 
   run "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = 'WARNING: Cannot safely disable Git pre-commit hook .git/hooks/pre-commit please check it yourself' ]
+  [[ "${output}" = *'WARNING: Cannot safely disable Git pre-commit hook .git/hooks/pre-commit please check it yourself'* ]]
   [ -f .git/hooks/pre-commit ]
   [ ! -f .git/hooks/pre-commit-crypt ]
 }
