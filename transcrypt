@@ -75,21 +75,26 @@ _openssl_encrypt() {
 	# In 3.x openssl disabled output of the salt prefix, which we need for determinism.
 	# We take control over outputting the the prefix 'Salted__' with the salt
 	# to ensure it is always included regardless of the OpenSSL version. #133
-	(
-		# Always prepend encrypted ciphertext with "Salted__" prefix and binary salt value
-		printf "Salted__" && printf "%s" "$final_salt" | xxd -r -p &&
-			# Encrypt file to binary ciphertext
-			ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md "${digest}" -pass env:ENC_PASS -S "$final_salt" "${pbkdf2_args[@]}" -in "$tempfile" |
-			# Strip "Salted__" prefix and salt value if also added by OpenSSL (version < 3)
-			LC_ALL=C sed -e "s/^\(Salted__.\{8\}\)\(.*\)/\2/"
-	) | base64
+	openssl_major_version=$($openssl_path version | cut -d' ' -f2 | cut -d'.' -f1)
+	if [ "$openssl_major_version" -ge "3" ]; then
+		# Encrypt the file to base64, ensuring it includes the prefix 'Salted__' with the salt. #133
+		(
+			printf "Salted__" && printf "%s" "$final_salt" | xxd -r -p &&
+				# Encrypt file to binary ciphertext
+				ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md "${digest}" -pass env:ENC_PASS -S "$final_salt" ${pbkdf2_arg:+"$pbkdf2_arg"} -in "$tempfile"
+		) |
+			base64
+	else
+		# Encrypt file to base64 ciphertext
+		ENC_PASS=$password "$openssl_path" enc -e -a "-${cipher}" -md "${digest}" -pass env:ENC_PASS -S "$final_salt" ${pbkdf2_arg:+"$pbkdf2_arg"} -in "$tempfile"
+	fi
 }
 
 _openssl_decrypt() {
 	# Expects that the following variables are set:
-	# password, openssl_path, cipher, digest, pbkdf2_args
+	# password, openssl_path, cipher, digest, pbkdf2_arg
 	# This works the same across openssl versions
-	ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md "${digest}" -pass env:ENC_PASS -a "$@" "${pbkdf2_args[@]}"
+	ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md "${digest}" -pass env:ENC_PASS -a ${pbkdf2_arg:+"$pbkdf2_arg"} "$@"
 }
 
 # compatible openssl list command
@@ -246,9 +251,7 @@ _load_vars_for_encryption() {
 	_load_transcrypt_config_vars
 
 	if [[ "$kdf" == "1" ]] || [[ "$kdf" == "pbkdf2" ]]; then
-		pbkdf2_args=('-pbkdf2')
-	else
-		pbkdf2_args=()
+		pbkdf2_arg='-pbkdf2'
 	fi
 
 	if [[ "$salt_method" == "password" ]]; then
