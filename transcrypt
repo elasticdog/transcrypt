@@ -139,16 +139,20 @@ git_clean() {
 		password=$(git config --get --local transcrypt.password)
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
-		# Encrypt the file to base64, ensuring it always includes the prefix 'Salted__' with the salt. #133
-		(
-			# Always prepend encrypted ciphertext with "Salted__" prefix and binary salt value
-			echo -n "Salted__" && echo -n "$salt" | xxd -r -p &&
-				# Encrypt file to binary ciphertext
-				ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile" |
-				# Strip "Salted__" prefix and salt value if also added by OpenSSL (version < 3)
-				LC_ALL=C sed -e "s/^\(Salted__.\{8\}\)\(.*\)/\2/"
-		) |
-			base64
+
+		openssl_major_version=$($openssl_path version  | cut -d' ' -f2 | cut -d'.' -f1)
+		if [ "$openssl_major_version" -ge "3" ]; then
+			# Encrypt the file to base64, ensuring it includes the prefix 'Salted__' with the salt. #133
+			(
+				echo -n "Salted__" && echo -n "$salt" | xxd -r -p &&
+					# Encrypt file to binary ciphertext
+					ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
+			) |
+				base64
+		else
+			# Encrypt file to base64 ciphertext
+			ENC_PASS=$password "$openssl_path" enc -e -a "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
+		fi
 	fi
 }
 
