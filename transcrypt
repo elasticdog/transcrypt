@@ -39,7 +39,7 @@ readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path
 readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=0}
 
 # Proposed option: can remove or disable later
-readonly USE_VERSIONED_CONFIG="1"
+readonly USE_VERSIONED_CONFIG="0"
 
 ##### FUNCTIONS
 
