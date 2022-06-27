@@ -309,6 +309,12 @@ run_safety_checks() {
 	for cmd in {column,grep,mktemp,"${openssl_path}",sed,tee}; do
 		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
+	# check for extra `xxd` dependency when running against OpenSSL version 3+
+	openssl_major_version=$($openssl_path version | cut -d' ' -f2 | cut -d'.' -f1)
+	if [ "$openssl_major_version" -ge "3" ]; then
+		cmd="xxd"
+		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
+	fi
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
 	# checkout files without the destruction of uncommitted changes
