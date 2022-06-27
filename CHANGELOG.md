@@ -30,7 +30,7 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 ### Fixed
 
 - Remain compatible with OpenSSL versions 3 and above which changes the way
-  explicit salt values are expressed in ciphertext (#133)
+  explicit salt values are expressed in ciphertext, requires `xxd` command (#133)
 - Ensure Git index is up-to-date before checking for dirty repo, to avoid
   failures seen in CI systems where the repo seems dirty when it isn't. (#37)
 - Respect Git `core.hooksPath` setting when installing the pre-commit hook. (#104)
