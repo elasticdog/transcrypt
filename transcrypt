@@ -148,7 +148,7 @@ git_clean() {
 					# Encrypt file to binary ciphertext
 					ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
 			) |
-				base64
+				openssl base64
 		else
 			# Encrypt file to base64 ciphertext
 			ENC_PASS=$password "$openssl_path" enc -e -a "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
