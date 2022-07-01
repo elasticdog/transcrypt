@@ -83,7 +83,7 @@ _openssl_encrypt() {
 				# Encrypt file to binary ciphertext
 				ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md "${digest}" -pass env:ENC_PASS -S "$final_salt" ${pbkdf2_arg:+"$pbkdf2_arg"} -in "$tempfile"
 		) |
-			base64
+			openssl base64
 	else
 		# Encrypt file to base64 ciphertext
 		ENC_PASS=$password "$openssl_path" enc -e -a "-${cipher}" -md "${digest}" -pass env:ENC_PASS -S "$final_salt" ${pbkdf2_arg:+"$pbkdf2_arg"} -in "$tempfile"
