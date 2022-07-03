@@ -584,7 +584,7 @@ get_digest() {
 	local prompt
 	prompt=$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")
 	if [[ "$digest" == "" ]]; then
-		digest=$(_load_versioned_config_var "transcrypt.digest" || echo "")
+		digest=$(_load_config_var "transcrypt.digest" || echo "")
 	fi
     digest=$(echo "${digest}" | tr '[:upper:]' '[:lower:]')
 	_get_user_input digest "$DEFAULT_DIGEST" "validate_digest" "$prompt"
@@ -595,7 +595,7 @@ get_cipher() {
 	local prompt
 	prompt=$(printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER")
 	if [[ "$cipher" == "" ]]; then
-		cipher=$(_load_versioned_config_var "transcrypt.cipher" || echo "")
+		cipher=$(_load_config_var "transcrypt.cipher" || echo "")
 	fi
 	_get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$prompt"
 }
@@ -604,7 +604,7 @@ get_kdf() {
 	local prompt
 	prompt=$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")
 	if [[ "$kdf" == "" ]]; then
-		kdf=$(_load_versioned_config_var "transcrypt.kdf" || echo "")
+		kdf=$(_load_config_var "transcrypt.kdf" || echo "")
 	fi
 	_get_user_input kdf "$DEFAULT_KDF" "validate_kdf" "$prompt"
 }
@@ -677,7 +677,7 @@ get_base_salt() {
             if [[ $rekey ]]; then
                 base_salt="random"
             else
-                base_salt=$(_load_versioned_config_var "transcrypt.base-salt" || echo "random")
+                base_salt=$(_load_config_var "transcrypt.base-salt" || echo "random")
             fi
         else
             # The user specified something for base-salt

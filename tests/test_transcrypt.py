@@ -544,6 +544,31 @@ def test_salt_changes_when_kdf_changes():
     assert config4['base_salt'] == 'password'
 
 
+def test_kdf_setting_preserved_on_rekey():
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'md5',
+        'kdf': 'pbkdf2',
+        'base_salt': None,
+    }
+    verbose = 1
+    self = TestCases(config=config, verbose=verbose)
+    self.setup()
+    config1 = self.tc._load_unversioned_config()
+    assert len(config1['base_salt']) == 64
+
+    # Explicitly don't pass kdf or base salt.
+    # Transcrypt should reuse the existing kdf setting (but the salt should
+    # change)
+    self.tc.rekey({'password': '12345', 'kdf': None, 'base_salt': None, 'digest': 'SHA512'})
+    config2 = self.tc._load_unversioned_config()
+    assert config2['kdf'] == 'pbkdf2'
+    assert config1['base_salt'] != config2['base_salt']
+    assert len(config1['base_salt']) == 64
+    assert len(config2['base_salt']) == 64
+
+
 def test_configuration_grid():
     """
     CommandLine:
