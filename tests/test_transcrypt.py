@@ -26,7 +26,7 @@ class Transcrypt(ub.NiceRepr):
         >>> sandbox = DemoSandbox(verbose=1, dpath='special:cache').setup()
         >>> config = {'digest': 'sha256',
         >>>           'kdf': 'pbkdf2',
-        >>>           'salt_method': '665896be121e1a0a4a7b18f01780061'}
+        >>>           'base_salt': '665896be121e1a0a4a7b18f01780061'}
         >>> self = Transcrypt(sandbox.repo_dpath,
         >>>                   config=config, env=sandbox.env, verbose=1)
         >>> print(self.version())
@@ -57,7 +57,7 @@ class Transcrypt(ub.NiceRepr):
         'password': None,
         'digest': 'md5',
         'kdf': 'none',
-        'salt_method': 'password',
+        'base_salt': 'password',
     }
 
     def __init__(self, dpath, config=None, env=None, transcript_exe=None, verbose=0):
@@ -89,7 +89,7 @@ class Transcrypt(ub.NiceRepr):
             "-p", self.config['password'],
             "-md", self.config['digest'],
             "--kdf", self.config['kdf'],
-            "-sm", self.config['salt_method'],
+            "-bs", self.config['base_salt'],
         ]
         args = [template.format(**self.config) for template in arg_templates]
         return args
@@ -111,7 +111,7 @@ class Transcrypt(ub.NiceRepr):
         args = self._config_args()
         command = [str(self.transcript_exe), *args, '-y']
         self._cmd(command)
-        self.config['salt_method'] = self._load_unversioned_config()['salt_method']
+        self.config['base_salt'] = self._load_unversioned_config()['base_salt']
 
     def logout(self):
         """
@@ -127,7 +127,7 @@ class Transcrypt(ub.NiceRepr):
         args = self._config_args()
         command = [str(self.transcript_exe), '--rekey', *args, '-y']
         self._cmd(command)
-        self.config['salt_method'] = self._load_unversioned_config()['salt_method']
+        self.config['base_salt'] = self._load_unversioned_config()['base_salt']
 
     def display(self):
         """
@@ -202,7 +202,7 @@ class Transcrypt(ub.NiceRepr):
             'cipher': self._cmd('git config --get --local transcrypt.cipher')['out'].strip(),
             'digest': self._cmd('git config --get --local transcrypt.digest')['out'].strip(),
             'kdf': self._cmd('git config --get --local transcrypt.kdf')['out'].strip(),
-            'salt_method': self._cmd('git config --get --local transcrypt.salt-method')['out'].strip(),
+            'base_salt': self._cmd('git config --get --local transcrypt.base-salt')['out'].strip(),
             'password': self._cmd('git config --get --local transcrypt.password')['out'].strip(),
             'openssl_path': self._cmd('git config --get --local transcrypt.openssl-path')['out'].strip(),
         }
@@ -237,6 +237,8 @@ class DemoSandbox(ub.NiceRepr):
         self._setup_gpghome()
         self._setup_gitrepo()
         self._setup_contents()
+        if self.verbose > 2:
+            self._show_manual_env_setup()
         return self
 
     def _setup_gpghome(self):
@@ -262,6 +264,8 @@ class DemoSandbox(ub.NiceRepr):
         ub.cmd('find ' + str(self.gpg_home) + r' -type f -exec chmod 600 {} \;', shell=True, cwd=self.gpg_home)
         ub.cmd('find ' + str(self.gpg_home) + r' -type d -exec chmod 700 {} \;', shell=True, cwd=self.gpg_home)
         self.env['GNUPGHOME'] = str(self.gpg_home)
+        if self.verbose:
+            pass
 
     def _setup_gitrepo(self):
         if self.verbose:
@@ -298,7 +302,7 @@ class DemoSandbox(ub.NiceRepr):
         self.secret_fpath = self.safe_dpath / 'secret.txt'
         self.secret_fpath.write_text('secret content')
 
-    def _manual_hack_info(self):
+    def _show_manual_env_setup(self):
         """
         Info on how to get an env to run a failing command manually
         """
@@ -393,7 +397,7 @@ class TestCases:
             'password': '12345',
             'digest': 'sha256',
             'kdf': 'pbkdf2',
-            'salt_method': 'random',
+            'base_salt': 'random',
         }
         raw_before = self.tc.show_raw(self.sandbox.secret_fpath)
         self.tc.rekey(new_config)
@@ -408,7 +412,7 @@ def test_legacy_defaults():
         'password': 'correct horse battery staple',
         'digest': 'md5',
         'kdf': 'none',
-        'salt_method': 'password',
+        'base_salt': 'password',
     }
     verbose = 1
     self = TestCases(config=config, verbose=verbose)
@@ -423,7 +427,7 @@ def test_secure_defaults():
         'password': 'correct horse battery staple',
         'digest': 'sha512',
         'kdf': 'pbkdf2',
-        'salt_method': 'random',
+        'base_salt': 'random',
     }
     verbose = 1
     self = TestCases(config=config, verbose=verbose)
@@ -438,19 +442,19 @@ def test_configured_salt_changes_on_rekey():
         'password': 'correct horse battery staple',
         'digest': 'sha512',
         'kdf': 'pbkdf2',
-        'salt_method': 'random',
+        'base_salt': 'random',
     }
     verbose = 1
     self = TestCases(config=config, verbose=verbose)
     self.setup()
     before_config = self.tc._load_unversioned_config()
-    self.tc.rekey({'password': '12345', 'salt_method': ''})
+    self.tc.rekey({'password': '12345', 'base_salt': ''})
     self.sandbox.git.commit('-am commit rekey')
     after_config = self.tc._load_unversioned_config()
     assert before_config['password'] != after_config['password']
     assert before_config['cipher'] == after_config['cipher']
     assert before_config['kdf'] == after_config['kdf']
-    assert before_config['salt_method'] == after_config['salt_method']
+    assert before_config['base_salt'] == after_config['base_salt']
     assert before_config['openssl_path'] == after_config['openssl_path']
 
 
@@ -463,7 +467,7 @@ def test_configuration_grid():
         >>> from test_transcrypt import *  # NOQA
         >>> self = TestCases()
         >>> self.setup()
-        >>> self.sandbox._manual_hack_info()
+        >>> self.sandbox._show_manual_env_setup()
         >>> self.test_round_trip()
         >>> self.test_export_gpg()
     """
@@ -473,10 +477,10 @@ def test_configuration_grid():
         'password': ['correct horse battery staple'],
         'digest': ['md5', 'sha256'],
         'kdf': ['none', 'pbkdf2'],
-        'salt_method': ['password', 'random', 'mylittlecustomsalt'],
+        'base_salt': ['password', 'random', 'mylittlecustomsalt'],
     }
     test_grid = list(ub.named_product(basis))
-    verbose = 0
+    verbose = 3
     dpath = 'special:temp'
     dpath = 'special:cache'
     for params in ub.ProgIter(test_grid, desc='test configs', freq=1):
@@ -485,7 +489,7 @@ def test_configuration_grid():
         self.setup()
         if 1:
             # Manual debug
-            self.sandbox._manual_hack_info()
+            self.sandbox._show_manual_env_setup()
 
         self.test_round_trip()
         self.test_export_gpg()
