@@ -35,6 +35,7 @@ readonly DEFAULT_KDF='none'
 readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path"
 
 # Set to 1 to enable a development editable installation
+# This will symlink transcrypt into the .git folder instead of copying it
 readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=1}
 
 ##### FUNCTIONS
@@ -69,7 +70,7 @@ realpath() {
 
 _openssl_encrypt() {
 	# In 3.x openssl disabled output of the salt prefix, which we need for determinism.
-	# We take control over outputting the the prefix 'Salted__' with the salt
+	# We take control over outputting the prefix 'Salted__' with the salt
 	# to ensure it is always included regardless of the OpenSSL version. #133
 	openssl_major_version=$($openssl_path version | cut -d' ' -f2 | cut -d'.' -f1)
 	if [ "$openssl_major_version" -ge "3" ]; then
@@ -238,6 +239,16 @@ _load_transcrypt_config_vars() {
 	base_salt=$(_load_config_var "transcrypt.base-salt") || (echo "failed to load transcrypt.base-salt" && false)
 	openssl_path=$(_load_config_var "transcrypt.openssl-path") || (echo "failed to load transcrypt.openssl-path" && false)
 	password=$(_load_unversioned_config_var transcrypt.password) || (echo "failed to load transcrypt.password" && false)
+
+    #+---------------+-------------+--------------------+------------------+
+    #| Action        | Using_KDF   | BaseSaltInConfig   | Outcome          |
+    #|---------------+-------------+--------------------+------------------|
+    #| helper-script | True        | True               | Use Config Value |
+    #| helper-script | True        | False              | Error            |
+    #| helper-script | False       | True               | Ignored          |
+    #| helper-script | False       | False              | Ignored          |
+    #+---------------+-------------+--------------------+------------------+
+
 	validate_kdf || die "invalid value of kdf in config"
 	validate_digest || die "invalid value of digest in config"
 }
@@ -587,14 +598,10 @@ validate_base_salt() {
 
 
 get_use_versioned_config() {
-    __doc__="
-    If the user did not specify to use the versioned config or not, then:
-
-        1. Check if there is a setting in the unversioned config. 
-        2. If not, check if the versioned config exists. 
-        3. If not, then defer further checking until we know our setting of base-salt.
-    "
-    echo "in predetermine use_versioned_config = $use_versioned_config"
+    #If the user did not specify to use the versioned config or not, then:
+    #    1. Check if there is a setting in the unversioned config. 
+    #    2. If not, check if the versioned config exists. 
+    #    3. If not, then defer further checking until we know our setting of base-salt.
 	if [[ "$use_versioned_config" == "" ]]; then
 		use_versioned_config=$(_load_unversioned_config "transcrypt.use-versioned-config" || echo "")
 	fi
@@ -605,7 +612,6 @@ get_use_versioned_config() {
             use_versioned_config="defer"  # defer to after base-salt setting is read
         fi
     fi
-    echo "predetermine use_versioned_config = $use_versioned_config"
 }
 
 # ensure we have a digest to hash the salted password
@@ -638,64 +644,30 @@ get_kdf() {
 }
 
 get_base_salt() {
-    __doc__="
-    +-----------+-------------+------------------+--------------------+------------------------+
-    | Action    | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
-    |-----------+-------------+------------------+--------------------+------------------------|
-    | configure | True        | True             | True               | Use Argv and Overwrite |
-    | configure | True        | True             | False              | Use Argv and Overwrite |
-    | configure | True        | False            | True               | Use Config Value       |
-    | configure | True        | False            | False              | Randomize              |
-    | configure | False       | True             | True               | Ignored                |
-    | configure | False       | True             | False              | Ignored                |
-    | configure | False       | False            | True               | Ignored                |
-    | configure | False       | False            | False              | Ignored                |
-    +-----------+-------------+------------------+--------------------+------------------------+
-    +----------+-------------+------------------+--------------------+------------------------+
-    | Action   | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
-    |----------+-------------+------------------+--------------------+------------------------|
-    | rekey    | True        | True             | True               | Use Argv and Overwrite |
-    | rekey    | True        | True             | False              | Use Argv and Overwrite |
-    | rekey    | True        | False            | True               | Randomize              |
-    | rekey    | True        | False            | False              | Randomize              |
-    | rekey    | False       | True             | True               | Ignored                |
-    | rekey    | False       | True             | False              | Ignored                |
-    | rekey    | False       | False            | True               | Ignored                |
-    | rekey    | False       | False            | False              | Ignored                |
-    +----------+-------------+------------------+--------------------+------------------------+
-
-    +---------------+-------------+--------------------+------------------+
-    | Action        | Using_KDF   | BaseSaltInConfig   | Outcome          |
-    |---------------+-------------+--------------------+------------------|
-    | helper-script | True        | True               | Use Config Value |
-    | helper-script | True        | False              | Error            |
-    | helper-script | False       | True               | Ignored          |
-    | helper-script | False       | False              | Ignored          |
-    +---------------+-------------+--------------------+------------------+
-
-    # Developer notes to help enumerate cases
-    import pandas as pd
-    import ubelt as ub
-    df = pd.DataFrame(list(ub.named_product({
-        'Action': ['configure', 'rekey', 'helper-script'],
-        'Using_KDF': [True, False],
-        'BaseSaltInArgv': [True, False],
-        'BaseSaltInConfig': [True, False],
-    })))
-    df.loc[~df.Using_KDF, 'Outcome'] = 'Ignored'
-    df.loc[(df.Action == 'helper-script') & df.BaseSaltInArgv, 'Outcome'] = 'Impossible'
-    df.loc[df.Using_KDF & (df.Action == 'configure') & df.BaseSaltInArgv, 'Outcome'] = 'Use Argv and Overwrite'
-    df.loc[df.Using_KDF & (df.Action == 'configure') & ~df.BaseSaltInArgv * ~df.BaseSaltInConfig, 'Outcome'] = 'Randomize'
-    df.loc[df.Using_KDF & (df.Action == 'configure') & ~df.BaseSaltInArgv * df.BaseSaltInConfig, 'Outcome'] = 'Use Config Value'
-    df.loc[df.Using_KDF & (df.Action == 'rekey') & df.BaseSaltInArgv, 'Outcome'] = 'Use Argv and Overwrite'
-    df.loc[df.Using_KDF & (df.Action == 'rekey') & ~df.BaseSaltInArgv, 'Outcome'] = 'Randomize'
-    df.loc[df.Using_KDF & (df.Action == 'helper-script') & ~df.BaseSaltInArgv & df.BaseSaltInConfig, 'Outcome'] = 'Use Config Value'
-    df.loc[df.Using_KDF & (df.Action == 'helper-script') & ~df.BaseSaltInArgv & ~df.BaseSaltInConfig, 'Outcome'] = 'Error'
-    for key, group in df.groupby('Action'):
-        print(group.to_markdown(index=0, tablefmt='psql'))
-    "
-    echo "before base salt use_versioned_config = $use_versioned_config"
-    echo "kdf = $kdf"
+    #+-----------+-------------+------------------+--------------------+------------------------+
+    #| Action    | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
+    #|-----------+-------------+------------------+--------------------+------------------------|
+    #| configure | True        | True             | True               | Use Argv and Overwrite |
+    #| configure | True        | True             | False              | Use Argv and Overwrite |
+    #| configure | True        | False            | True               | Use Config Value       |
+    #| configure | True        | False            | False              | Randomize              |
+    #| configure | False       | True             | True               | Ignored                |
+    #| configure | False       | True             | False              | Ignored                |
+    #| configure | False       | False            | True               | Ignored                |
+    #| configure | False       | False            | False              | Ignored                |
+    #+-----------+-------------+------------------+--------------------+------------------------+
+    #+----------+-------------+------------------+--------------------+------------------------+
+    #| Action   | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
+    #|----------+-------------+------------------+--------------------+------------------------|
+    #| rekey    | True        | True             | True               | Use Argv and Overwrite |
+    #| rekey    | True        | True             | False              | Use Argv and Overwrite |
+    #| rekey    | True        | False            | True               | Randomize              |
+    #| rekey    | True        | False            | False              | Randomize              |
+    #| rekey    | False       | True             | True               | Ignored                |
+    #| rekey    | False       | True             | False              | Ignored                |
+    #| rekey    | False       | False            | True               | Ignored                |
+    #| rekey    | False       | False            | False              | Ignored                |
+    #+----------+-------------+------------------+--------------------+------------------------+
     # When calling `get_base_salt`, the action is always configure or rekey.
     if [[ "$kdf" == "none" ]]; then
         if [[ "$base_salt" == "" ]]; then
@@ -728,7 +700,6 @@ get_base_salt() {
             use_versioned_config="1"
         fi
     fi
-    echo "after base salt use_versioned_config = $use_versioned_config"
 }
 
 # ensure we have a password to encrypt with

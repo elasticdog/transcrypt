@@ -58,6 +58,7 @@ class Transcrypt(ub.NiceRepr):
         'digest': 'md5',
         'kdf': 'none',
         'base_salt': 'password',
+        'use_versioned_config': None,
     }
 
     def __init__(self, dpath, config=None, env=None, transcript_exe=None, verbose=0):
@@ -90,10 +91,11 @@ class Transcrypt(ub.NiceRepr):
             ('-md', 'digest'),
             ('--kdf', 'kdf'),
             ('-bs', 'base_salt'),
+            ('-vc', 'use_versioned_config'),
         ]
         args = []
         for flag, key in flags_and_keys:
-            value = self.config[key]
+            value = self.config.get(key, None)
             if value is not None:
                 args.append(flag)
                 args.append(value)
@@ -207,6 +209,7 @@ class Transcrypt(ub.NiceRepr):
         if self.verbose > 0:
             print('Loading unversioned config')
         local_config = {
+            'use_versioned_config': self._cmd('git config --get --local transcrypt.use-versioned-config', verbose=0)['out'].strip(),
             'cipher': self._cmd('git config --get --local transcrypt.cipher', verbose=0)['out'].strip(),
             'digest': self._cmd('git config --get --local transcrypt.digest', verbose=0)['out'].strip(),
             'kdf': self._cmd('git config --get --local transcrypt.kdf', verbose=0)['out'].strip(),
@@ -513,6 +516,72 @@ def test_unspecified_salt_with_kdf():
     assert len(config1['base_salt']) == 64
 
 
+def test_legacy_settings_dont_use_the_versioned_config():
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'md5',
+        'kdf': 'none',
+        'base_salt': None,
+    }
+    verbose = 1
+    self = TestCases(config=config, verbose=verbose)
+    self.setup()
+    config1 = self.tc._load_unversioned_config()
+    assert not (self.sandbox.dpath / '.transcrypt').exists()
+    assert config1['use_versioned_config'] == '0'
+
+
+def test_pbkdf_does_use_the_versioned_config():
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'md5',
+        'kdf': 'pbkdf2',
+        'base_salt': None,
+    }
+    verbose = 1
+    self = TestCases(config=config, verbose=verbose)
+    self.setup()
+    config1 = self.tc._load_unversioned_config()
+    assert config1['use_versioned_config'] == '1'
+    assert not (self.sandbox.dpath / '.transcrypt').exists()
+
+
+def test_force_use_versioned_config_1():
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'md5',
+        'kdf': 'none',
+        'base_salt': None,
+        'use_versioned_config': '1',
+    }
+    verbose = 1
+    self = TestCases(config=config, verbose=verbose)
+    self.setup()
+    config1 = self.tc._load_unversioned_config()
+    assert config1['use_versioned_config'] == '1'
+    assert not (self.sandbox.dpath / '.transcrypt').exists()
+
+
+def test_force_use_versioned_config_0():
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'md5',
+        'kdf': 'pbkdf2',
+        'base_salt': None,
+        'use_versioned_config': '0',
+    }
+    verbose = 1
+    self = TestCases(config=config, verbose=verbose)
+    self.setup()
+    config1 = self.tc._load_unversioned_config()
+    assert not (self.sandbox.dpath / '.transcrypt').exists()
+    assert config1['use_versioned_config'] == '0'
+
+
 def test_salt_changes_when_kdf_changes():
     config = {
         'cipher': 'aes-256-cbc',
@@ -561,7 +630,7 @@ def test_kdf_setting_preserved_on_rekey():
     # Explicitly don't pass kdf or base salt.
     # Transcrypt should reuse the existing kdf setting (but the salt should
     # change)
-    self.tc.rekey({'password': '12345', 'kdf': None, 'base_salt': None, 'digest': 'SHA512'})
+    self.tc.rekey({'kdf': None, 'base_salt': None, 'digest': 'SHA512'})
     config2 = self.tc._load_unversioned_config()
     assert config2['kdf'] == 'pbkdf2'
     assert config1['base_salt'] != config2['base_salt']
