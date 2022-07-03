@@ -1,4 +1,7 @@
 """
+This file provides a Python wrapper around the transcrypt API for the purpose
+of testing.
+
 Requirements:
     pip install ubelt
     pip install gpg_lite
@@ -19,8 +22,6 @@ class Transcrypt(ub.NiceRepr):
     A Python wrapper around the Transcrypt API
 
     Example:
-        >>> import sys, ubelt
-        >>> sys.path.append(ubelt.expandpath('~/code/transcrypt/tests'))
         >>> from test_transcrypt import *  # NOQA
         >>> sandbox = DemoSandbox(verbose=1, dpath='special:cache').setup()
         >>> config = {'digest': 'sha256',
@@ -459,8 +460,6 @@ def test_configuration_grid():
         xdoctest -m tests/test_transcrypt.py test_configuration_grid
 
     Example:
-        >>> import sys, ubelt
-        >>> sys.path.append(ubelt.expandpath('~/code/transcrypt/tests'))
         >>> from test_transcrypt import *  # NOQA
         >>> self = TestCases()
         >>> self.setup()
@@ -496,6 +495,6 @@ def test_configuration_grid():
 if __name__ == '__main__':
     """
     CommandLine:
-        python ~/code/transcrypt/tests/test_transcrypt.py
+        python tests/test_transcrypt.py
     """
     test_configuration_grid()
