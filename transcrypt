@@ -1269,9 +1269,9 @@ help() {
 		            a stronger hash (e.g. sha256) if possible.
 
 		     --kdf=PBKDF2
-		            the key-derivation-function to use. Currently can be either
-		            'pbkdf2' or 'none'. Defaults to none. It is strongly
-		            recommended to use a kdf (e.g. pbkdf2) if possible.
+		            the key-derivation-function to use. Can be either 'pbkdf2'
+		            or 'none'.  Defaults to none. It is strongly recommended to
+		            use a kdf (e.g.  pbkdf2) if possible.
 
 		     -pbkdf2
 		            equivalent to passing --kdf2='pbkdf2'
@@ -1281,9 +1281,8 @@ help() {
 		            used as the basis for salt-generation.
 
 		     -vc, --versioned-config=<0|1>
-		            Force transcrypt to use or not use the versioned config.
-		            By default the versioned config is only used when using a
-		            KDF.
+		            force transcrypt to use or not use the versioned config.
+                    By default the versioned config is only when using a KDF.
 
 		     --set-openssl-path=PATH_TO_OPENSSL
 		            use OpenSSL at this path; defaults to 'openssl' in \$PATH

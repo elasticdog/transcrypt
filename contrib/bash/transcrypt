@@ -21,8 +21,8 @@ _transcrypt() {
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts="-c -p -y -d -r -f -F -u -l -s -e -i -v -h \
-	      --cipher --password --set-openssl-path --yes --display --rekey --flush-credentials --force --uninstall --upgrade --list --show-raw --export-gpg --import-gpg --version --help"
+	opts="-c -p -md -pbkdf2 -bs -vc -y -d -r -f -F -u -l -s -e -i -v -h \
+	      --cipher --password --digest --kdf --base-salt --versioned-config --set-openssl-path --yes --display --rekey --flush-credentials --force --uninstall --upgrade --list --show-raw --export-gpg --import-gpg --version --help"
 
 	case "${prev}" in
 		-c | --cipher)
@@ -34,14 +34,18 @@ _transcrypt() {
 			return 0
 			;;
 		-md | --digest)
-			local ciphers=$(openssl list-digest-commands || openssl list -digest-commands &2>/dev/null)
-			COMPREPLY=( $(compgen -W "${ciphers}" -- ${cur}) )
+			local digests=$(openssl list-digest-commands || openssl list -digest-commands &2>/dev/null)
+			COMPREPLY=( $(compgen -W "${digests}" -- ${cur}) )
 			return 0
 			;;
-			--kdf)
+		--kdf)
+			COMPREPLY=( $(compgen -W "none pbkdf2" -- ${cur}) )
 			return 0
 			;;
 		-bs | --base-salt)
+			return 0
+			;;
+		-vc | --versioned-config)
 			return 0
 			;;
 		-s | --show-raw)

@@ -1,6 +1,6 @@
 .\" generated with Ronn-NG/v0.9.1
 .\" http://github.com/apjanke/ronn-ng/tree/0.9.1
-.TH "TRANSCRYPT" "1" "June 2022" ""
+.TH "TRANSCRYPT" "1" "July 2022" ""
 .SH "NAME"
 \fBtranscrypt\fR \- transparently encrypt files within a git repository
 .SH "SYNOPSIS"
@@ -16,6 +16,18 @@ the symmetric cipher to utilize for encryption; defaults to aes\-256\-cbc
 .TP
 \fB\-p\fR, \fB\-\-password\fR=\fIpassword\fR
 the password to derive the key from; defaults to 30 random base64 characters
+.TP
+\fB\-md\fR, \fB\-\-digest\fR=\fIdigest\fR
+the password to derive the key from; defaults to 30 random base64 characters
+.TP
+\fB\-\-kdf\fR=\fIkdf\fR
+the digest used to hash the salted password; defaults to md5\. It is strongly recommended to use a stronger hash (e\.g\. sha256) if possible\.
+.TP
+\fB\-bs\fR, \fB\-\-base\-salt\fR=\fIbase_salt\fR
+if specified, and a KDF is used, this overrides the text used as the basis for salt\-generation\.
+.TP
+\fB\-vs\fR, \fB\-\-versioned\-config\fR=\fIuse_versioned_config\fR
+force transcrypt to use or not use the versioned config\. By default the versioned config is used when using a KDF\.
 .TP
 \fB\-\-set\-openssl\-path\fR=\fIpath_to_openssl\fR
 use OpenSSL at this path; defaults to 'openssl' in $PATH
