@@ -449,3 +449,10 @@ _benchmark_methods(){
     #bash_array_repr "${available[@]}"
 }
 
+
+_lowercase(){
+    __doc__='
+    _lowercase "FOO"
+    '
+    echo "$1" |  tr '[:upper:]' '[:lower:]'
+}

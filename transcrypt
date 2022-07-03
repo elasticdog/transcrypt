@@ -586,6 +586,7 @@ get_digest() {
 	if [[ "$digest" == "" ]]; then
 		digest=$(_load_versioned_config_var "transcrypt.digest" || echo "")
 	fi
+    digest=$(echo "${digest}" | tr '[:upper:]' '[:lower:]')
 	_get_user_input digest "$DEFAULT_DIGEST" "validate_digest" "$prompt"
 }
 

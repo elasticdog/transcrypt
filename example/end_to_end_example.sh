@@ -29,7 +29,7 @@ mkdir -p "$DEMO_REPO"/safe
 
 
 # Configure transcrypt with legacy defaults
-transcrypt -c aes-256-cbc -p 'correct horse battery staple' -md MD5 --kdf=1 -sm random -y
+transcrypt -c aes-256-cbc -p 'correct horse battery staple' -md MD5 --kdf=1 -y
 git commit -m "Configured transcrypt"
 
 echo "Secret contents" > "$DEMO_REPO"/safe/secret_file
