@@ -650,6 +650,7 @@ def test_configuration_grid():
         'digest': ['md5', 'sha256'],
         'kdf': ['none', 'pbkdf2'],
         'base_salt': ['password', 'random', 'mylittlecustomsalt', None],
+        'use_versioned_config': ['0', '1', None],
     }
 
     test_grid = list(ub.named_product(basis))
@@ -691,6 +692,6 @@ if __name__ == '__main__':
         python tests/test_transcrypt.py
 
         # Runs everything
-        pytest tests/test_transcrypt.py -v
+        pytest tests/test_transcrypt.py -v -s
     """
     test_configuration_grid()

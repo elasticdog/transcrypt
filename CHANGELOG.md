@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 - Add support for pbkdf2
 - Add support for user specified digest
 - Add support for new configured base salt
-- Add .transcrypt versioned directory
+- Add support for an optional .transcrypt versioned directory
 - Support for OpenSSL 3.x
 - Add support for development editable install
 

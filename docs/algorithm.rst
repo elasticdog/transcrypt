@@ -52,7 +52,7 @@ Given a sensitive file specified by ``filename``
    digest, key derivation function, salt, and password), openssl is called to 
    encrypt the plaintext, and the base64 ciphertext is emitted and passed to git.
 
-The following is the openssl invocation used in encryption
+The following is (similar to) the openssl invocation used in encryption
 
 .. code:: bash 
 
@@ -81,7 +81,7 @@ in the user's working branch via the ``filter.crypt.smudge`` filter.
    decryption fails the ciphertext itself is emitted via stdout.
 
 
-The following invocation is used for decryption
+The following invocation is (similar to) the command used for decryption
 
 .. code:: bash 
 
@@ -92,23 +92,20 @@ The following invocation is used for decryption
 
 
 Configuration
-=============
+-------------
 
 Loading the configuration is a critical subroutine in the core transcrypt
 components.
 
-In the proposed transcrypt 3.x implementation, the following *bash* variables
-are required for encryption and decryption:
+In the proposed transcrypt 3.x implementation, the following variables are
+required for encryption and decryption:
 
 * ``cipher``
 * ``password``
 * ``digest``
-* ``pbkdf2_args``
- 
+* ``kdf``
+* ``base_salt``
 
-And additionally, encryption needs the variable:
-
-* ``salt``
 
 Cipher, Password, and Digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -125,7 +122,7 @@ in plaintext.
 Note, that before transcrypt 3.x only cipher and password were configurable.
 Legacy behavior of transcrypt is described by assuming digest is MD5. 
 
-The other two variables ``pbkdf2_args`` and ``salt`` are less straight forward.
+The other two variables ``kdf`` and ``base_salt`` are less straight forward.
 
 
 PBKDF2
@@ -141,24 +138,23 @@ OpenSSL enables ``pbkdf2`` if the ``-pbkdf2`` flag is specified.
 To coerce this into a key-value configuration scheme we use the git
 configuration variable
 
-* ``transcrypt.use-pbkdf2``
+* ``transcrypt.kdf``
 
-Which can be set to 0 or 1. At configuration load time, depending on the value
-in the config transcrypt will set ``pbkdf2_args`` to an empty bash array in the
-case where pbkdf2 is disabled, and ``-pbkdf2`` otherwise. This allows us to use
-bash array syntax to express both variants as a single openssl command.
+Which can be set to "none" or "pbkdf2", which will enable the ``-pbkdf2``
+openssl flag in the latter case.
 
-The backwards compatible setting for transcrypt < 3.x is ``--kdf=0``.
+The backwards compatible setting for transcrypt < 3.x is ``--kdf=none``.
 
 See Also: 
 
 PKCS5#5.2 (RFC-2898) 
 https://datatracker.ietf.org/doc/html/rfc2898#section-5.2
 
-Salt
-~~~~
+Base Salt
+~~~~~~~~~
 
-Lastly, there is ``salt``, which the least straightforward of these options.
+Lastly, there is ``base_salt``, which influences how we determine the final
+salt for the encryption process.
 
 Ideally, when using openssl, a unique and random salt is generated **each
 time** the file is encrypted. This prevents an attacker from executing a
@@ -173,7 +169,7 @@ changed file every time the "clean" command was executed.
 Transcrypt therefore defines two strategies to generate a deterministic salt:
 
 1. The "password" salt method.
-2. The "configured" salt method.
+2. The "random" salt method.
 
 The first method is equivalent to the existing process in transcrypt 2.x.
 The second method is a new more secure variant, but will rely on a new
@@ -190,32 +186,24 @@ generated for each file via the following invocation:
 
 This salt is based on the name of the file, its sha256 hash, and something
 called "extra-salt", which is determined by the user's choice of
-``transcrypt.salt-method``. 
+``transcrypt.kdf`` and ``transcrypt.base-salt``.
 
-In the case where ``transcrypt.salt-method=password``, the "extra-salt" is set
-to the user's plaintext password. This exactly mimics the behavior of
-transcrypt 2.x and is used as the default to provide backwards compatibility.
+In the case where ``transcrypt.kdf=none``, the "extra-salt" is set
+to the user's plaintext password and ``transcrypt.base-salt`` is ignored. This
+exactly mimics the behavior of transcrypt 2.x and is used as the default to
+provide backwards compatibility.
 
 However, as discussed in 
 `#55 <https://github.com/elasticdog/transcrypt/issues/55>_`, this introduces a
 security weakness that weakens the extra security provided the use of
-``-pbkdf2``. Thus transcrypt 3.x introduces a new "configured" method.
+``-pbkdf2``. Thus, transcrypt 3.x introduces a new "random" method.
 
-In the case where ``transcrypt.salt-method=configured``, the implementation
-will check if a special configuration variable ``transcrypt.config-salt`` is
-set, and if not, it will set it to a random 32 character hex string, and check
-the choice of that value into the repo. Then the value of
-``transcrypt.config-salt`` will be used as "extra-salt". The value of
-``transcrypt.config-salt`` is randomized every time the user changes their
-password. We note that this method this method does provide less entropy than
-randomly choosing the salt on each encryption cycle, but we are unaware of 
+In the case where ``transcrypt.kdf=pbkdf2``, transcrypt will store a randomized
+(32 character hex string) or custom user-specified string in
+``transcrypt.base-salt``. This value is rerandomized on a rekey.  We note that
+this method this method does provide less entropy than randomly choosing the
+salt on each encryption cycle, but we are unaware of 
 any security concerns that arise from this method.
-
-Note: this method could be further improved by generated a randomized
-config-salt for each file that is modified when the file itself is modified.
-Such a scheme should exactly match the entropy of the openssl default
-randomized salt method.  However, due to the added implementation complexity
-and unclear security benefits we defer that to future work.
 
 See Also:
 
@@ -267,52 +255,9 @@ Second, transcrypt 3.x adds 4 new parameters that a user will need to
 configure. By storing these parameters in the repo itself it will ease the
 burden of decrypting a fresh clone of a repo.
 
-Using this versioned config for everything but ``transcrypt.config-salt`` is
-completely optional (and using ``transcrypt.config-salt`` is not needed if
-``transcrypt.salt-method=password``, although that is not recommended). Thus
-the user can still choose to keep the chosen cipher, digest, and use of pbkdf2
-a secret if they desire (although we will remind the reader that 
+We also introduce an option to disable the versioned config by specifying
+``--versioned-config=0`` on the command line. Thus the user can still choose to
+keep the chosen cipher, digest, use of pbkdf2, and base-salt a secret if they
+desire (although we will remind the reader that 
 `security by obscurity <https://en.wikipedia.org/wiki/Security_through_obscurity>_` 
 should never be relied on).
-
-NOTE: Currently, as of 2022-05-09, the current implementation of transcrypt 3.x
-does not implement the ability for ``.transcrypt/config`` to store any config
-variable other than ``transcrypt.config-salt``. We will wait for this proposal
-to be reviewed because the design of the priority in which configuration
-variables are stored is is currently an open question in the mind of the
-author. However, proposed example *behavior* is as follows:
-
-Case Study and Open Questions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Given: A fresh clone of a repo without a ``.transcrypt/config`` file.
-
-The user invokes ``transcrypt`` and is prompted for all 6 configuration variables.
-
-These are stored to the primary ``.git/config`` file, except for
-``transcrypt.config-salt``, which --- if the salt method is "configured" --- is
-always stored in ``.git/transcrypt`` and checked into the repo. The user is notified 
-that transcrypt used ``git add`` to stage this file, and instructs the user to commit 
-the file (transcrypt never invokes the ``git commit`` command). 
-
-Proposal: The user is additionally prompted if they want to add the
-non-sensitive configuration to the versioned config. This prompt can be skipped
-by specifying ``--versioned=1`` or ``--versioned=0``. In the unversioned case,
-the process proceeded as-is, otherwise the non-sensitive configuration is written 
-to ``.transcrypt/config`` **instead of** being written to ``.git/config``. 
-
-Open Question: When non-sensitive configuration variables are written, should they be:
-
-1. Written only to ``.transcrypt/config`` and not ``.git/config``?
-2. Written to both ``.transcrypt/config`` and ``.git/config``?
-3. Written only to ``.transcrypt/config`` and ensured they are removed from ``.git/config``?
-
-Because all of these configuration files are plain-text and editable we have to
-consider the precedence of config settings when loading. The current proposal
-is to always look at ``.git/config`` first and then fallback to
-``.transcrypt/config``.
-
-Open Question: When we read a variable from ``.git/config`` and it disagrees
-with ``.transcrypt/config`` do we "fix" ``.transcrypt/config``, warn, or ignore
-it. My current proposal is to ignore it and rely on documented precedence
-rules.

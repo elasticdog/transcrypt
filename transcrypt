@@ -902,8 +902,16 @@ display_configuration() {
 	_display_git_configuration
 	_display_runtime_configuration
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
-	printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s'\n" \
-		"$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt"
+
+	if [[ "$use_versioned_config" == "0" ]] && [[ "$kdf" != "none" ]] ; then
+        # The user is forcing the versioned config off, give them an invocation
+        # that respects that
+        printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s' -vc '%s'\n" \
+            "$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt" "$use_versioned_config"
+    else
+        printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s'\n" \
+            "$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt"
+    fi
 }
 
 # remove transcrypt-related settings from the repository's git config
@@ -1178,8 +1186,8 @@ export_gpg() {
 	mkdir -p "${CRYPT_DIR}"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
-	printf 'password=%s\ncipher=%s\ndigest=%s\nkdf=%s\nbase_salt=%s\n\n' \
-		"$password" "$cipher" "$digest" "$kdf" "$base_salt" |
+	printf 'password=%s\ncipher=%s\ndigest=%s\nkdf=%s\nbase_salt=%s\nuse_versioned_config=%s\n\n' \
+		"$password" "$cipher" "$digest" "$kdf" "$base_salt" "$use_versioned_config" |
 		$gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
 	printf "The transcrypt configuration has been encrypted and exported to:\n%s/crypt/%s.asc\n" "$GIT_DIR" "$gpg_recipient"
 }
@@ -1216,7 +1224,7 @@ import_gpg() {
 	digest=$(printf '%s' "$configuration" | grep '^digest' | cut -d'=' -f 2-)
 	kdf=$(printf '%s' "$configuration" | grep '^kdf' | cut -d'=' -f 2-)
 	base_salt=$(printf '%s' "$configuration" | grep '^base_salt' | cut -d'=' -f 2-)
-	base_salt=$(printf '%s' "$configuration" | grep '^base_salt' | cut -d'=' -f 2-)
+	use_versioned_config=$(printf '%s' "$configuration" | grep '^use_versioned_config' | cut -d'=' -f 2-)
 }
 
 # print this script's usage message to stderr
