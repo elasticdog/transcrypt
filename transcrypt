@@ -29,14 +29,13 @@ readonly VERSION='3.0.0-pre'
 readonly DEFAULT_CIPHER='aes-256-cbc'
 readonly DEFAULT_DIGEST='md5'
 readonly DEFAULT_KDF='none'
-readonly DEFAULT_SALT_METHOD='password'
 
 # These are config variables we do not allow to be used in the versioned
 # configuration
 readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path"
 
 # Set to 1 to enable a development editable installation
-readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=0}
+readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=1}
 
 # Proposed option: can remove or disable later
 readonly USE_VERSIONED_CONFIG="0"
@@ -241,7 +240,6 @@ _load_transcrypt_config_vars() {
 	base_salt=$(_load_config_var "transcrypt.base-salt") || (echo "failed to load transcrypt.base-salt" && false)
 	openssl_path=$(_load_config_var "transcrypt.openssl-path") || (echo "failed to load transcrypt.openssl-path" && false)
 	password=$(_load_unversioned_config_var transcrypt.password) || (echo "failed to load transcrypt.password" && false)
-	ensure_base_salt
 	validate_kdf || die "invalid value of kdf in config"
 	validate_digest || die "invalid value of digest in config"
 }
@@ -570,7 +568,15 @@ validate_kdf() {
 }
 
 validate_base_salt() {
-	true
+    if [[ "$kdf" != "none" ]]; then
+        if [[ "$base_salt" == "" ]]; then
+            die 1 'The base salt is required when using a kdf, but it is unspecified.'
+        elif [[ "$base_salt" == "random" ]]; then
+            die 1 'The base=salt is set to random, but it has not been randomized'.
+        elif [[ "$base_salt" == "password" ]]; then
+            die 1 'Using base-salt="password" method with a KDF is insecure. Use "random" instead'.
+        fi
+    fi
 }
 
 # ensure we have a digest to hash the salted password
@@ -579,7 +585,6 @@ get_digest() {
 	prompt=$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")
 	if [[ "$digest" == "" ]]; then
 		digest=$(_load_versioned_config_var "transcrypt.digest" || echo "")
-		# echo "Loaded digest = $digest from local config"
 	fi
 	_get_user_input digest "$DEFAULT_DIGEST" "validate_digest" "$prompt"
 }
@@ -590,7 +595,6 @@ get_cipher() {
 	prompt=$(printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER")
 	if [[ "$cipher" == "" ]]; then
 		cipher=$(_load_versioned_config_var "transcrypt.cipher" || echo "")
-		# echo "Loaded cipher = $cipher from local config"
 	fi
 	_get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$prompt"
 }
@@ -600,20 +604,91 @@ get_kdf() {
 	prompt=$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")
 	if [[ "$kdf" == "" ]]; then
 		kdf=$(_load_versioned_config_var "transcrypt.kdf" || echo "")
-		# echo "Loaded kdf = $kdf from local config"
 	fi
 	_get_user_input kdf "$DEFAULT_KDF" "validate_kdf" "$prompt"
 }
 
 get_base_salt() {
-	local prompt
-	prompt=$(printf 'Which base salt? [%s] ' "$DEFAULT_SALT_METHOD")
-	if [[ "$base_salt" == "" ]]; then
-		base_salt=$(_load_versioned_config_var "transcrypt.base-salt" || echo "")
-		# echo "Loaded base_salt = $base_salt from local config"
-	fi
-	_get_user_input base_salt "$DEFAULT_SALT_METHOD" "validate_base_salt" "$prompt"
-	ensure_base_salt
+    __doc__="
+    +-----------+-------------+------------------+--------------------+------------------------+
+    | Action    | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
+    |-----------+-------------+------------------+--------------------+------------------------|
+    | configure | True        | True             | True               | Use Argv and Overwrite |
+    | configure | True        | True             | False              | Use Argv and Overwrite |
+    | configure | True        | False            | True               | Use Config Value       |
+    | configure | True        | False            | False              | Randomize              |
+    | configure | False       | True             | True               | Ignored                |
+    | configure | False       | True             | False              | Ignored                |
+    | configure | False       | False            | True               | Ignored                |
+    | configure | False       | False            | False              | Ignored                |
+    +-----------+-------------+------------------+--------------------+------------------------+
+    +----------+-------------+------------------+--------------------+------------------------+
+    | Action   | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
+    |----------+-------------+------------------+--------------------+------------------------|
+    | rekey    | True        | True             | True               | Use Argv and Overwrite |
+    | rekey    | True        | True             | False              | Use Argv and Overwrite |
+    | rekey    | True        | False            | True               | Randomize              |
+    | rekey    | True        | False            | False              | Randomize              |
+    | rekey    | False       | True             | True               | Ignored                |
+    | rekey    | False       | True             | False              | Ignored                |
+    | rekey    | False       | False            | True               | Ignored                |
+    | rekey    | False       | False            | False              | Ignored                |
+    +----------+-------------+------------------+--------------------+------------------------+
+
+    +---------------+-------------+--------------------+------------------+
+    | Action        | Using_KDF   | BaseSaltInConfig   | Outcome          |
+    |---------------+-------------+--------------------+------------------|
+    | helper-script | True        | True               | Use Config Value |
+    | helper-script | True        | False              | Error            |
+    | helper-script | False       | True               | Ignored          |
+    | helper-script | False       | False              | Ignored          |
+    +---------------+-------------+--------------------+------------------+
+
+    # Developer notes to help enumerate cases
+    import pandas as pd
+    import ubelt as ub
+    df = pd.DataFrame(list(ub.named_product({
+        'Action': ['configure', 'rekey', 'helper-script'],
+        'Using_KDF': [True, False],
+        'BaseSaltInArgv': [True, False],
+        'BaseSaltInConfig': [True, False],
+    })))
+    df.loc[~df.Using_KDF, 'Outcome'] = 'Ignored'
+    df.loc[(df.Action == 'helper-script') & df.BaseSaltInArgv, 'Outcome'] = 'Impossible'
+    df.loc[df.Using_KDF & (df.Action == 'configure') & df.BaseSaltInArgv, 'Outcome'] = 'Use Argv and Overwrite'
+    df.loc[df.Using_KDF & (df.Action == 'configure') & ~df.BaseSaltInArgv * ~df.BaseSaltInConfig, 'Outcome'] = 'Randomize'
+    df.loc[df.Using_KDF & (df.Action == 'configure') & ~df.BaseSaltInArgv * df.BaseSaltInConfig, 'Outcome'] = 'Use Config Value'
+    df.loc[df.Using_KDF & (df.Action == 'rekey') & df.BaseSaltInArgv, 'Outcome'] = 'Use Argv and Overwrite'
+    df.loc[df.Using_KDF & (df.Action == 'rekey') & ~df.BaseSaltInArgv, 'Outcome'] = 'Randomize'
+    df.loc[df.Using_KDF & (df.Action == 'helper-script') & ~df.BaseSaltInArgv & df.BaseSaltInConfig, 'Outcome'] = 'Use Config Value'
+    df.loc[df.Using_KDF & (df.Action == 'helper-script') & ~df.BaseSaltInArgv & ~df.BaseSaltInConfig, 'Outcome'] = 'Error'
+    for key, group in df.groupby('Action'):
+        print(group.to_markdown(index=0, tablefmt='psql'))
+    "
+    # When calling `get_base_salt`, the action is always configure or rekey.
+    if [[ "$kdf" == "none" ]]; then
+        if [[ "$base_salt" == "" ]]; then
+            base_salt="password"
+        fi
+    else
+        if [[ "$base_salt" == "" ]]; then
+            # The user did not specify a base salt.
+            if [[ $rekey ]]; then
+                base_salt="random"
+            else
+                base_salt=$(_load_versioned_config_var "transcrypt.base-salt" || echo "random")
+            fi
+        else
+            # The user specified something for base-salt
+            if [[ "$base_salt" == "password" ]]; then
+                die 1 'Using the "password" method with a KDF is insecure. Use "random" instead'.
+            fi
+        fi
+        # Randomize the base salt if requested.
+        if [[ "$base_salt" == "random" ]]; then
+            base_salt=$(openssl rand -hex 32)
+        fi
+    fi
 }
 
 # ensure we have a password to encrypt with
@@ -639,20 +714,6 @@ get_password() {
 			[[ $password ]] || printf 'no password was specified\n'
 		fi
 	done
-}
-
-ensure_base_salt() {
-	# Check if randomized salt needs to be written
-	if [[ "$base_salt" == "random" ]]; then
-		# Replace random with something random.
-		# If we have not configured the base_salt (or we need to rekey),
-		# then generate new random salt
-		base_salt=$(openssl rand -hex 32)
-	fi
-	if [[ $rekey ]] && [[ $base_salt != "password" ]]; then
-		# Assume we want a new random salt unless we are explicitly using password
-		base_salt=$(openssl rand -hex 32)
-	fi
 }
 
 # confirm the transcrypt configuration
@@ -815,10 +876,7 @@ _display_git_configuration() {
 _display_runtime_configuration() {
 	printf '  DIGEST:  %s\n' "$digest"
 	printf '  KDF: %s\n' "$kdf"
-	printf '  SALT_METHOD: %s\n' "$base_salt"
-	if [[ "$base_salt" == "configured" ]]; then
-		printf '  CONFIG_SALT: %s\n' "$base_salt"
-	fi
+	printf '  BASE_SALT: %s\n' "$base_salt"
 	printf '  CIPHER:   %s\n' "$cipher"
 	printf '  PASSWORD: %s\n\n' "$password"
 }
@@ -1192,19 +1250,20 @@ help() {
 
 		     -md, --digest=DIGEST
 		            the digest used to hash the salted password;
-		            defaults to md5
+		            defaults to md5. It is strongly recommended to use
+                    a stronger hash (e.g. sha256) if possible.
 
 		     --kdf=PBKDF2
 		            the key-derivation-function to use. Currently can be either
-		            'pbkdf2' or 'none'. Defaults to none.
+                    'pbkdf2' or 'none'. Defaults to none. It is strongly
+                    recommended to use a kdf (e.g. pbkdf2) if possible.
 
 		     -pbkdf2
 		            equivalent to passing --kdf2='pbkdf2'
 
-		     -bs, --base-salt=SALT_METHOD
-		            Method used to compute deterministic salt; can be 'password', 'random',
-		            or a custom string to be used as the salt. Unless set to password,
-		            the salt is randomized on a rekey.
+		     -bs, --base-salt=BASE_SALT
+                    if specified, and a KDF is used, this overrides the text
+                    used as the basis for salt-generation.
 
 		     --set-openssl-path=PATH_TO_OPENSSL
 		            use OpenSSL at this path; defaults to 'openssl' in \$PATH

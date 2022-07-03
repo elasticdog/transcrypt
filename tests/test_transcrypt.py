@@ -84,14 +84,19 @@ class Transcrypt(ub.NiceRepr):
                       shell=shell, check=check)
 
     def _config_args(self):
-        arg_templates = [
-            "-c", self.config['cipher'],
-            "-p", self.config['password'],
-            "-md", self.config['digest'],
-            "--kdf", self.config['kdf'],
-            "-bs", self.config['base_salt'],
+        flags_and_keys = [
+            ('-c', 'cipher'),
+            ('-p', 'password'),
+            ('-md', 'digest'),
+            ('--kdf', 'kdf'),
+            ('-bs', 'base_salt'),
         ]
-        args = [template.format(**self.config) for template in arg_templates]
+        args = []
+        for flag, key in flags_and_keys:
+            value = self.config[key]
+            if value is not None:
+                args.append(flag)
+                args.append(value)
         return args
 
     def is_configured(self):
@@ -144,7 +149,8 @@ class Transcrypt(ub.NiceRepr):
         return self._cmd(f'{self.transcript_exe} --version')['out'].rstrip()
 
     def _crypt_dir(self):
-        info = self._cmd('git config --local transcrypt.crypt-dir', check=0)
+        info = self._cmd('git config --local transcrypt.crypt-dir', check=0,
+                         verbose=0)
         if info['err'] == 0:
             crypt_dpath = ub.Path(info['out'].strip())
         else:
@@ -198,13 +204,15 @@ class Transcrypt(ub.NiceRepr):
         return self._cmd(f'{self.transcript_exe} --upgrade -y')
 
     def _load_unversioned_config(self):
+        if self.verbose > 0:
+            print('Loading unversioned config')
         local_config = {
-            'cipher': self._cmd('git config --get --local transcrypt.cipher')['out'].strip(),
-            'digest': self._cmd('git config --get --local transcrypt.digest')['out'].strip(),
-            'kdf': self._cmd('git config --get --local transcrypt.kdf')['out'].strip(),
-            'base_salt': self._cmd('git config --get --local transcrypt.base-salt')['out'].strip(),
-            'password': self._cmd('git config --get --local transcrypt.password')['out'].strip(),
-            'openssl_path': self._cmd('git config --get --local transcrypt.openssl-path')['out'].strip(),
+            'cipher': self._cmd('git config --get --local transcrypt.cipher', verbose=0)['out'].strip(),
+            'digest': self._cmd('git config --get --local transcrypt.digest', verbose=0)['out'].strip(),
+            'kdf': self._cmd('git config --get --local transcrypt.kdf', verbose=0)['out'].strip(),
+            'base_salt': self._cmd('git config --get --local transcrypt.base-salt', verbose=0)['out'].strip(),
+            'password': self._cmd('git config --get --local transcrypt.password', verbose=0)['out'].strip(),
+            'openssl_path': self._cmd('git config --get --local transcrypt.openssl-path', verbose=0)['out'].strip(),
         }
         return local_config
 
@@ -237,7 +245,7 @@ class DemoSandbox(ub.NiceRepr):
         self._setup_gpghome()
         self._setup_gitrepo()
         self._setup_contents()
-        if self.verbose > 2:
+        if self.verbose > 1:
             self._show_manual_env_setup()
         return self
 
@@ -314,6 +322,16 @@ class DemoSandbox(ub.NiceRepr):
 class TestCases:
     """
     Unit tests to be applied to different transcrypt configurations
+
+    xdoctest -m tests/test_transcrypt.py TestCases
+
+    Example:
+        >>> from test_transcrypt import *  # NOQA
+        >>> self = TestCases(verbose=2)
+        >>> self.setup()
+        >>> self.sandbox._show_manual_env_setup()
+        >>> self.test_round_trip()
+        >>> self.test_export_gpg()
     """
 
     def __init__(self, config=None, dpath=None, verbose=0):
@@ -412,7 +430,7 @@ def test_legacy_defaults():
         'password': 'correct horse battery staple',
         'digest': 'md5',
         'kdf': 'none',
-        'base_salt': 'password',
+        'base_salt': '',
     }
     verbose = 1
     self = TestCases(config=config, verbose=verbose)
@@ -437,6 +455,10 @@ def test_secure_defaults():
 
 
 def test_configured_salt_changes_on_rekey():
+    """
+    CommandLine:
+        xdoctest -m tests/test_transcrypt.py test_configured_salt_changes_on_rekey
+    """
     config = {
         'cipher': 'aes-256-cbc',
         'password': 'correct horse battery staple',
@@ -444,32 +466,88 @@ def test_configured_salt_changes_on_rekey():
         'kdf': 'pbkdf2',
         'base_salt': 'random',
     }
-    verbose = 1
+    verbose = 2
     self = TestCases(config=config, verbose=verbose)
     self.setup()
     before_config = self.tc._load_unversioned_config()
     self.tc.rekey({'password': '12345', 'base_salt': ''})
     self.sandbox.git.commit('-am commit rekey')
     after_config = self.tc._load_unversioned_config()
-    assert before_config['password'] != after_config['password']
+    assert before_config['password'] != after_config['password'], 'password should have changed!'
+    assert before_config['base_salt'] != after_config['base_salt'], 'salt should have changed!'
     assert before_config['cipher'] == after_config['cipher']
     assert before_config['kdf'] == after_config['kdf']
-    assert before_config['base_salt'] == after_config['base_salt']
     assert before_config['openssl_path'] == after_config['openssl_path']
+
+
+def test_unspecified_salt_without_kdf():
+    """
+    In this case the salt should default to the password method
+    """
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'sha512',
+        'kdf': '',
+        'base_salt': None,
+    }
+    verbose = 2
+    self = TestCases(config=config, verbose=verbose)
+    self.setup()
+    config1 = self.tc._load_unversioned_config()
+    assert config1['base_salt'] == 'password'
+
+
+def test_unspecified_salt_with_kdf():
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'sha512',
+        'kdf': 'pbkdf2',
+        'base_salt': None,
+    }
+    verbose = 1
+    self = TestCases(config=config, verbose=verbose)
+    self.setup()
+    config1 = self.tc._load_unversioned_config()
+    assert len(config1['base_salt']) == 64
+
+
+def test_salt_changes_when_kdf_changes():
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'sha512',
+        'kdf': '',
+        'base_salt': None,
+    }
+    verbose = 2
+    self = TestCases(config=config, verbose=verbose)
+    self.setup()
+    config1 = self.tc._load_unversioned_config()
+    assert config1['base_salt'] == 'password'
+    # Test rekey, base-salt should still be password
+    self.tc.rekey({'password': '12345'})
+    config2 = self.tc._load_unversioned_config()
+    assert config2['base_salt'] == 'password'
+    self.sandbox.git.commit('-am commit rekey')
+
+    # Test rekey with kdf=pbkdf2 base-salt should now randomize
+    self.tc.rekey({'password': '12345', 'kdf': 'pbkdf2', 'base_salt': None})
+    config3 = self.tc._load_unversioned_config()
+    assert len(config3['base_salt']) == 64, 'should have had new random salt'
+    self.sandbox.git.commit('-am commit rekey')
+
+    # Test rekey going back to no kdf
+    self.tc.rekey({'password': '12345', 'kdf': 'none', 'base_salt': None})
+    config4 = self.tc._load_unversioned_config()
+    assert config4['base_salt'] == 'password'
 
 
 def test_configuration_grid():
     """
     CommandLine:
         xdoctest -m tests/test_transcrypt.py test_configuration_grid
-
-    Example:
-        >>> from test_transcrypt import *  # NOQA
-        >>> self = TestCases()
-        >>> self.setup()
-        >>> self.sandbox._show_manual_env_setup()
-        >>> self.test_round_trip()
-        >>> self.test_export_gpg()
     """
     # Test that transcrypt works under a variety of config conditions
     basis = {
@@ -477,28 +555,48 @@ def test_configuration_grid():
         'password': ['correct horse battery staple'],
         'digest': ['md5', 'sha256'],
         'kdf': ['none', 'pbkdf2'],
-        'base_salt': ['password', 'random', 'mylittlecustomsalt'],
+        'base_salt': ['password', 'random', 'mylittlecustomsalt', None],
     }
+
     test_grid = list(ub.named_product(basis))
-    verbose = 3
+
+    def validate_test_grid(params):
+        if params['kdf'] == 'none' and params['base_salt'] != 'password':
+            return False
+        if params['kdf'] != 'none' and params['base_salt'] == 'password':
+            return False
+        return True
+
+    # Remove invalid configs
+    valid_test_grid = list(filter(validate_test_grid, test_grid))
+    print('valid_test_grid = {}'.format(ub.repr2(valid_test_grid, sort=0, nl=1)))
+
+    verbose = 2
     dpath = 'special:temp'
     dpath = 'special:cache'
-    for params in ub.ProgIter(test_grid, desc='test configs', freq=1):
+    for params in ub.ProgIter(valid_test_grid, desc='test configs', freq=1,
+                              verbose=verbose + 1):
+        if verbose:
+            print('\n\n')
+            print('=================')
+            print('params = {}'.format(ub.repr2(params, nl=1)))
+            print('=================')
+
         config = params.copy()
         self = TestCases(config=config, dpath=dpath, verbose=verbose)
         self.setup()
-        if 1:
-            # Manual debug
-            self.sandbox._show_manual_env_setup()
-
         self.test_round_trip()
         self.test_export_gpg()
         self.test_rekey()
-
+        if verbose:
+            print('=================')
 
 if __name__ == '__main__':
     """
     CommandLine:
         python tests/test_transcrypt.py
+
+        # Runs everything
+        pytest tests/test_transcrypt.py -v
     """
     test_configuration_grid()
