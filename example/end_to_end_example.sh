@@ -28,7 +28,7 @@ git commit -m "add attributes"
 mkdir -p "$DEMO_REPO"/safe
 
 
-# Configure transcrypt with legacy defaults
+# Configure transcrypt with a KDF, but an old hash function
 transcrypt -c aes-256-cbc -p 'correct horse battery staple' -md MD5 --kdf=1 -y
 git commit -m "Configured transcrypt"
 
@@ -40,7 +40,7 @@ git commit -m "add secret with config1"
 transcrypt -s safe/secret_file
 
 
-# Rekey with more secure settings
+# Rekey with a new more secure hash function
 transcrypt --rekey -c aes-256-cbc -p 'foobar' -md SHA256 -y
 git commit -am "changed crypto settings"
 

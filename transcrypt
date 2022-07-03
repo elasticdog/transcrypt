@@ -37,9 +37,6 @@ readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path
 # Set to 1 to enable a development editable installation
 readonly EDITABLE_INSTALL=${TRANSCRYPT_EDITABLE_INSTALL:=1}
 
-# Proposed option: can remove or disable later
-readonly USE_VERSIONED_CONFIG="0"
-
 ##### FUNCTIONS
 
 # print a canonicalized absolute pathname
@@ -218,7 +215,7 @@ _load_config_var() {
 	# Certain values will be blocked from being placed here (like the password)
 	local key=$1
 	_load_unversioned_config_var "${key}" ||
-		([[ "$USE_VERSIONED_CONFIG" == "1" ]] && _load_versioned_config_var "${key}")
+		([[ "$use_versioned_config" == "1" ]] && _load_versioned_config_var "${key}")
 }
 
 _set_config_var() {
@@ -226,7 +223,7 @@ _set_config_var() {
 	local key=$1
 	local val=$2
 	_set_unversioned_config_var "$key" "$val"
-	if [[ "$USE_VERSIONED_CONFIG" == "1" ]]; then
+	if [[ "$use_versioned_config" == "1" ]]; then
 		_set_versioned_config_var "$key" "$val"
 	fi
 }
@@ -234,6 +231,7 @@ _set_config_var() {
 # shellcheck disable=SC2155
 _load_transcrypt_config_vars() {
 	# Populate bash vars with our config
+	use_versioned_config=$(_load_unversioned_config_var "transcrypt.use-versioned-config") || (echo "failed to load transcrypt.use-versioned-config" && false)
 	cipher=$(_load_config_var "transcrypt.cipher") || (echo "failed to load transcrypt.cipher" && false)
 	digest=$(_load_config_var "transcrypt.digest") || (echo "failed to load transcrypt.digest" && false)
 	kdf=$(_load_config_var "transcrypt.kdf") || (echo "failed to load transcrypt.kdf" && false)
@@ -379,7 +377,6 @@ git_smudge() {
 	# the file contents are passed via stdin
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
-	#_load_transcrypt_config_vars
 	_load_vars_for_encryption
 	tee "$tempfile" | _openssl_decrypt 2>/dev/null || cat "$tempfile"
 }
@@ -554,17 +551,26 @@ run_safety_checks() {
 validate_cipher() {
 	local valid_ciphers
 	valid_ciphers=$(_openssl_list cipher-commands)
+    cipher=$(echo "${cipher}" | tr '[:upper:]' '[:lower:]')
 	_validate_variable_str "cipher" "$valid_ciphers"
 }
 
 validate_digest() {
 	local valid_digests
 	valid_digests=$(_openssl_list digest-commands)
+    digest=$(echo "${digest}" | tr '[:upper:]' '[:lower:]')
 	_validate_variable_str "digest" "$valid_digests"
 }
 
 validate_kdf() {
-	_validate_variable_str "kdf" "0 1 none pbkdf2"
+    # Normalize kdf
+    kdf=$(echo "${kdf}" | tr '[:upper:]' '[:lower:]')
+    if [[ "$kdf" == "0" ]]; then
+        kdf="none"
+    elif [[ "$kdf" == "1" ]]; then
+        kdf="pbkdf2"
+    fi
+	_validate_variable_str "kdf" "none pbkdf2"
 }
 
 validate_base_salt() {
@@ -579,6 +585,29 @@ validate_base_salt() {
     fi
 }
 
+
+get_use_versioned_config() {
+    __doc__="
+    If the user did not specify to use the versioned config or not, then:
+
+        1. Check if there is a setting in the unversioned config. 
+        2. If not, check if the versioned config exists. 
+        3. If not, then defer further checking until we know our setting of base-salt.
+    "
+    echo "in predetermine use_versioned_config = $use_versioned_config"
+	if [[ "$use_versioned_config" == "" ]]; then
+		use_versioned_config=$(_load_unversioned_config "transcrypt.use-versioned-config" || echo "")
+	fi
+	if [[ "$use_versioned_config" == "" ]]; then
+        if [ -f "${VERSIONED_TC_CONFIG}" ]; then
+            use_versioned_config="1"
+        else
+            use_versioned_config="defer"  # defer to after base-salt setting is read
+        fi
+    fi
+    echo "predetermine use_versioned_config = $use_versioned_config"
+}
+
 # ensure we have a digest to hash the salted password
 get_digest() {
 	local prompt
@@ -586,7 +615,6 @@ get_digest() {
 	if [[ "$digest" == "" ]]; then
 		digest=$(_load_config_var "transcrypt.digest" || echo "")
 	fi
-    digest=$(echo "${digest}" | tr '[:upper:]' '[:lower:]')
 	_get_user_input digest "$DEFAULT_DIGEST" "validate_digest" "$prompt"
 }
 
@@ -666,10 +694,16 @@ get_base_salt() {
     for key, group in df.groupby('Action'):
         print(group.to_markdown(index=0, tablefmt='psql'))
     "
+    echo "before base salt use_versioned_config = $use_versioned_config"
+    echo "kdf = $kdf"
     # When calling `get_base_salt`, the action is always configure or rekey.
     if [[ "$kdf" == "none" ]]; then
         if [[ "$base_salt" == "" ]]; then
             base_salt="password"
+        fi
+        if [[ "$use_versioned_config" == "defer" ]]; then
+            # Handle deferred use_version_config
+            use_versioned_config="0"
         fi
     else
         if [[ "$base_salt" == "" ]]; then
@@ -689,7 +723,12 @@ get_base_salt() {
         if [[ "$base_salt" == "random" ]]; then
             base_salt=$(openssl rand -hex 32)
         fi
+        if [[ "$use_versioned_config" == "defer" ]]; then
+            # Handle deferred use_version_config
+            use_versioned_config="1"
+        fi
     fi
+    echo "after base salt use_versioned_config = $use_versioned_config"
 }
 
 # ensure we have a password to encrypt with
@@ -824,6 +863,7 @@ save_configuration() {
 	save_helper_hooks
 
 	# write the encryption info
+	_set_unversioned_config_var "transcrypt.use-versioned-config" "$use_versioned_config"
 	_set_config_var "transcrypt.version" "$VERSION"
 	_set_config_var "transcrypt.cipher" "$cipher"
 	_set_config_var "transcrypt.digest" "$digest"
@@ -832,7 +872,7 @@ save_configuration() {
 	_set_unversioned_config_var "transcrypt.openssl-path" "$openssl_path"
 	_set_unversioned_config_var "transcrypt.password" "$password"
 
-	if [[ "$USE_VERSIONED_CONFIG" == "1" ]]; then
+	if [[ "$use_versioned_config" == "1" ]]; then
 		if [ -f $RELATIVE_VERSIONED_TC_CONFIG ]; then
 			if ! git ls-files --error-unmatch "$RELATIVE_VERSIONED_TC_CONFIG" >/dev/null 2>&1; then
 				git add "${RELATIVE_VERSIONED_TC_CONFIG}"
@@ -1164,14 +1204,9 @@ export_gpg() {
 
 	_load_transcrypt_config_vars
 
-	#local current_cipher
-	#current_cipher=$(git config --get --local transcrypt.cipher)
-	#local current_password
-	#current_password=$(git config --get --local transcrypt.password)
 	mkdir -p "${CRYPT_DIR}"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
-	#printf 'password=%s\ncipher=%s\n' "$current_password" "$current_cipher" | $gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
 	printf 'password=%s\ncipher=%s\ndigest=%s\nkdf=%s\nbase_salt=%s\n\n' \
 		"$password" "$cipher" "$digest" "$kdf" "$base_salt" |
 		$gpg_encrypt_cmd >"${CRYPT_DIR}/${gpg_recipient}.asc"
@@ -1265,6 +1300,11 @@ help() {
 		     -bs, --base-salt=BASE_SALT
                     if specified, and a KDF is used, this overrides the text
                     used as the basis for salt-generation.
+
+		     -vc, --versioned-config=<0|1>
+                    Force transcrypt to use or not use the versioned config.
+                    By default the versioned config is only used when using a
+                    KDF.
 
 		     --set-openssl-path=PATH_TO_OPENSSL
 		            use OpenSSL at this path; defaults to 'openssl' in \$PATH
@@ -1374,7 +1414,7 @@ transcrypt_main() {
 	kdf=''
 	digest=''
 	base_salt=''
-	base_salt=''
+    use_versioned_config=''
 
 	# used to bypass certain safety checks
 	requires_existing_config=''
@@ -1446,6 +1486,13 @@ transcrypt_main() {
 			;;
 		--password=*)
 			password=${1#*=}
+			;;
+		-vc | --versioned-config)
+			use_versioned_config=$2
+			shift
+			;;
+		--versioned-config=*)
+			use_versioned_config=${1#*=}
 			;;
 		--set-openssl-path=*)
 			openssl_path=${1#*=}
@@ -1540,6 +1587,9 @@ transcrypt_main() {
 
 	# always run our safety checks
 	run_safety_checks
+
+    # determine if we are using the versioned config or not
+    get_use_versioned_config
 
 	# regular expression used to test user input
 	readonly YES_REGEX='^[Yy]$'

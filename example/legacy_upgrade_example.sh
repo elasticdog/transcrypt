@@ -29,7 +29,7 @@ mkdir -p "$DEMO_REPO"/safe
 
 
 # Configure transcrypt with legacy defaults
-transcrypt -c aes-256-cbc -p 'correct horse battery staple' -md MD5 --kdf=0 -sm password -y
+transcrypt -c aes-256-cbc -p 'correct horse battery staple' -md MD5 --kdf=0 -y
 
 echo "Secret contents" > "$DEMO_REPO"/safe/secret_file
 cat "$DEMO_REPO"/safe/secret_file
