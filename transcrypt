@@ -32,7 +32,7 @@ readonly DEFAULT_KDF='none'
 
 # These are config variables we do not allow to be used in the versioned
 # configuration
-readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path"
+readonly VERSIONED_CONFIG_BLOCKLIST="transcrypt.password transcrypt.openssl-path transcrypt.use-versioned-config"
 
 # Set to 1 to enable a development editable installation
 # This will symlink transcrypt into the .git folder instead of copying it
