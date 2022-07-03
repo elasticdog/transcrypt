@@ -41,10 +41,7 @@ _transcrypt() {
 			--kdf)
 			return 0
 			;;
-		-sm | --salt-method)
-			return 0
-			;;
-		-cs | --config-salt)
+		-bs | --base-salt)
 			return 0
 			;;
 		-s | --show-raw)

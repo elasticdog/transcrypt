@@ -240,14 +240,14 @@ _load_transcrypt_config_vars() {
 	openssl_path=$(_load_config_var "transcrypt.openssl-path") || (echo "failed to load transcrypt.openssl-path" && false)
 	password=$(_load_unversioned_config_var transcrypt.password) || (echo "failed to load transcrypt.password" && false)
 
-    #+---------------+-------------+--------------------+------------------+
-    #| Action        | Using_KDF   | BaseSaltInConfig   | Outcome          |
-    #|---------------+-------------+--------------------+------------------|
-    #| helper-script | True        | True               | Use Config Value |
-    #| helper-script | True        | False              | Error            |
-    #| helper-script | False       | True               | Ignored          |
-    #| helper-script | False       | False              | Ignored          |
-    #+---------------+-------------+--------------------+------------------+
+	#+---------------+-------------+--------------------+------------------+
+	#| Action        | Using_KDF   | BaseSaltInConfig   | Outcome          |
+	#|---------------+-------------+--------------------+------------------|
+	#| helper-script | True        | True               | Use Config Value |
+	#| helper-script | True        | False              | Error            |
+	#| helper-script | False       | True               | Ignored          |
+	#| helper-script | False       | False              | Ignored          |
+	#+---------------+-------------+--------------------+------------------+
 
 	validate_kdf || die "invalid value of kdf in config"
 	validate_digest || die "invalid value of digest in config"
@@ -562,56 +562,56 @@ run_safety_checks() {
 validate_cipher() {
 	local valid_ciphers
 	valid_ciphers=$(_openssl_list cipher-commands)
-    cipher=$(echo "${cipher}" | tr '[:upper:]' '[:lower:]')
+	cipher=$(echo "${cipher}" | tr '[:upper:]' '[:lower:]')
 	_validate_variable_str "cipher" "$valid_ciphers"
 }
 
 validate_digest() {
 	local valid_digests
 	valid_digests=$(_openssl_list digest-commands)
-    digest=$(echo "${digest}" | tr '[:upper:]' '[:lower:]')
+	digest=$(echo "${digest}" | tr '[:upper:]' '[:lower:]')
 	_validate_variable_str "digest" "$valid_digests"
 }
 
 validate_kdf() {
-    # Normalize kdf
-    kdf=$(echo "${kdf}" | tr '[:upper:]' '[:lower:]')
-    if [[ "$kdf" == "0" ]]; then
-        kdf="none"
-    elif [[ "$kdf" == "1" ]]; then
-        kdf="pbkdf2"
-    fi
+	# Normalize kdf
+	kdf=$(echo "${kdf}" | tr '[:upper:]' '[:lower:]')
+	if [[ "$kdf" == "0" ]]; then
+		kdf="none"
+	elif [[ "$kdf" == "1" ]]; then
+		kdf="pbkdf2"
+	fi
 	_validate_variable_str "kdf" "none pbkdf2"
 }
 
 validate_base_salt() {
-    if [[ "$kdf" != "none" ]]; then
-        if [[ "$base_salt" == "" ]]; then
-            die 1 'The base salt is required when using a kdf, but it is unspecified.'
-        elif [[ "$base_salt" == "random" ]]; then
-            die 1 'The base=salt is set to random, but it has not been randomized'.
-        elif [[ "$base_salt" == "password" ]]; then
-            die 1 'Using base-salt="password" method with a KDF is insecure. Use "random" instead'.
-        fi
-    fi
+	if [[ "$kdf" != "none" ]]; then
+		if [[ "$base_salt" == "" ]]; then
+			die 1 'The base salt is required when using a kdf, but it is unspecified.'
+		elif [[ "$base_salt" == "random" ]]; then
+			die 1 'The base=salt is set to random, but it has not been randomized'.
+		elif [[ "$base_salt" == "password" ]]; then
+			die 1 'Using base-salt="password" method with a KDF is insecure. Use "random" instead'.
+		fi
+	fi
 }
 
 
 get_use_versioned_config() {
-    #If the user did not specify to use the versioned config or not, then:
-    #    1. Check if there is a setting in the unversioned config. 
-    #    2. If not, check if the versioned config exists. 
-    #    3. If not, then defer further checking until we know our setting of base-salt.
+	#If the user did not specify to use the versioned config or not, then:
+	#    1. Check if there is a setting in the unversioned config. 
+	#    2. If not, check if the versioned config exists. 
+	#    3. If not, then defer further checking until we know our setting of base-salt.
 	if [[ "$use_versioned_config" == "" ]]; then
 		use_versioned_config=$(_load_unversioned_config "transcrypt.use-versioned-config" || echo "")
 	fi
 	if [[ "$use_versioned_config" == "" ]]; then
-        if [ -f "${VERSIONED_TC_CONFIG}" ]; then
-            use_versioned_config="1"
-        else
-            use_versioned_config="defer"  # defer to after base-salt setting is read
-        fi
-    fi
+		if [ -f "${VERSIONED_TC_CONFIG}" ]; then
+			use_versioned_config="1"
+		else
+			use_versioned_config="defer"  # defer to after base-salt setting is read
+		fi
+	fi
 }
 
 # ensure we have a digest to hash the salted password
@@ -644,62 +644,62 @@ get_kdf() {
 }
 
 get_base_salt() {
-    #+-----------+-------------+------------------+--------------------+------------------------+
-    #| Action    | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
-    #|-----------+-------------+------------------+--------------------+------------------------|
-    #| configure | True        | True             | True               | Use Argv and Overwrite |
-    #| configure | True        | True             | False              | Use Argv and Overwrite |
-    #| configure | True        | False            | True               | Use Config Value       |
-    #| configure | True        | False            | False              | Randomize              |
-    #| configure | False       | True             | True               | Ignored                |
-    #| configure | False       | True             | False              | Ignored                |
-    #| configure | False       | False            | True               | Ignored                |
-    #| configure | False       | False            | False              | Ignored                |
-    #+-----------+-------------+------------------+--------------------+------------------------+
-    #+----------+-------------+------------------+--------------------+------------------------+
-    #| Action   | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
-    #|----------+-------------+------------------+--------------------+------------------------|
-    #| rekey    | True        | True             | True               | Use Argv and Overwrite |
-    #| rekey    | True        | True             | False              | Use Argv and Overwrite |
-    #| rekey    | True        | False            | True               | Randomize              |
-    #| rekey    | True        | False            | False              | Randomize              |
-    #| rekey    | False       | True             | True               | Ignored                |
-    #| rekey    | False       | True             | False              | Ignored                |
-    #| rekey    | False       | False            | True               | Ignored                |
-    #| rekey    | False       | False            | False              | Ignored                |
-    #+----------+-------------+------------------+--------------------+------------------------+
-    # When calling `get_base_salt`, the action is always configure or rekey.
-    if [[ "$kdf" == "none" ]]; then
-        if [[ "$base_salt" == "" ]]; then
-            base_salt="password"
-        fi
-        if [[ "$use_versioned_config" == "defer" ]]; then
-            # Handle deferred use_version_config
-            use_versioned_config="0"
-        fi
-    else
-        if [[ "$base_salt" == "" ]]; then
-            # The user did not specify a base salt.
-            if [[ $rekey ]]; then
-                base_salt="random"
-            else
-                base_salt=$(_load_config_var "transcrypt.base-salt" || echo "random")
-            fi
-        else
-            # The user specified something for base-salt
-            if [[ "$base_salt" == "password" ]]; then
-                die 1 'Using the "password" method with a KDF is insecure. Use "random" instead'.
-            fi
-        fi
-        # Randomize the base salt if requested.
-        if [[ "$base_salt" == "random" ]]; then
-            base_salt=$(openssl rand -hex 32)
-        fi
-        if [[ "$use_versioned_config" == "defer" ]]; then
-            # Handle deferred use_version_config
-            use_versioned_config="1"
-        fi
-    fi
+	#+-----------+-------------+------------------+--------------------+------------------------+
+	#| Action    | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
+	#|-----------+-------------+------------------+--------------------+------------------------|
+	#| configure | True        | True             | True               | Use Argv and Overwrite |
+	#| configure | True        | True             | False              | Use Argv and Overwrite |
+	#| configure | True        | False            | True               | Use Config Value       |
+	#| configure | True        | False            | False              | Randomize              |
+	#| configure | False       | True             | True               | Ignored                |
+	#| configure | False       | True             | False              | Ignored                |
+	#| configure | False       | False            | True               | Ignored                |
+	#| configure | False       | False            | False              | Ignored                |
+	#+-----------+-------------+------------------+--------------------+------------------------+
+	#+----------+-------------+------------------+--------------------+------------------------+
+	#| Action   | Using_KDF   | BaseSaltInArgv   | BaseSaltInConfig   | Outcome                |
+	#|----------+-------------+------------------+--------------------+------------------------|
+	#| rekey    | True        | True             | True               | Use Argv and Overwrite |
+	#| rekey    | True        | True             | False              | Use Argv and Overwrite |
+	#| rekey    | True        | False            | True               | Randomize              |
+	#| rekey    | True        | False            | False              | Randomize              |
+	#| rekey    | False       | True             | True               | Ignored                |
+	#| rekey    | False       | True             | False              | Ignored                |
+	#| rekey    | False       | False            | True               | Ignored                |
+	#| rekey    | False       | False            | False              | Ignored                |
+	#+----------+-------------+------------------+--------------------+------------------------+
+	# When calling `get_base_salt`, the action is always configure or rekey.
+	if [[ "$kdf" == "none" ]]; then
+		if [[ "$base_salt" == "" ]]; then
+			base_salt="password"
+		fi
+		if [[ "$use_versioned_config" == "defer" ]]; then
+			# Handle deferred use_version_config
+			use_versioned_config="0"
+		fi
+	else
+		if [[ "$base_salt" == "" ]]; then
+			# The user did not specify a base salt.
+			if [[ $rekey ]]; then
+				base_salt="random"
+			else
+				base_salt=$(_load_config_var "transcrypt.base-salt" || echo "random")
+			fi
+		else
+			# The user specified something for base-salt
+			if [[ "$base_salt" == "password" ]]; then
+				die 1 'Using the "password" method with a KDF is insecure. Use "random" instead'.
+			fi
+		fi
+		# Randomize the base salt if requested.
+		if [[ "$base_salt" == "random" ]]; then
+			base_salt=$(openssl rand -hex 32)
+		fi
+		if [[ "$use_versioned_config" == "defer" ]]; then
+			# Handle deferred use_version_config
+			use_versioned_config="1"
+		fi
+	fi
 }
 
 # ensure we have a password to encrypt with
@@ -904,14 +904,14 @@ display_configuration() {
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
 
 	if [[ "$use_versioned_config" == "0" ]] && [[ "$kdf" != "none" ]] ; then
-        # The user is forcing the versioned config off, give them an invocation
-        # that respects that
-        printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s' -vc '%s'\n" \
-            "$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt" "$use_versioned_config"
-    else
-        printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s'\n" \
-            "$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt"
-    fi
+		# The user is forcing the versioned config off, give them an invocation
+		# that respects that
+		printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s' -vc '%s'\n" \
+			"$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt" "$use_versioned_config"
+	else
+		printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s'\n" \
+			"$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt"
+	fi
 }
 
 # remove transcrypt-related settings from the repository's git config
@@ -1266,24 +1266,24 @@ help() {
 		     -md, --digest=DIGEST
 		            the digest used to hash the salted password;
 		            defaults to md5. It is strongly recommended to use
-                    a stronger hash (e.g. sha256) if possible.
+		            a stronger hash (e.g. sha256) if possible.
 
 		     --kdf=PBKDF2
 		            the key-derivation-function to use. Currently can be either
-                    'pbkdf2' or 'none'. Defaults to none. It is strongly
-                    recommended to use a kdf (e.g. pbkdf2) if possible.
+		            'pbkdf2' or 'none'. Defaults to none. It is strongly
+		            recommended to use a kdf (e.g. pbkdf2) if possible.
 
 		     -pbkdf2
 		            equivalent to passing --kdf2='pbkdf2'
 
 		     -bs, --base-salt=BASE_SALT
-                    if specified, and a KDF is used, this overrides the text
-                    used as the basis for salt-generation.
+		            if specified, and a KDF is used, this overrides the text
+		            used as the basis for salt-generation.
 
 		     -vc, --versioned-config=<0|1>
-                    Force transcrypt to use or not use the versioned config.
-                    By default the versioned config is only used when using a
-                    KDF.
+		            Force transcrypt to use or not use the versioned config.
+		            By default the versioned config is only used when using a
+		            KDF.
 
 		     --set-openssl-path=PATH_TO_OPENSSL
 		            use OpenSSL at this path; defaults to 'openssl' in \$PATH
@@ -1393,7 +1393,7 @@ transcrypt_main() {
 	kdf=''
 	digest=''
 	base_salt=''
-    use_versioned_config=''
+	use_versioned_config=''
 
 	# used to bypass certain safety checks
 	requires_existing_config=''
@@ -1567,8 +1567,8 @@ transcrypt_main() {
 	# always run our safety checks
 	run_safety_checks
 
-    # determine if we are using the versioned config or not
-    get_use_versioned_config
+	# determine if we are using the versioned config or not
+	get_use_versioned_config
 
 	# regular expression used to test user input
 	readonly YES_REGEX='^[Yy]$'
