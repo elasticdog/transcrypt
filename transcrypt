@@ -603,7 +603,7 @@ get_use_versioned_config() {
 	#    2. If not, check if the versioned config exists. 
 	#    3. If not, then defer further checking until we know our setting of base-salt.
 	if [[ "$use_versioned_config" == "" ]]; then
-		use_versioned_config=$(_load_unversioned_config "transcrypt.use-versioned-config" || echo "")
+		use_versioned_config=$(_load_unversioned_config_var "transcrypt.use-versioned-config" || echo "")
 	fi
 	if [[ "$use_versioned_config" == "" ]]; then
 		if [ -f "${VERSIONED_TC_CONFIG}" ]; then
