@@ -596,11 +596,10 @@ validate_base_salt() {
 	fi
 }
 
-
 get_use_versioned_config() {
 	#If the user did not specify to use the versioned config or not, then:
-	#    1. Check if there is a setting in the unversioned config. 
-	#    2. If not, check if the versioned config exists. 
+	#    1. Check if there is a setting in the unversioned config.
+	#    2. If not, check if the versioned config exists.
 	#    3. If not, then defer further checking until we know our setting of base-salt.
 	if [[ "$use_versioned_config" == "" ]]; then
 		use_versioned_config=$(_load_unversioned_config_var "transcrypt.use-versioned-config" || echo "")
@@ -609,7 +608,7 @@ get_use_versioned_config() {
 		if [ -f "${VERSIONED_TC_CONFIG}" ]; then
 			use_versioned_config="1"
 		else
-			use_versioned_config="defer"  # defer to after base-salt setting is read
+			use_versioned_config="defer" # defer to after base-salt setting is read
 		fi
 	fi
 }
@@ -903,7 +902,7 @@ display_configuration() {
 	_display_runtime_configuration
 	printf 'Copy and paste the following command to initialize a cloned repository:\n\n'
 
-	if [[ "$use_versioned_config" == "0" ]] && [[ "$kdf" != "none" ]] ; then
+	if [[ "$use_versioned_config" == "0" ]] && [[ "$kdf" != "none" ]]; then
 		# The user is forcing the versioned config off, give them an invocation
 		# that respects that
 		printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s' -vc '%s'\n" \
@@ -1270,8 +1269,8 @@ help() {
 
 		     --kdf=PBKDF2
 		            the key-derivation-function to use. Can be either 'pbkdf2'
-		            or 'none'.  Defaults to none. It is strongly recommended to
-		            use a kdf (e.g.  pbkdf2) if possible.
+		            or 'none'. Defaults to none. It is strongly recommended to
+		            use a kdf (e.g. pbkdf2) if possible.
 
 		     -pbkdf2
 		            equivalent to passing --kdf2='pbkdf2'
@@ -1282,7 +1281,7 @@ help() {
 
 		     -vc, --versioned-config=<0|1>
 		            force transcrypt to use or not use the versioned config.
-                    By default the versioned config is only when using a KDF.
+		            By default the versioned config is only when using a KDF.
 
 		     --set-openssl-path=PATH_TO_OPENSSL
 		            use OpenSSL at this path; defaults to 'openssl' in \$PATH
