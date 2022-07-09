@@ -19,7 +19,7 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 - Support for OpenSSL 3.x
 - Add support for development editable install
 
-## [2.2.0] - 2022-06-14
+## [2.2.0] - 2022-07-09
 
 ### Added
 
