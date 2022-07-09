@@ -8,6 +8,7 @@ function init_git_repo {
   else
     # Initialise test git repo at the same path as the test files
     git init "$BATS_TEST_DIRNAME"
+    git checkout -b main
     # Tests will fail if name and email aren't set
     git config user.name "John Doe"
     git config user.email johndoe@example.com
