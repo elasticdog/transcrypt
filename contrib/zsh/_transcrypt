@@ -13,7 +13,7 @@ _transcrypt() {
 		'(-c --cipher -d --display -f --flush-credentials -u --uninstall)'{-c,--cipher=}'[specify encryption cipher]:cipher:->cipher' \
 		'(-md --digest -d --display -f --flush-credentials -u --uninstall)'{-md,--digest=}'[specify encryption digest]:digest' \
 		'(-bs --base-salt -d --display -f --flush-credentials -u --uninstall)'{-bs,--base-salt=}'[specify base-salt]:base-salt' \
-		'(-pbkdf2 --kdf -d --display -f --flush-credentials -u --uninstall)'{-pbkdf2,--kdf=}'[specify kdf]:kdf' \
+		'(-k --kdf -d --display -f --flush-credentials -u --uninstall)'{-k,--kdf=}'[specify kdf]:kdf' \
 		'(-vc --versioned-config -d --display -f --flush-credentials -u --uninstall)'{-vc,--versioned-config=}'[specify use-versioned-config]:use-versioned-config' \
 		'(-p --password -d --display -f --flush-credentials -u --uninstall)'{-p,--password=}'[specify encryption password]:password:' \
 		'(-y --yes)'{-y,--yes}'[assume yes and accept defaults]' \

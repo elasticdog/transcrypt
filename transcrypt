@@ -913,10 +913,10 @@ display_configuration() {
 	if [[ "$use_versioned_config" == "0" ]] && [[ "$kdf" != "none" ]]; then
 		# The user is forcing the versioned config off, give them an invocation
 		# that respects that
-		printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s' -vc '%s'\n" \
+		printf "  transcrypt -c '%s' -p '%s' -md '%s' -k '%s' -bs '%s' -vc '%s'\n" \
 			"$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt" "$use_versioned_config"
 	else
-		printf "  transcrypt -c '%s' -p '%s' -md '%s' --kdf '%s' -bs '%s'\n" \
+		printf "  transcrypt -c '%s' -p '%s' -md '%s' -k '%s' -bs '%s'\n" \
 			"$cipher" "$escaped_password" "$digest" "$kdf" "$base_salt"
 	fi
 }
@@ -1275,7 +1275,7 @@ help() {
 		            defaults to md5. It is strongly recommended to use
 		            a stronger hash (e.g. sha256) if possible.
 
-		     --kdf=PBKDF2
+		     -k, --kdf=PBKDF2
 		            the key-derivation-function to use. Can be either 'pbkdf2'
 		            or 'none'. Defaults to none. It is strongly recommended to
 		            use a kdf (e.g. pbkdf2) if possible.
@@ -1451,7 +1451,7 @@ transcrypt_main() {
 		-pbkdf2)
 			kdf=pbkdf2
 			;;
-		--kdf)
+		-k | --kdf)
 			kdf=${2}
 			shift
 			;;

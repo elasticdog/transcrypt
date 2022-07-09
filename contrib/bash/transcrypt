@@ -21,7 +21,7 @@ _transcrypt() {
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts="-c -p -md -pbkdf2 -bs -vc -y -d -r -f -F -u -l -s -e -i -v -h \
+	opts="-c -p -md -k -bs -vc -y -d -r -f -F -u -l -s -e -i -v -h \
 	      --cipher --password --digest --kdf --base-salt --versioned-config --set-openssl-path --yes --display --rekey --flush-credentials --force --uninstall --upgrade --list --show-raw --export-gpg --import-gpg --version --help"
 
 	case "${prev}" in
