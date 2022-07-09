@@ -885,11 +885,19 @@ _display_git_configuration() {
 
 # Show the config of the current runtime
 _display_runtime_configuration() {
-	printf '  DIGEST:  %s\n' "$digest"
-	printf '  KDF: %s\n' "$kdf"
-	printf '  BASE_SALT: %s\n' "$base_salt"
-	printf '  CIPHER:   %s\n' "$cipher"
-	printf '  PASSWORD: %s\n\n' "$password"
+	if [[ "$kdf" == "none" ]]; then
+		# KDF is not configured, no need to show KDF or base salt config
+		printf '  CIPHER:   %s\n' "$cipher"
+		printf '  DIGEST:   %s\n' "$digest"
+		printf '  PASSWORD: %s\n' "$password"
+	else
+		# KDF is configured, show KDF and base salt config
+		printf '  CIPHER:    %s\n' "$cipher"
+		printf '  DIGEST:    %s\n' "$digest"
+		printf '  KDF:       %s\n' "$kdf"
+		printf '  PASSWORD:  %s\n' "$password"
+		printf '  BASE_SALT: %s\n\n' "$base_salt"
+	fi
 }
 
 # display the current configuration settings
