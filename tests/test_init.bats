@@ -62,7 +62,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
   [[ "${output}" = *"  DIGEST:   md5"* ]]
   [[ "${output}" = *"  PASSWORD: abc 123"* ]]
-  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -bs 'password'"* ]]
+  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' -k 'none' -bs 'password'"* ]]
 }
 
 @test "init: show details for -d" {
@@ -75,7 +75,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
   [[ "${output}" = *"  DIGEST:   md5"* ]]
   [[ "${output}" = *"  PASSWORD: abc 123"* ]]
-  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -bs 'password'"* ]]
+  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' -k 'none' -bs 'password'"* ]]
 }
 
 @test "init: respects core.hooksPath setting" {
@@ -93,7 +93,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
   [[ "${output}" = *"  DIGEST:   md5"* ]]
   [[ "${output}" = *"  PASSWORD: abc 123"* ]]
-  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -bs 'password'"* ]]
+  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' -k 'none' -bs 'password'"* ]]
 }
 
 @test "init: transcrypt.openssl-path config setting defaults to 'openssl'" {
