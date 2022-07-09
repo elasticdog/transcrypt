@@ -23,7 +23,7 @@ readonly DEFAULT_CIPHER='aes-256-cbc'
 
 ##### FUNCTIONS
 
-# get encryption password
+# load encryption password
 # by default is stored in git config, modify this function to move elsewhere
 load_password() {
 	local password
@@ -31,7 +31,7 @@ load_password() {
 	echo "$password"
 }
 
-# set encryption password
+# save encryption password
 # by default is stored in git config, modify this function to move elsewhere
 save_password() {
 	local password=$1
