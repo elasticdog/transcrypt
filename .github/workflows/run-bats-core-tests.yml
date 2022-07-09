@@ -20,7 +20,7 @@ jobs:
     - name: Run shellcheck and shfmt
       uses: luizm/action-sh-checker@master
       with:
-        sh_checker_exclude: tests
+        sh_checker_exclude: "tests example"
         sh_checker_comment: true
 
   test:

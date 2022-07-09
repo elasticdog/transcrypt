@@ -25,6 +25,23 @@ The transcrypt source code and full documentation may be downloaded from
     the password to derive the key from;
     defaults to 30 random base64 characters
 
+  * `-md`, `--digest`=<digest>:
+    the password to derive the key from;
+    defaults to 30 random base64 characters
+
+  * `--kdf`=<kdf>:
+    the digest used to hash the salted password;
+    defaults to md5. It is strongly recommended to use
+    a stronger hash (e.g. sha256) if possible.
+
+  * `-bs`, `--base-salt`=<base_salt>:
+    if specified, and a KDF is used, this overrides the text
+    used as the basis for salt-generation.
+
+  * `-vc`, `--versioned-config`=<use_versioned_config>:
+    force transcrypt to use or not use the versioned config.
+    By default the versioned config is used when using a KDF.
+
   * `--set-openssl-path`=<path_to_openssl>:
     use OpenSSL at this path; defaults to 'openssl' in $PATH
 
