@@ -61,7 +61,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
   [[ "${output}" = *"  PASSWORD: abc 123"* ]]
-  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -sm 'password'"* ]]
+  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -bs 'password'"* ]]
 }
 
 @test "init: show details for -d" {
@@ -73,7 +73,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
   [[ "${output}" = *"  PASSWORD: abc 123"* ]]
-  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -sm 'password'"* ]]
+  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -bs 'password'"* ]]
 }
 
 @test "init: respects core.hooksPath setting" {
@@ -90,7 +90,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
   [[ "${output}" = *"  PASSWORD: abc 123"* ]]
-  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -sm 'password'"* ]]
+  [[ "${output}" = *"  transcrypt -c 'aes-256-cbc' -p 'abc 123' -md 'md5' --kdf 'none' -bs 'password'"* ]]
 }
 
 @test "init: transcrypt.openssl-path config setting defaults to 'openssl'" {
