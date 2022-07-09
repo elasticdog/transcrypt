@@ -25,7 +25,7 @@ readonly DEFAULT_CIPHER='aes-256-cbc'
 
 # get encryption password
 # by default is stored in git config, modify this function to move elsewhere
-get_password() {
+load_password() {
 	local password
 	password=$(git config --get --local transcrypt.password)
 	echo "$password"
@@ -33,7 +33,7 @@ get_password() {
 
 # set encryption password
 # by default is stored in git config, modify this function to move elsewhere
-set_password() {
+save_password() {
 	local password=$1
 	git config transcrypt.password "$password"
 }
@@ -151,7 +151,7 @@ git_clean() {
 		cat "$tempfile"
 	else
 		cipher=$(git config --get --local transcrypt.cipher)
-		password=$(get_password)
+		password=$(load_password)
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
 
@@ -175,7 +175,7 @@ git_smudge() {
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
 	cipher=$(git config --get --local transcrypt.cipher)
-	password=$(get_password)
+	password=$(load_password)
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
 	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a 2>/dev/null || cat "$tempfile"
 }
@@ -187,7 +187,7 @@ git_textconv() {
 		return
 	fi
 	cipher=$(git config --get --local transcrypt.cipher)
-	password=$(get_password)
+	password=$(load_password)
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
 	ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a -in "$filename" 2>/dev/null || cat "$filename"
 }
@@ -390,7 +390,7 @@ get_cipher() {
 }
 
 # ensure we have a password to encrypt with
-get_password_from_user() {
+get_password() {
 	while [[ ! $password ]]; do
 		local answer=
 		if [[ $interactive ]]; then
@@ -526,7 +526,7 @@ save_configuration() {
 	# write the encryption info
 	git config transcrypt.version "$VERSION"
 	git config transcrypt.cipher "$cipher"
-	set_password "$password"
+	save_password "$password"
 	git config transcrypt.openssl-path "$openssl_path"
 
 	# write the filter settings. Sorry for the horrific quote escaping below...
@@ -553,7 +553,7 @@ display_configuration() {
 	local current_cipher
 	current_cipher=$(git config --get --local transcrypt.cipher)
 	local current_password
-	current_password=$(get_password)
+	current_password=$(load_password)
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
 	printf 'The current repository was configured using transcrypt version %s\n' "$CONFIGURED"
@@ -758,7 +758,7 @@ upgrade_transcrypt() {
 
 	# Keep current cipher and password
 	cipher=$(git config --get --local transcrypt.cipher)
-	password=$(get_password)
+	password=$(load_password)
 	# Keep current openssl-path, or set to default if no existing value
 	openssl_path=$(git config --get --local transcrypt.openssl-path 2>/dev/null || printf '%s' "$openssl_path")
 
@@ -837,7 +837,7 @@ export_gpg() {
 	local current_cipher
 	current_cipher=$(git config --get --local transcrypt.cipher)
 	local current_password
-	current_password=$(get_password)
+	current_password=$(load_password)
 	mkdir -p "${CRYPT_DIR}"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
@@ -1195,7 +1195,7 @@ fi
 
 # perform function calls to configure transcrypt
 get_cipher
-get_password_from_user
+get_password
 
 if [[ $rekey ]] && [[ $interactive ]]; then
 	confirm_rekey
