@@ -1280,9 +1280,6 @@ help() {
 		            or 'none'. Defaults to none. It is strongly recommended to
 		            use a kdf (e.g. pbkdf2) if possible.
 
-		     -pbkdf2
-		            equivalent to passing --kdf2='pbkdf2'
-
 		     -bs, --base-salt=BASE_SALT
 		            if specified, and a KDF is used, this overrides the text
 		            used as the basis for salt-generation.
@@ -1447,9 +1444,6 @@ transcrypt_main() {
 			;;
 		--digest=*)
 			digest=${1#*=}
-			;;
-		-pbkdf2)
-			kdf=pbkdf2
 			;;
 		-k | --kdf)
 			kdf=${2}
