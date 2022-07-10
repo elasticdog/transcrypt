@@ -586,7 +586,11 @@ validate_kdf() {
         # If openssl is >= 3 we can list kdf algos, via _openssl_list kdf-algorithms
         # however the output format is a pain to parse in bash, so we hard code
         # known KDFs that we support
-        valid_kdfs="none pbkdf2 scrypt"
+        #
+        # Note: it is not straightforward on how to pass these to openssl enc
+        # except for the case of pbkdf2, disable others until we figure it out
+        #valid_kdfs="none pbkdf2 scrypt"
+        valid_kdfs="none pbkdf2"
     else
         if [ "$openssl_minor_version" -ge "1" ]; then
             # In 1.1.x pbkdf2 is the only kdf available

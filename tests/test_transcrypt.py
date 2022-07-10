@@ -664,7 +664,7 @@ def test_configuration_grid():
         'cipher': ['aes-256-cbc', 'aes-128-ecb'],
         'password': ['correct horse battery staple'],
         'digest': ['md5', 'sha256'],
-        'kdf': ['none', 'pbkdf2', 'scrypt'],
+        'kdf': ['none', 'pbkdf2'],
         'base_salt': ['password', 'random', 'mylittlecustomsalt', None],
         'use_versioned_config': ['0', '1', None],
     }
