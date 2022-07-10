@@ -257,7 +257,7 @@ _load_vars_for_encryption() {
 	# Helper to populate variables needed to call openssl encryption
 	_load_transcrypt_config_vars
 
-	if [[ "$kdf" == "1" ]] || [[ "$kdf" == "pbkdf2" ]]; then
+	if [[ "$kdf" == "pbkdf2" ]]; then
 		pbkdf2_arg='-pbkdf2'
 	fi
 
@@ -576,12 +576,27 @@ validate_digest() {
 validate_kdf() {
 	# Normalize kdf
 	kdf=$(echo "${kdf}" | tr '[:upper:]' '[:lower:]')
-	if [[ "$kdf" == "0" ]]; then
-		kdf="none"
-	elif [[ "$kdf" == "1" ]]; then
-		kdf="pbkdf2"
-	fi
-	_validate_variable_str "kdf" "none pbkdf2"
+
+    # References:
+    # https://wiki.openssl.org/index.php/EVP_Key_Derivation
+    openssl_version=$($openssl_path version | cut -d' ' -f2)
+	openssl_major_version=$(echo "$openssl_version" | cut -d'.' -f1)
+	openssl_minor_version=$(echo "$openssl_version" | cut -d'.' -f2)
+	if [ "$openssl_major_version" -ge "3" ]; then
+        # If openssl is >= 3 we can list kdf algos, via _openssl_list kdf-algorithms
+        # however the output format is a pain to parse in bash, so we hard code
+        # known KDFs that we support
+        valid_kdfs="none pbkdf2 scrypt"
+    else
+        if [ "$openssl_minor_version" -ge "1" ]; then
+            # In 1.1.x pbkdf2 is the only kdf available
+            valid_kdfs="none pbkdf2"
+        else
+            # In <1.0.x there are no kdfs available
+            valid_kdfs="none"
+        fi
+    fi
+	_validate_variable_str "kdf" "$valid_kdfs"
 }
 
 validate_base_salt() {

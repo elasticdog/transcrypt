@@ -613,6 +613,22 @@ def test_salt_changes_when_kdf_changes():
     assert config4['base_salt'] == 'password'
 
 
+def test_unsupported_kdf():
+    config = {
+        'cipher': 'aes-256-cbc',
+        'password': 'correct horse battery staple',
+        'digest': 'sha512',
+        'kdf': 'MY_FAVORITE_UNSUPPORTED_KDF',
+        'base_salt': None,
+    }
+    verbose = 2
+    self = TestCases(config=config, verbose=verbose)
+    import subprocess
+    import pytest
+    with pytest.raises(subprocess.CalledProcessError):
+        self.setup()
+
+
 def test_kdf_setting_preserved_on_rekey():
     config = {
         'cipher': 'aes-256-cbc',
@@ -648,7 +664,7 @@ def test_configuration_grid():
         'cipher': ['aes-256-cbc', 'aes-128-ecb'],
         'password': ['correct horse battery staple'],
         'digest': ['md5', 'sha256'],
-        'kdf': ['none', 'pbkdf2'],
+        'kdf': ['none', 'pbkdf2', 'scrypt'],
         'base_salt': ['password', 'random', 'mylittlecustomsalt', None],
         'use_versioned_config': ['0', '1', None],
     }
