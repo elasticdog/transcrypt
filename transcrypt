@@ -711,7 +711,7 @@ get_base_salt() {
 		fi
 		# Randomize the base salt if requested.
 		if [[ "$base_salt" == "random" ]]; then
-			base_salt=$(openssl rand -hex 32)
+			base_salt=$(openssl rand -hex 16)
 		fi
 		if [[ "$use_versioned_config" == "defer" ]]; then
 			# Handle deferred use_version_config
