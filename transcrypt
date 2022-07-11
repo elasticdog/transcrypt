@@ -232,7 +232,7 @@ _set_config_var() {
 # shellcheck disable=SC2155
 _load_transcrypt_config_vars() {
 	# Populate bash vars with our config
-	use_versioned_config=$(_load_unversioned_config_var "transcrypt.use-versioned-config") || (echo "failed to load transcrypt.use-versioned-config" && false)
+    use_versioned_config=$(_load_unversioned_config_var "transcrypt.use-versioned-config") || (echo "0")
 	cipher=$(_load_config_var "transcrypt.cipher") || (echo "failed to load transcrypt.cipher" && false)
 	digest=$(_load_config_var "transcrypt.digest") || (echo "failed to load transcrypt.digest" && false)
 	kdf=$(_load_config_var "transcrypt.kdf") || (echo "failed to load transcrypt.kdf" && false)
