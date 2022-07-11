@@ -378,7 +378,7 @@ git_clean() {
 	else
 		_load_vars_for_encryption
 		# NOTE: the openssl standard for salt is 16 hex bytes.
-		final_salt=$("$openssl_path" dgst -hmac "${filename}:${extra_salt}" -sha256 "$filename" | tr -d '\r\n' | tail -c 16)
+		final_salt=$("$openssl_path" dgst -hmac "${filename}:${extra_salt}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c 16)
 		_openssl_encrypt
 	fi
 }
