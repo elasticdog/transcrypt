@@ -2,6 +2,7 @@
 __doc__="
 A simple demo of transcrypt
 "
+set -x
 
 TMP_DIR=$HOME/tmp/transcrypt-demo
 mkdir -p "$TMP_DIR"
