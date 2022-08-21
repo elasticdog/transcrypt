@@ -30,7 +30,7 @@ mkdir -p "$DEMO_REPO"/safe
 
 
 # Configure transcrypt with a KDF, but an old hash function
-transcrypt -c aes-256-cbc -p 'correct horse battery staple' -md MD5 --kdf=1 -y
+transcrypt -c aes-256-cbc -p 'correct horse battery staple' -md MD5 --kdf=pbkdf2 -y
 git commit -m "Configured transcrypt"
 
 echo "Secret contents" > "$DEMO_REPO"/safe/secret_file

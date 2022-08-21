@@ -48,8 +48,14 @@ def main():
         container.call(shsplit(f'git config --global user.email "{container.name}@test.com"'))
         container.call(shsplit(f'git config --global user.name "{container.name}"'))
         container.call(shsplit('git config --global init.defaultBranch "main"'))
-        container.call(shsplit('ln -s /custom/transcrypt /usr/local/bin/transcrypt'), cwd='/custom')
+
+        container.call(shsplit('chmod +x /custom/transcrypt/transcrypt'), cwd='/custom')
+        container.call(shsplit('ls -al /custom/transcrypt'), cwd='/custom')
+        container.call(shsplit('ln -s /custom/transcrypt/transcrypt /usr/local/bin/transcrypt'), cwd='/custom')
+        container.call(shsplit('transcrypt --version'), cwd='/custom/transcrypt/example')
+
         container.call(shsplit('git status'), cwd='/custom/transcrypt')
+        container.call(shsplit('git pull'), cwd='/custom/transcrypt')
         container.call(shsplit('bash end_to_end_example.sh'), cwd='/custom/transcrypt/example')
 
     setup_container(container1)
