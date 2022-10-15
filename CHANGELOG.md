@@ -8,7 +8,36 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 [1]: https://keepachangelog.com/en/1.0.0/
 [2]: https://semver.org/spec/v2.0.0.html
 
-## [Unreleased]
+## [2.2.0] - 2022-07-09
+
+### Added
+
+- Add `--set-openssl-path` option to configure transcrypt to use a specific
+  openssl version instead of the default version found in `$PATH`. This will be
+  most useful to macOS users who might want to use a newer version of OpenSSL.
+  This option can be used on init, on upgrade, or by itself.
+- Add support for an optional `transcrypt.crypt-dir` setting for advanced users
+  to override the path of the _.git/crypt/_ directory to permit things like
+  installing transcrypt in a repository on a device without execute
+  permissions (#104)
+
+### Changed
+
+- No longer need stand-alone scripts for git operations `clean`, `smudge`,
+  `textconv`, and `merge` in the repository's _crypt/_ directory; the single
+  consolidated `transcrypt` script is stored there instead.
+
+### Fixed
+
+- Remain compatible with OpenSSL versions 3 and above which changes the way
+  explicit salt values are expressed in ciphertext, requires `xxd` command (#133)
+- Ensure Git index is up-to-date before checking for dirty repo, to avoid
+  failures seen in CI systems where the repo seems dirty when it isn't. (#37)
+- Respect Git `core.hooksPath` setting when installing the pre-commit hook. (#104)
+- Zsh completion. (#107)
+- Fix salt generation for partial (patch) commits (#118)
+- Improve command hint to fix secret files not encrypted in index (#120)
+- Fix handling of files with null in first 8 bytes (#116)
 
 ## [2.1.0] - 2020-09-07
 
@@ -208,7 +237,8 @@ Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 
 ## [0.9.4] - 2014-03-03
 
-[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.1.0...HEAD
+[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/elasticdog/transcrypt/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/elasticdog/transcrypt/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/elasticdog/transcrypt/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/elasticdog/transcrypt/compare/v1.0.3...v1.1.0

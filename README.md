@@ -56,6 +56,8 @@ The requirements to run transcrypt are minimal:
 - Git
 - OpenSSL
 - `column` command (on Ubuntu/Debian install `bsdmainutils`)
+- `xxd` command if using OpenSSL version 3
+  (on Ubuntu/Debian is included with `vim`)
 
 ...and optionally:
 
@@ -184,7 +186,7 @@ re-configure transcrypt with the new credentials.
 
     $ transcrypt --flush-credentials
     $ git fetch origin
-    $ git merge origin/master
+    $ git merge origin/main
     $ transcrypt -c aes-256-cbc -p 'the-new-password'
 
 ### Command Line Options
@@ -201,6 +203,9 @@ directory.
       -p, --password=PASSWORD
              the password to derive the key from;
              defaults to 30 random base64 characters
+
+      --set-openssl-path=PATH_TO_OPENSSL
+             use OpenSSL at this path; defaults to 'openssl' in $PATH
 
       -y, --yes
              assume yes and accept defaults for non-specified options
@@ -322,21 +327,8 @@ Please use:
 Tests are written using [bats-core](https://github.com/bats-core/bats-core)
 version of "Bash Automated Testing System" and stored in the _tests/_ directory.
 
-To run the tests locally:
+To run the tests:
 
 - [install bats-core](https://github.com/bats-core/bats-core#installation)
 - run all tests with: `bats tests/`
-- run an individual test with e.g: `./tests/test_help.bats`
-
-To run the tests in Docker:
-
-- install Docker
-- `cd tests/`
-- check available test targets (Docker services): `docker-compose ps`
-- build images for all test targets: `docker-compose build`
-  - or for a specific test target: `docker-compose build ubuntu-20.04`
-- run tests on all targets (non-zero exit codes means fail): `docker-compose up`
-  - or run tests on a specific target: `docker-compose run --rm ubuntu-20.04`
-- to manually run and debug tests:
-  - run shell in a specfic target: `docker-compose run --rm ubuntu-20.04`
-  - run tests selectively with something like: `bats tests/test_init.bats -t`
+- run an individual test with e.g: `bats tests/test_crypt.bats`
