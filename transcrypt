@@ -31,7 +31,7 @@ readonly CONTEXT_REGEX='[a-z](-?[a-z0-9])*'
 load_password() {
 	local context_config_group=${1:-}
 	local password
-	password=$(git config --get --local transcrypt.${context_config_group}password)
+	password=$(git config --get --local transcrypt."${context_config_group}"password)
 	echo "$password"
 }
 
@@ -40,7 +40,7 @@ load_password() {
 save_password() {
 	local password=$1
 	local context_config_group=${2:-}
-	git config transcrypt.${context_config_group}password "$password"
+	git config transcrypt."${context_config_group}"password "$password"
 }
 
 # print a canonicalized absolute pathname
@@ -171,9 +171,9 @@ git_clean() {
 	if [[ $firstbytes == "U2FsdGVk" ]]; then
 		cat "$tempfile"
 	else
-		file_context_config_group=$(derive_file_context_config_group_from_git_attr $filename)
-		cipher=$(git config --get --local transcrypt.${file_context_config_group}cipher)
-		password=$(load_password $file_context_config_group)
+		file_context_config_group=$(derive_file_context_config_group_from_git_attr "$filename")
+		cipher=$(git config --get --local transcrypt."${file_context_config_group}"cipher)
+		password=$(load_password "$file_context_config_group")
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
 
@@ -197,9 +197,9 @@ git_smudge() {
 	filename=$1
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
-	file_context_config_group=$(derive_file_context_config_group_from_git_attr $filename)
-	cipher=$(git config --get --local transcrypt.${file_context_config_group}cipher)
-	password=$(load_password $file_context_config_group)
+	file_context_config_group=$(derive_file_context_config_group_from_git_attr "$filename")
+	cipher=$(git config --get --local transcrypt."${file_context_config_group}"cipher)
+	password=$(load_password "$file_context_config_group")
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
 	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a 2>/dev/null || cat "$tempfile"
 }
@@ -214,8 +214,8 @@ git_textconv() {
 	# file_context_config_group=$(derive_file_context_config_group_from_git_attr $filename)
 	file_context_config_group=""
 
-	cipher=$(git config --get --local transcrypt.${file_context_config_group}cipher)
-	password=$(load_password $file_context_config_group)
+	cipher=$(git config --get --local transcrypt."${file_context_config_group}"cipher)
+	password=$(load_password "$file_context_config_group")
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
 	ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a -in "$filename" 2>/dev/null || cat "$filename"
 }
@@ -237,9 +237,9 @@ git_merge() {
 	fi
 	# Decrypt BASE $1, LOCAL $2, and REMOTE $3 versions of file being merged based
 	# on the working copy filename $5
-	echo "$(cat "$1" | "${TRANSCRYPT_PATH}" smudge $5)" >"$1"
-	echo "$(cat "$2" | "${TRANSCRYPT_PATH}" smudge $5)" >"$2"
-	echo "$(cat "$3" | "${TRANSCRYPT_PATH}" smudge $5)" >"$3"
+	echo "$(cat "$1" | "${TRANSCRYPT_PATH}" smudge "$5")" >"$1"
+	echo "$(cat "$2" | "${TRANSCRYPT_PATH}" smudge "$5")" >"$2"
+	echo "$(cat "$3" | "${TRANSCRYPT_PATH}" smudge "$5")" >"$3"
 	# Merge the decrypted files to the temp file named by $2
 	git merge-file --marker-size="$4" -L "$OURS_LABEL" -L base -L "$THEIRS_LABEL" "$2" "$1" "$3"
 	# If the merge was not successful (has conflicts) exit with an error code to
@@ -612,7 +612,7 @@ display_configuration() {
 	local current_cipher
 	current_cipher=$(git config --get --local "$CONTEXT_TRANSCRYPT_CIPHER")
 	local current_password
-	current_password=$(load_password $CONTEXT_CONFIG_GROUP)
+	current_password=$(load_password "$CONTEXT_CONFIG_GROUP")
 	local escaped_password=${current_password//\'/\'\\\'\'}
 
 	contexts_count="$(count_items_in_list "$CONFIGURED_CONTEXTS")"
@@ -833,8 +833,8 @@ upgrade_transcrypt() {
 	fi
 
 	# Keep current cipher and password
-	cipher=$(git config --get --local $CONTEXT_TRANSCRYPT_CIPHER)
-	password=$(load_password $CONTEXT_CONFIG_GROUP)
+	cipher=$(git config --get --local "$CONTEXT_TRANSCRYPT_CIPHER")
+	password=$(load_password "$CONTEXT_CONFIG_GROUP")
 	# Keep current openssl-path, or set to default if no existing value
 	openssl_path=$(git config --get --local transcrypt.openssl-path 2>/dev/null || printf '%s' "$openssl_path")
 
@@ -935,7 +935,7 @@ export_gpg() {
 	local current_cipher
 	current_cipher=$(git config --get --local "$CONTEXT_TRANSCRYPT_CIPHER")
 	local current_password
-	current_password=$(load_password $CONTEXT_CONFIG_GROUP)
+	current_password=$(load_password "$CONTEXT_CONFIG_GROUP")
 	mkdir -p "${CRYPT_DIR}"
 
 	local gpg_encrypt_cmd="gpg --batch --recipient $gpg_recipient --trust-model always --yes --armor --quiet --encrypt -"
@@ -1397,7 +1397,6 @@ set_context_variables() {
 		CONTEXT_CONFIG_GROUP="${CONTEXT}." # Note trailing period
 		CONTEXT_DESC_SUFFIX=" for context '$CONTEXT'"
 		CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}.cipher
-		CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.${CONTEXT}.password
 		# For ls-crypt aliases we want one for each context, including 'default'
 		CONTEXT_LS_CRYPT="ls-crypt-$CONTEXT"
 	else
@@ -1405,7 +1404,6 @@ set_context_variables() {
 		CONTEXT_CONFIG_GROUP="" # Empty config group name for default config
 		CONTEXT_DESC_SUFFIX=''
 		CONTEXT_TRANSCRYPT_CIPHER=transcrypt.cipher
-		CONTEXT_TRANSCRYPT_PASSWORD=transcrypt.password
 		# For ls-crypt aliases we want one for each context, including 'default'
 		CONTEXT_LS_CRYPT="ls-crypt-$CONTEXT"
 	fi
