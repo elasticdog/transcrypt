@@ -136,15 +136,21 @@ die() {
 	exit "$st"
 }
 
-derive_file_context_config_group_from_git_attr() {
-	local filename=$1
-	local context_name
+# return context name if $1 has format 'context=name-of-context' else "default"
+extract_context_name_from_name_value_arg() {
+	local context=${1#*=}
+	if [[ ! $context ]]; then
+		echo ''
+	fi
+	echo "$context"
+}
 
-	context_name=$(git -c core.quotePath=false check-attr crypt-context -- "$filename" | awk 'BEGIN { FS = ": " }; { print $3 }')
-	if [[ ! "$context_name" = 'unspecified' ]]; then
-		echo "$context_name." # Note the trailing period
+derive_context_config_group() {
+	local context=${1:-}
+	if [[ ! $context ]] || [[ $context == 'default' ]]; then
+		echo ''
 	else
-		echo ""
+		echo "$context."
 	fi
 }
 
@@ -156,6 +162,9 @@ derive_file_context_config_group_from_git_attr() {
 # then use the last 16 bytes of that HMAC for the file's unique salt.
 
 git_clean() {
+	context=$(extract_context_name_from_name_value_arg "$1")
+	[[ "$context" ]] && shift
+
 	filename=$1
 	# ignore empty files
 	if [[ ! -s $filename ]]; then
@@ -171,9 +180,9 @@ git_clean() {
 	if [[ $firstbytes == "U2FsdGVk" ]]; then
 		cat "$tempfile"
 	else
-		file_context_config_group=$(derive_file_context_config_group_from_git_attr "$filename")
-		cipher=$(git config --get --local transcrypt."${file_context_config_group}"cipher)
-		password=$(load_password "$file_context_config_group")
+		context_config_group=$(derive_context_config_group "$context")
+		cipher=$(git config --get --local transcrypt."${context_config_group}"cipher)
+		password=$(load_password "$context_config_group")
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
 
@@ -194,34 +203,38 @@ git_clean() {
 }
 
 git_smudge() {
-	filename=$1
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
-	file_context_config_group=$(derive_file_context_config_group_from_git_attr "$filename")
-	cipher=$(git config --get --local transcrypt."${file_context_config_group}"cipher)
-	password=$(load_password "$file_context_config_group")
+	context=$(extract_context_name_from_name_value_arg "$1")
+	context_config_group=$(derive_context_config_group "$context")
+	cipher=$(git config --get --local transcrypt."${context_config_group}"cipher)
+	password=$(load_password "$context_config_group")
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
 	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a 2>/dev/null || cat "$tempfile"
 }
 
 git_textconv() {
+	context=$(extract_context_name_from_name_value_arg "$1")
+	[[ "$context" ]] && shift
+
 	filename=$1
 	# ignore empty files
 	if [[ ! -s $filename ]]; then
 		return
 	fi
-	# TODO How to get the real filename in the git repo here? $filename is a temp file
-	# file_context_config_group=$(derive_file_context_config_group_from_git_attr $filename)
-	file_context_config_group=""
 
-	cipher=$(git config --get --local transcrypt."${file_context_config_group}"cipher)
-	password=$(load_password "$file_context_config_group")
+	context_config_group=$(derive_context_config_group "$context")
+	cipher=$(git config --get --local transcrypt."${context_config_group}"cipher)
+	password=$(load_password "$context_config_group")
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
 	ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a -in "$filename" 2>/dev/null || cat "$filename"
 }
 
 # shellcheck disable=SC2005,SC2002,SC2181
 git_merge() {
+	context=$(extract_context_name_from_name_value_arg "$1")
+	[[ "$context" ]] && shift
+
 	# Get path to transcrypt in this script's directory
 	TRANSCRYPT_PATH="$(dirname "$0")/transcrypt"
 	# Look up name of local branch/ref to which changes are being merged
@@ -235,11 +248,10 @@ git_merge() {
 	if [[ ! "$THEIRS_LABEL" ]]; then
 		THEIRS_LABEL="theirs"
 	fi
-	# Decrypt BASE $1, LOCAL $2, and REMOTE $3 versions of file being merged based
-	# on the working copy filename $5
-	echo "$(cat "$1" | "${TRANSCRYPT_PATH}" smudge "$5")" >"$1"
-	echo "$(cat "$2" | "${TRANSCRYPT_PATH}" smudge "$5")" >"$2"
-	echo "$(cat "$3" | "${TRANSCRYPT_PATH}" smudge "$5")" >"$3"
+	# Decrypt BASE $1, LOCAL $2, and REMOTE $3 versions of file being merged
+	echo "$(cat "$1" | "${TRANSCRYPT_PATH}" smudge context="$context")" >"$1"
+	echo "$(cat "$2" | "${TRANSCRYPT_PATH}" smudge context="$context")" >"$2"
+	echo "$(cat "$3" | "${TRANSCRYPT_PATH}" smudge context="$context")" >"$3"
 	# Merge the decrypted files to the temp file named by $2
 	git merge-file --marker-size="$4" -L "$OURS_LABEL" -L base -L "$THEIRS_LABEL" "$2" "$1" "$3"
 	# If the merge was not successful (has conflicts) exit with an error code to
@@ -258,7 +270,7 @@ git_merge() {
 	cp "$2" "$5"
 	# Now we use the `clean` script to encrypt the merged file contents back to the
 	# temp file $2 where Git expects to find the merge result content.
-	cat "$5" | "${TRANSCRYPT_PATH}" clean "$5" >"$2"
+	cat "$5" | "${TRANSCRYPT_PATH}" clean context="$context" "$5" >"$2"
 }
 
 # shellcheck disable=SC2155
@@ -579,13 +591,12 @@ save_configuration() {
 
 	# write the filter settings. Sorry for the horrific quote escaping below...
 	# shellcheck disable=SC2016
-	git config filter.crypt.clean '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt clean %f'
-	# shellcheck disable=SC2016
-	git config filter.crypt.smudge '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt smudge %f'
-	# shellcheck disable=SC2016
-	git config diff.crypt.textconv '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt textconv'
-	# shellcheck disable=SC2016
-	git config merge.crypt.driver '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt merge %O %A %B %L %P'
+	transcrypt_path='"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-dir)"")"/transcrypt'
+
+	git config filter.crypt"${CONTEXT_SUFFIX}".clean "$transcrypt_path clean context=$CONTEXT %f"
+	git config filter.crypt"${CONTEXT_SUFFIX}".smudge "$transcrypt_path smudge context=$CONTEXT"
+	git config diff.crypt"${CONTEXT_SUFFIX}".textconv "$transcrypt_path textconv context=$CONTEXT"
+	git config merge.crypt"${CONTEXT_SUFFIX}".driver "$transcrypt_path merge context=$CONTEXT %O %A %B %L %P"
 	git config filter.crypt.required 'true'
 	git config diff.crypt.cachetextconv 'true'
 	git config diff.crypt.binary 'true'
@@ -593,17 +604,15 @@ save_configuration() {
 	git config merge.crypt.name 'Merge transcrypt secret files'
 
 	# add git alias for listing ALL encrypted files regardless of context
-	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt$/{ print \$1 }'"
+	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt/{ print \$1 }'"
 
 	# add a git alias for listing encrypted files in specific context, including 'default'
 	if [[ "$CONTEXT" = 'default' ]]; then
-		# The 'ls-crypt-default' alias calls the 'ls-crypt' alias to get all crypt-ed
-		# files then filters those to any *without* a 'crypt-context' attr (unspecified).
-		# This is to avoid very difficult processing of multi-line output if we needed
-		# to fetch the two attrs 'filter' and 'crypt-context' from check-attr at once.
-		git config alias."${CONTEXT_LS_CRYPT}" "!git ls-crypt | git -c core.quotePath=false check-attr --stdin crypt-context | awk 'BEGIN { FS = \":\" }; / unspecified$/{ print \$1 }'"
+		# List files with gitattribute 'filter=crypt'
+		git config alias."${CONTEXT_LS_CRYPT}" "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt$/{ print \$1 }'"
 	else
-		git config alias."${CONTEXT_LS_CRYPT}" "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin crypt-context | awk 'BEGIN { FS = \":\" }; / ${CONTEXT}$/{ print \$1 }'"
+		# List files with gitattribute 'filter=crypt-<CONTEXT>'
+		git config alias."${CONTEXT_LS_CRYPT}" "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt-${CONTEXT}$/{ print \$1 }'"
 	fi
 }
 
@@ -643,6 +652,18 @@ clean_gitconfig() {
 	git config --remove-section diff.crypt 2>/dev/null || true
 	git config --remove-section merge.crypt 2>/dev/null || true
 	git config --unset merge.renormalize
+
+	# remove context settings: cipher & password config, ls-crypt alias variant,
+	# crypt filter/diff/merge attributes
+	for context in $CONFIGURED_CONTEXTS; do
+		git config --unset alias.ls-crypt-"${context}"
+
+		git config --remove-section transcrypt."${context}" 2>/dev/null || true
+
+		git config --remove-section filter.crypt-"${context}" 2>/dev/null || true
+		git config --remove-section diff.crypt-"${context}" 2>/dev/null || true
+		git config --remove-section merge.crypt-"${context}" 2>/dev/null || true
+	done
 
 	# remove the merge section if it's now empty
 	local merge_values
@@ -776,15 +797,9 @@ uninstall_transcrypt() {
 			touch $encrypted_files
 		fi
 
-		# remove the `git ls-crypt` global alias
+		# remove the `git ls-crypt` global alias. We must do this late, because
+		# we need it to list the files to touch above.
 		git config --unset alias.ls-crypt
-
-		# remove context settings: cipher & password config, ls-crypt alias variant
-		for context in $CONFIGURED_CONTEXTS; do
-			git config --remove-section transcrypt."${context}" 2>/dev/null || true
-
-			git config --unset alias.ls-crypt-"${context}"
-		done
 
 		# remove the alias section if it's now empty
 		local alias_values
@@ -796,10 +811,10 @@ uninstall_transcrypt() {
 		# remove any defined crypt patterns in gitattributes
 		case $OSTYPE in
 		darwin*)
-			/usr/bin/sed -i '' "/filter=crypt diff=crypt\( merge=crypt\)*\( crypt-context=[^ \t]*\)*[ \t]*$/d" "$GIT_ATTRIBUTES"
+			/usr/bin/sed -i '' "/filter=crypt/d" "$GIT_ATTRIBUTES"
 			;;
 		linux*)
-			sed -i "/filter=crypt diff=crypt\( merge=crypt\)*\( crypt-context=[^ \t]*\)*[ \t]*$/d" "$GIT_ATTRIBUTES"
+			sed -i "/filter=crypt/d" "$GIT_ATTRIBUTES"
 			;;
 		esac
 
@@ -893,7 +908,7 @@ upgrade_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" || die 1 'could not change into the "%s" directory' "$REPO"
-		git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'
+		git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt/{ print $1 }'
 	fi
 }
 
@@ -996,7 +1011,7 @@ get_contexts_from_git_attributes() {
 	if [[ -f $GIT_ATTRIBUTES ]]; then
 		# Capture contents of .gitattributes without comments (leading # hash)
 		attr_lines=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
-		extract_context_name_regex="crypt-context=(${CONTEXT_REGEX})"
+		extract_context_name_regex="filter=crypt-(${CONTEXT_REGEX})"
 		recognise_crypt_regex="filter=crypt"
 		contexts=()
 		IFS=$'\n'
@@ -1147,13 +1162,13 @@ help() {
 		            import the password and cipher from a gpg encrypted file
 
 		     -C, --context=CONTEXT_NAME
-		            name for a context that can use a different passphrase and cipher
-		            from the 'default' context;  use this advanced option, to permit
-		            encrypting different files with different passphrases
+		            name for a context  with a different passphrase  and cipher from
+		            the  'default' context;   use this  advanced option  to  encrypt
+		            different files with different passphrases
 
 		     --list-contexts
 		            list all contexts configured in the  repository,  and warn about
-		            incompletely configured contexts.
+		            incompletely configured contexts
 
 		     -v, --version
 		            print the version information
@@ -1198,24 +1213,26 @@ help() {
 		     You can use context names to encrypt files for different audiences with
 		     different passwords, such as normal users versus admins.  The 'default'
 		     context applies unless you set a context name.
-		     To add a context, initialise transcrypt with the context's name and add
-		     a .gitattributes pattern including 'crypt-context=<name>'. For example:
+		     To add a context,  initialise transcrypt with a context name  and add a
+		     pattern to .gitattributes with crypt-<context-name> attributes.
+		     For example, to add an "admin" context for a 'top-secret' file:
 
-		         # Initialise a new context "admin", and set a different password
+		         # Initialise a new "admin" context, and set a different password
 		         $ transcrypt --context=admin
 
-		         # Add a pattern with 'crypt-context=admin' to .gitattributes
+		         # Add a pattern to .gitattributes with "-admin" suffixes for each
+		         # crypt attribute value:
 		         $ echo >> .gitattributes \\
-		         'admin.txt filter=crypt diff=crypt merge=crypt crypt-context=admin'
+		           'top-secret filter=crypt-admin diff=crypt-admin merge=crypt-admin'
 
 		         # Add and commit your secret and .gitattribute files
-		         $ git add .gitattributes admin.txt
-		         $ git commit -m "Add encrypted admin-only file in 'admin' context"
+		         $ git add .gitattributes top-secret
+		         $ git commit -m "Add top secret file for admins only"
 
 		         # List all contexts
 		         $ transcrypt --list-contexts
 
-		         # Display a context's cipher and password
+		         # Display the cipher and password for the "admin" context
 		         $ transcrypt --context=admin --display
 
 		AUTHOR
@@ -1395,6 +1412,7 @@ set_context_variables() {
 	if [[ "$context" ]] && [[ ! "$context" = 'default' ]]; then
 		CONTEXT=$context
 		CONTEXT_CONFIG_GROUP="${CONTEXT}." # Note trailing period
+		CONTEXT_SUFFIX="-${CONTEXT}" # Note leading dash
 		CONTEXT_DESC_SUFFIX=" for context '$CONTEXT'"
 		CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}.cipher
 		# For ls-crypt aliases we want one for each context, including 'default'
@@ -1402,6 +1420,7 @@ set_context_variables() {
 	else
 		CONTEXT='default'
 		CONTEXT_CONFIG_GROUP="" # Empty config group name for default config
+		CONTEXT_SUFFIX="" # Empty for default config
 		CONTEXT_DESC_SUFFIX=''
 		CONTEXT_TRANSCRYPT_CIPHER=transcrypt.cipher
 		# For ls-crypt aliases we want one for each context, including 'default'

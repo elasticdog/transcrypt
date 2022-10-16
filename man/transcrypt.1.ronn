@@ -117,24 +117,26 @@ then re-configure transcrypt with the new credentials.
 You can use context names to encrypt files for different audiences with
 different passwords, such as normal users versus admins. The 'default'
 context applies unless you set a context name.
-To add a context, initialise transcrypt with the context's name and add
-a .gitattributes pattern including 'crypt-context=<name>'. For example:
+To add a context, initialise transcrypt with a context name and add a
+pattern to .gitattributes with crypt-<context-name> attributes.
+For example, to add an "admin" context for a 'top-secret' file:
 
     # Initialise a new context "admin", and set a different password
     $ transcrypt --context=admin
 
-    # Add a pattern with 'crypt-context=admin' to .gitattributes
+    # Add a pattern to .gitattributes with "-admin" suffixes for each
+    # crypt attribute value:
     $ echo >> .gitattributes \\
-    'admin.txt filter=crypt diff=crypt merge=crypt crypt-context=admin'
+      'top-secret filter=crypt-admin diff=crypt-admin merge=crypt-admin'
 
     # Add and commit your secret and .gitattribute files
-    $ git add .gitattributes admin.txt
-    $ git commit -m "Add encrypted admin-only file in 'admin' context"
+    $ git add .gitattributes top-secret
+    $ git commit -m "Add top secret file for admins only"
 
     # List all contexts
     $ transcrypt --list-contexts
 
-    # Display a context's cipher and password
+    # Display the cipher and password for the "admin" context
     $ transcrypt --context=admin --display
 
 ## AUTHOR

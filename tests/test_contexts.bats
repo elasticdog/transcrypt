@@ -66,17 +66,17 @@ function teardown {
 
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
   # shellcheck disable=SC2016
-  [ "$(git config --get filter.crypt.clean)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt clean %f' ]
-  [ "$(git config --get filter.crypt.smudge)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt smudge %f' ]
-  [ "$(git config --get diff.crypt.textconv)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt textconv' ]
-  [ "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt merge %O %A %B %L %P' ]
+  [ "$(git config --get filter.crypt.clean)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt clean context=default %f' ]
+  [ "$(git config --get filter.crypt.smudge)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt smudge context=default' ]
+  [ "$(git config --get diff.crypt.textconv)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt textconv context=default' ]
+  [ "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt merge context=default %O %A %B %L %P' ]
 
   [[ $(git config --get filter.crypt.required) = "true" ]]
   [[ $(git config --get diff.crypt.cachetextconv) = "true" ]]
   [[ $(git config --get diff.crypt.binary) = "true" ]]
   [[ $(git config --get merge.renormalize) = "true" ]]
 
-  [[ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt$/{ print \$1 }'" ]]
+  [[ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt/{ print \$1 }'" ]]
 }
 
 @test "init: show extra context details in --display" {
@@ -113,7 +113,7 @@ function teardown {
   # Confirm .gitattributes is configured for multiple contexts
   run cat .gitattributes
   [ "${lines[1]}" = '"sensitive_file" filter=crypt diff=crypt merge=crypt' ]
-  [ "${lines[2]}" = '"super_sensitive_file" filter=crypt diff=crypt merge=crypt crypt-context=super-secret' ]
+  [ "${lines[2]}" = '"super_sensitive_file" filter=crypt-super-secret diff=crypt-super-secret merge=crypt-super-secret' ]
 }
 
 @test "contexts: confirm --list-contexts lists configured contexts not yet in .gitattributes" {
@@ -149,7 +149,7 @@ function teardown {
   [ "${lines[0]}" = '' ]
 
   # List just super-secret context from .gitattributes
-  echo  '"super_sensitive_file" filter=crypt diff=crypt merge=crypt crypt-context=super-secret' > .gitattributes
+  echo  '"super_sensitive_file" filter=crypt-super-secret diff=crypt-super-secret merge=crypt-super-secret' > .gitattributes
   run ../transcrypt --list-contexts
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = 'super-secret (not initialised)' ]
@@ -198,7 +198,7 @@ function teardown {
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
   run git show HEAD:super_sensitive_file --textconv
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "$SUPER_SECRET_CONTENT" ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
 }
 
 @test "contexts: transcrypt --show-raw shows encrypted content for multiple contexts" {
@@ -308,7 +308,6 @@ function teardown {
   check_repo_is_clean
 
   # Confirm sensitive files for both contexts are encrypted in working dir
-  cat sensitive_file
   run cat sensitive_file
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
   run cat super_sensitive_file
@@ -322,7 +321,6 @@ function teardown {
 
   # Re-init only super-secret context: its files are decrypted, not default context
   ../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
-  ../transcrypt --list-contexts
   run ../transcrypt --list-contexts
   [ "${lines[0]}" = 'default (not initialised)' ]
   [ "${lines[1]}" = 'super-secret' ]
