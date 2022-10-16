@@ -1412,7 +1412,7 @@ set_context_variables() {
 	if [[ "$context" ]] && [[ ! "$context" = 'default' ]]; then
 		CONTEXT=$context
 		CONTEXT_CONFIG_GROUP="${CONTEXT}." # Note trailing period
-		CONTEXT_SUFFIX="-${CONTEXT}" # Note leading dash
+		CONTEXT_SUFFIX="-${CONTEXT}"       # Note leading dash
 		CONTEXT_DESC_SUFFIX=" for context '$CONTEXT'"
 		CONTEXT_TRANSCRYPT_CIPHER=transcrypt.${CONTEXT}.cipher
 		# For ls-crypt aliases we want one for each context, including 'default'
@@ -1420,7 +1420,7 @@ set_context_variables() {
 	else
 		CONTEXT='default'
 		CONTEXT_CONFIG_GROUP="" # Empty config group name for default config
-		CONTEXT_SUFFIX="" # Empty for default config
+		CONTEXT_SUFFIX=""       # Empty for default config
 		CONTEXT_DESC_SUFFIX=''
 		CONTEXT_TRANSCRYPT_CIPHER=transcrypt.cipher
 		# For ls-crypt aliases we want one for each context, including 'default'
