@@ -593,10 +593,20 @@ save_configuration() {
 	# shellcheck disable=SC2016
 	transcrypt_path='"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-dir)"")"/transcrypt'
 
-	git config filter.crypt"${CONTEXT_SUFFIX}".clean "$transcrypt_path clean context=$CONTEXT %f"
-	git config filter.crypt"${CONTEXT_SUFFIX}".smudge "$transcrypt_path smudge context=$CONTEXT"
-	git config diff.crypt"${CONTEXT_SUFFIX}".textconv "$transcrypt_path textconv context=$CONTEXT"
-	git config merge.crypt"${CONTEXT_SUFFIX}".driver "$transcrypt_path merge context=$CONTEXT %O %A %B %L %P"
+	# Ensure filter attributes are always set for the default (unspecified) context
+	git config filter.crypt.clean "$transcrypt_path clean context=default %f"
+	git config filter.crypt.smudge "$transcrypt_path smudge context=default"
+	git config diff.crypt.textconv "$transcrypt_path textconv context=default"
+	git config merge.crypt.driver "$transcrypt_path merge context=default %O %A %B %L %P"
+
+	# Also set filter attributes for a non-default context, if necessary
+	if [[ ! "$CONTEXT" = 'default' ]]; then
+		git config filter.crypt"${CONTEXT_SUFFIX}".clean "$transcrypt_path clean context=$CONTEXT %f"
+		git config filter.crypt"${CONTEXT_SUFFIX}".smudge "$transcrypt_path smudge context=$CONTEXT"
+		git config diff.crypt"${CONTEXT_SUFFIX}".textconv "$transcrypt_path textconv context=$CONTEXT"
+		git config merge.crypt"${CONTEXT_SUFFIX}".driver "$transcrypt_path merge context=$CONTEXT %O %A %B %L %P"
+	fi
+
 	git config filter.crypt.required 'true'
 	git config diff.crypt.cachetextconv 'true'
 	git config diff.crypt.binary 'true'
@@ -652,18 +662,6 @@ clean_gitconfig() {
 	git config --remove-section diff.crypt 2>/dev/null || true
 	git config --remove-section merge.crypt 2>/dev/null || true
 	git config --unset merge.renormalize
-
-	# remove context settings: cipher & password config, ls-crypt alias variant,
-	# crypt filter/diff/merge attributes
-	for context in $CONFIGURED_CONTEXTS; do
-		git config --unset alias.ls-crypt-"${context}"
-
-		git config --remove-section transcrypt."${context}" 2>/dev/null || true
-
-		git config --remove-section filter.crypt-"${context}" 2>/dev/null || true
-		git config --remove-section diff.crypt-"${context}" 2>/dev/null || true
-		git config --remove-section merge.crypt-"${context}" 2>/dev/null || true
-	done
 
 	# remove the merge section if it's now empty
 	local merge_values
@@ -796,6 +794,19 @@ uninstall_transcrypt() {
 			# shellcheck disable=SC2086
 			touch $encrypted_files
 		fi
+
+		# remove context settings: cipher & password config, ls-crypt alias variant,
+		# crypt filter/diff/merge attributes. We do it here instead of `clean_gitconfig`
+		# to avoid interfering with flushing of credentials
+		for context in $CONFIGURED_CONTEXTS; do
+			git config --unset alias.ls-crypt-"${context}"
+
+			git config --remove-section transcrypt."${context}" 2>/dev/null || true
+
+			git config --remove-section filter.crypt-"${context}" 2>/dev/null || true
+			git config --remove-section diff.crypt-"${context}" 2>/dev/null || true
+			git config --remove-section merge.crypt-"${context}" 2>/dev/null || true
+		done
 
 		# remove the `git ls-crypt` global alias. We must do this late, because
 		# we need it to list the files to touch above.
