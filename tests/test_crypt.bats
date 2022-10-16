@@ -30,7 +30,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
 }
 
-@test "crypt: encrypted file contents can be decrypted (via git show)" {
+@test "crypt: encrypted file contents can be decrypted (via git show --textconv)" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   run git show HEAD:sensitive_file --textconv
   [ "$status" -eq 0 ]

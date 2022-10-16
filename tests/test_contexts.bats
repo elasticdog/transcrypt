@@ -189,6 +189,18 @@ function teardown {
   [ "${lines[0]}" = "$SUPER_SECRET_CONTENT_ENC" ]
 }
 
+@test "contexts: encrypted file contents can be decrypted (via git show --textconv)" {
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+  run git show HEAD:sensitive_file --textconv
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
+  run git show HEAD:super_sensitive_file --textconv
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SUPER_SECRET_CONTENT" ]
+}
+
 @test "contexts: transcrypt --show-raw shows encrypted content for multiple contexts" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
