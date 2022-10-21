@@ -799,7 +799,7 @@ uninstall_transcrypt() {
 		# crypt filter/diff/merge attributes. We do it here instead of `clean_gitconfig`
 		# to avoid interfering with flushing of credentials
 		for context in $CONFIGURED_CONTEXTS; do
-			git config --unset alias.ls-crypt-"${context}"
+			git config --unset alias.ls-crypt-"${context}" 2>/dev/null || true
 
 			git config --remove-section transcrypt."${context}" 2>/dev/null || true
 
@@ -810,7 +810,7 @@ uninstall_transcrypt() {
 
 		# remove the `git ls-crypt` global alias. We must do this late, because
 		# we need it to list the files to touch above.
-		git config --unset alias.ls-crypt
+		git config --unset alias.ls-crypt 2>/dev/null || true
 
 		# remove the alias section if it's now empty
 		local alias_values
