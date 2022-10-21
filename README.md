@@ -247,6 +247,14 @@ directory.
       -i, --import-gpg=FILE
              import the password and cipher from a gpg encrypted file
 
+      -C, --context=CONTEXT_NAME
+             name for a context  with a different passphrase  and cipher from
+             the  'default' context;   use this  advanced option  to  encrypt
+             different files with different passphrases
+
+      --list-contexts
+             list all contexts configured in the  repository,  and warn about
+             incompletely configured contexts
       -v, --version
              print the version information
 
@@ -300,6 +308,35 @@ as a known limitation. Essentially, malicious comitters without the transcrypt
 password could potentially manipulate the plaintext in limited ways (given that
 the attacker knows the original plaintext). Honestly, I'm not sure if the added
 complexity here would be worth it given transcrypt's use case.
+
+## Advanced
+
+### Contexts
+
+Context names let you encrypt some files with different passwords for a
+different audience, such as super-users. The 'default' context applies unless
+you set a context name.
+
+Add a context by reinitialising transcrypt with a context name then add a
+pattern with crypt-<CONTEXT*NAME> attributes to *.gitattributes*. For example,
+to encrypt a file \_top-secret* in a "super" context:
+
+    # Initialise a new "super" context, and set a different password
+    $ transcrypt --context=super
+
+    # Add a pattern to .gitattributes with "crypt-super" values
+    $ echo >> .gitattributes \\
+      'top-secret filter=crypt-super diff=crypt-super merge=crypt-super'
+
+    # Add and commit your top-secret and .gitattribute files
+    $ git add .gitattributes top-secret
+    $ git commit -m "Add top secret file for super-users only"
+
+    # List all contexts
+    $ transcrypt --list-contexts
+
+    # Display the cipher and password for the "super" context
+    $ transcrypt --context=super --display
 
 ## License
 

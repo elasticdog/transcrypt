@@ -114,30 +114,32 @@ If the origin repository has just rekeyed, all clones should flush their
 transcrypt credentials, fetch and merge the new encrypted files via Git, and
 then re-configure transcrypt with the new credentials.
 
-You can use context names to encrypt files for different audiences with
-different passwords, such as normal users versus admins. The 'default'
-context applies unless you set a context name.
-To add a context, initialise transcrypt with a context name and add a
-pattern to .gitattributes with crypt-<context-name> attributes.
-For example, to add an "admin" context for a 'top-secret' file:
+## ADVANCED
 
-    # Initialise a new context "admin", and set a different password
-    $ transcrypt --context=admin
+Context names let you encrypt some files with different passwords for a
+different audience, such as super-users. The 'default' context applies unless
+you set a context name.
 
-    # Add a pattern to .gitattributes with "-admin" suffixes for each
-    # crypt attribute value:
+Add a context by reinitialising transcrypt with a context name then add a
+pattern with crypt-<CONTEXT_NAME> attributes to .gitattributes.
+For example, to encrypt a file 'top-secret' in a "super" context:
+
+    # Initialise a new "super" context, and set a different password
+    $ transcrypt --context=super
+
+    # Add a pattern to .gitattributes with "crypt-super" values
     $ echo >> .gitattributes \\
-      'top-secret filter=crypt-admin diff=crypt-admin merge=crypt-admin'
+    'top-secret filter=crypt-super diff=crypt-super merge=crypt-super'
 
-    # Add and commit your secret and .gitattribute files
+    # Add and commit your top-secret and .gitattribute files
     $ git add .gitattributes top-secret
-    $ git commit -m "Add top secret file for admins only"
+    $ git commit -m "Add top secret file for super-users only"
 
     # List all contexts
     $ transcrypt --list-contexts
 
-    # Display the cipher and password for the "admin" context
-    $ transcrypt --context=admin --display
+    # Display the cipher and password for the "super" context
+    $ transcrypt --context=super --display
 
 ## AUTHOR
 
