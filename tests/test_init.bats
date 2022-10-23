@@ -38,10 +38,10 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
   # Use --git-common-dir if available (Git post Nov 2014) otherwise --git-dir
   # shellcheck disable=SC2016
-  [ "$(git config --get filter.crypt.clean)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt clean %f' ]
-  [ "$(git config --get filter.crypt.smudge)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt smudge' ]
-  [ "$(git config --get diff.crypt.textconv)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt textconv' ]
-  [ "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt merge %O %A %B %L %P' ]
+  [ "$(git config --get filter.crypt.clean)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt clean context=default %f' ]
+  [ "$(git config --get filter.crypt.smudge)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt smudge context=default' ]
+  [ "$(git config --get diff.crypt.textconv)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt textconv context=default' ]
+  [ "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt merge context=default %O %A %B %L %P' ]
 
   [ "$(git config --get filter.crypt.required)" = "true" ]
   [ "$(git config --get diff.crypt.cachetextconv)" = "true" ]
@@ -49,7 +49,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ "$(git config --get merge.renormalize)" = "true" ]
   [ "$(git config --get merge.crypt.name)" = "Merge transcrypt secret files" ]
 
-  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; /crypt$/{ print \$1 }'" ]
+  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt/{ print \$1 }'" ]
 }
 
 @test "init: show details for --display" {
@@ -98,14 +98,8 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 }
 
-@test "init: --set-openssl-path changes transcrypt.openssl-path" {
-  init_transcrypt
-  [ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
-}
-
 @test "init: --set-openssl-path is applied during init" {
-  init_transcrypt
-  run ../transcrypt --set-openssl-path=/test/path
+  run ../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes --set-openssl-path=/test/path
   [ "$(git config --get transcrypt.openssl-path)" = "/test/path" ]
 }
 
@@ -116,7 +110,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   # Set openssl path
   FULL_OPENSSL_PATH=$(which openssl)
 
-  "$BATS_TEST_DIRNAME"/../transcrypt --upgrade --yes --set-openssl-path="$FULL_OPENSSL_PATH"
+  run ../transcrypt --upgrade --yes --set-openssl-path="$FULL_OPENSSL_PATH"
   [ "$(git config --get transcrypt.openssl-path)" = "$FULL_OPENSSL_PATH" ]
   [ ! "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 }
@@ -127,10 +121,10 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
   # Set openssl path
   FULL_OPENSSL_PATH=$(which openssl)
-  run ../transcrypt --set-openssl-path="$FULL_OPENSSL_PATH"''
+  run ../transcrypt --set-openssl-path="$FULL_OPENSSL_PATH"'' --yes
 
   # Retain transcrypt.openssl-path config setting on upgrade
-  "$BATS_TEST_DIRNAME"/../transcrypt --upgrade --yes
+  run ../transcrypt --upgrade --yes
   [ "$(git config --get transcrypt.openssl-path)" = "$FULL_OPENSSL_PATH" ]
   [ ! "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 }

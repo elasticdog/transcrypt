@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 [1]: https://keepachangelog.com/en/1.0.0/
 [2]: https://semver.org/spec/v2.0.0.html
 
+## [Unreleased]
+
+### Added
+
+- Add contexts feature that lets you encrypt different sets of files with
+  different passwords for a different audience, such as super-users versus
+  normal repository users. See `--context=` / `-C` / `--list-context` arguments
+  and documentation for this advanced feature.
+
 ## [2.2.0] - 2022-07-09
 
 ### Added

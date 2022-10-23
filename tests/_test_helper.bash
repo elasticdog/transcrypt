@@ -33,7 +33,7 @@ function nuke_git_repo {
 
 function cleanup_all {
   nuke_git_repo
-  rm "$BATS_TEST_DIRNAME"/.gitattributes
+  rm -f "$BATS_TEST_DIRNAME"/.gitattributes
   rm -f "$BATS_TEST_DIRNAME"/sensitive_file
 }
 
@@ -44,10 +44,15 @@ function init_transcrypt {
 function encrypt_named_file {
   filename="$1"
   content=$2
+  context=${3:-default}
   if [[ "$content" ]]; then
     echo "$content" > "$filename"
   fi
-  echo "\"$filename\" filter=crypt diff=crypt merge=crypt" >> .gitattributes
+  if [[ "$context" = "default" ]]; then
+    echo "\"$filename\" filter=crypt diff=crypt merge=crypt" >> .gitattributes
+  else
+    echo "\"$filename\" filter=crypt-$context diff=crypt-$context merge=crypt-$context" >> .gitattributes
+  fi
   git add .gitattributes "$filename"
   run git commit -m "Encrypt file \"$filename\""
 }
@@ -63,4 +68,8 @@ function setup {
 function teardown {
   cleanup_all
   popd || exit 1
+}
+
+function check_repo_is_clean {
+  git diff-index --quiet HEAD --
 }
