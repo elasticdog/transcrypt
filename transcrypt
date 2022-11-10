@@ -167,10 +167,10 @@ is_salt_prefix_workaround_required() {
 	openssl_project=$($openssl_path version | cut -d' ' -f1)
 	openssl_major_version=$($openssl_path version | cut -d' ' -f2 | cut -d'.' -f1)
 
-	if [ "$openssl_project" == "OpenSSL" ] && [ "$openssl_major_version" == "true" ]; then
+	if [ "$openssl_project" == "OpenSSL" ] && [ "$openssl_major_version" -ge "3" ]; then
 		echo 'true'
 	else
-		echo 'false'
+		echo ''
 	fi
 }
 
