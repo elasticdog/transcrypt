@@ -17,6 +17,12 @@ The format is based on [Keep a Changelog][1], and this project adheres to
   normal repository users. See `--context=` / `-C` / `--list-context` arguments
   and documentation for this advanced feature.
 
+### Fixed
+
+- Compatibility fix for LibreSSL versions 3 (and above) especially for MacOS
+  13 Ventura to more carefully apply a work-around required for OpenSSL 3+
+  that isn't required for LibreSSL 3+ (#147 #133)
+
 ## [2.2.0] - 2022-07-09
 
 ### Added
