@@ -19,8 +19,7 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 
 ### Fixed
 
-- PENDING
-  Compatibility fix for LibreSSL versions 3 (and above) especially for MacOS
+- Compatibility fix for LibreSSL versions 3 (and above) especially for MacOS
   13 Ventura to more carefully apply a work-around required for OpenSSL 3+
   that isn't required for LibreSSL 3+ (#147 #133)
 
