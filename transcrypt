@@ -112,6 +112,26 @@ die() {
 	exit "$st"
 }
 
+# Detect OpenSSL major version 3 or later which requires a compatibility
+# work-around to include the prefix 'Salted__' and salt value when encrypting.
+#
+# Note that the LibreSSL project's version of the openssl command does NOT
+# require this work-around for major version 3.
+#
+# See #133 #147
+is_salt_prefix_workaround_required() {
+	openssl_path=$(git config --get --local transcrypt.openssl-path 2>/dev/null || printf '%s' "$openssl_path")
+
+	openssl_project=$($openssl_path version | cut -d' ' -f1)
+	openssl_major_version=$($openssl_path version | cut -d' ' -f2 | cut -d'.' -f1)
+
+	if [ "$openssl_project" == "OpenSSL" ] && [ "$openssl_major_version" -ge "3" ]; then
+		echo 'true'
+	else
+		echo ''
+	fi
+}
+
 # The `decryption -> encryption` process on an unchanged file must be
 # deterministic for everything to work transparently. To do that, the same
 # salt must be used each time we encrypt the same file. An HMAC has been
@@ -140,8 +160,7 @@ git_clean() {
 		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
 
-		openssl_major_version=$($openssl_path version | cut -d' ' -f2 | cut -d'.' -f1)
-		if [ "$openssl_major_version" -ge "3" ]; then
+		if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
 			# Encrypt the file to base64, ensuring it includes the prefix 'Salted__' with the salt. #133
 			(
 				echo -n "Salted__" && echo -n "$salt" | xxd -r -p &&
@@ -310,8 +329,7 @@ run_safety_checks() {
 		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 	# check for extra `xxd` dependency when running against OpenSSL version 3+
-	openssl_major_version=$($openssl_path version | cut -d' ' -f2 | cut -d'.' -f1)
-	if [ "$openssl_major_version" -ge "3" ]; then
+	if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
 		cmd="xxd"
 		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	fi
