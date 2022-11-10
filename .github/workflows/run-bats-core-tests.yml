@@ -40,6 +40,9 @@ jobs:
     - name: Print OpenSSL version
       run: openssl version
 
+    - name: Print MacOS built-in OpenSSL version
+      run: /usr/bin/openssl version
+
     - name: Print Git version
       run: git version
 
