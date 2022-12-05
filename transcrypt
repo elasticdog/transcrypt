@@ -264,7 +264,7 @@ git_merge() {
 	if [[ "${GIT_REFLOG_ACTION:-}" = "merge "* ]]; then
 		THEIRS_LABEL=$(echo "$GIT_REFLOG_ACTION" | awk '{print $2}')
 	fi
-	if [[ ! "$THEIRS_LABEL" ]]; then
+	if [[ ! "${THEIRS_LABEL:-}" ]]; then
 		THEIRS_LABEL="theirs"
 	fi
 	# Decrypt BASE $1, LOCAL $2, and REMOTE $3 versions of file being merged

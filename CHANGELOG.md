@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 - Compatibility fix for LibreSSL versions 3 (and above) especially for MacOS
   13 Ventura to more carefully apply a work-around required for OpenSSL 3+
   that isn't required for LibreSSL 3+ (#147 #133)
+- Fix errors applying a stash containing a secret file that needs to be merged
+  with staged changes to the same file (#150)
 
 ## [2.2.0] - 2022-07-09
 
