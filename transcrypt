@@ -136,13 +136,14 @@ die() {
 	exit "$st"
 }
 
-# return context name if $1 has format 'context=name-of-context' else "default"
+# return context name if $1 has format 'context=name-of-context' else empty string
 extract_context_name_from_name_value_arg() {
-	local context=${1#*=}
-	if [[ ! $context ]]; then
-		echo ''
+	local before_last_equals=${1%=*}
+	local after_first_equals=${1#*=}
+	if [[ "$before_last_equals" == "context" ]]; then
+		echo "$after_first_equals"
 	fi
-	echo "$context"
+	echo ''
 }
 
 derive_context_config_group() {
