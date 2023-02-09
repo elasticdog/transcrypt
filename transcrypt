@@ -98,7 +98,7 @@ gather_repo_metadata() {
 	readonly CRYPT_DIR=$(git config transcrypt.crypt-dir 2>/dev/null || printf '%s/crypt' "${RELATIVE_GIT_DIR}")
 
 	# respect core.hooksPath setting, without trailing slash. Fall back to default hooks dir
-	readonly GIT_HOOKS=$(git config core.hooksPath | sed 's:/*$::' 2>/dev/null || printf "%s/hooks" "${RELATIVE_GIT_DIR}")
+	readonly GIT_HOOKS=$(git config core.hooksPath 2>/dev/null | sed 's:/*$::' || printf "%s/hooks" "${RELATIVE_GIT_DIR}")
 
 	# the current git repository's gitattributes file
 	local CORE_ATTRIBUTES
