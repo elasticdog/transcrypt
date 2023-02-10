@@ -196,8 +196,9 @@ git_smudge() {
 		local first_salt_prefix=$(echo "$header_decoded" | cut -b 1-16)         # First 16 bytes
 		local maybe_second_salt_prefix=$(echo "$header_decoded" | cut -b 17-32) # Second 16 bytes
 
-		# If the salted prefix is repeated, remove the first occurrence before decrypting...
-		if [[ "$first_salt_prefix" == "$maybe_second_salt_prefix" ]]; then
+		# If the salted prefix is repeated -- and not empty, to avoid mistaken match if
+		# base64 decoding fails -- remove the first occurrence before decrypting...
+		if [[ "$first_salt_prefix" && "$first_salt_prefix" == "$maybe_second_salt_prefix" ]]; then
 			openssl base64 -d <"$tempfile" | tail -c+17 | ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS 2>/dev/null
 		# ...otherwise decrypt as normal
 		else
