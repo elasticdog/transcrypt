@@ -6,8 +6,7 @@ on:
     branches: [main]
   # Run tests for all pull request changes targeting main
   pull_request:
-    # branches: [main]
-    types: [opened, reopened]
+    branches: *
 
 jobs:
 
