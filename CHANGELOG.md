@@ -8,6 +8,30 @@ The format is based on [Keep a Changelog][1], and this project adheres to
 [1]: https://keepachangelog.com/en/1.0.0/
 [2]: https://semver.org/spec/v2.0.0.html
 
+## Steps to Upgrade
+
+To upgrade _transcrypt_ it is not enough to have a newer version on your
+system, you must also run the `--upgrade` command in each repository:
+
+1. Check the version of _transcrypt_ on your system:
+
+   ```bash
+   $ transcrypt --version
+   ```
+
+2. Check the version of _transcrypt_ in your Git repository, which may be
+   different:
+
+   ```bash
+   $ .git/crypt/transcrypt --version
+   ```
+
+3. Upgrade the version of _transcrypt_ in your Git repository:
+
+   ```
+   $ transcrypt --upgrade
+   ```
+
 ## [Unreleased]
 
 ### Added
@@ -17,10 +41,12 @@ The format is based on [Keep a Changelog][1], and this project adheres to
   normal repository users. See `--context=` / `-C` / `--list-context` arguments
   and documentation for this advanced feature.
 
+## [2.2.1] - 2023-02-11
+
 ### Fixed
 
 - Compatibility fix for LibreSSL versions 3 (and above) especially for MacOS
-  13 Ventura to more carefully apply a work-around required for OpenSSL 3+
+  13 Ventura, to more carefully apply a work-around required for OpenSSL 3+
   that isn't required for LibreSSL 3+ (#147 #133)
 - Fix errors applying a stash containing a secret file that needs to be merged
   with staged changes to the same file (#150)
@@ -254,7 +280,8 @@ Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 
 ## [0.9.4] - 2014-03-03
 
-[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.0...HEAD
+[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/elasticdog/transcrypt/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/elasticdog/transcrypt/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/elasticdog/transcrypt/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/elasticdog/transcrypt/compare/v1.1.0...v2.0.0
