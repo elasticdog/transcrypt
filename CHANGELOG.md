@@ -41,6 +41,10 @@ system, you must also run the `--upgrade` command in each repository:
   normal repository users. See `--context=` / `-C` / `--list-context` arguments
   and documentation for this advanced feature.
 
+### Fixed
+
+- Prevent `cd` commands printing out excess details when `CDPATH` is set (#156)
+
 ## [2.2.1] - 2023-02-11
 
 ### Fixed
