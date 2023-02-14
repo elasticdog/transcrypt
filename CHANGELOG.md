@@ -40,6 +40,8 @@ system, you must also run the `--upgrade` command in each repository:
   different passwords for a different audience, such as super-users versus
   normal repository users. See `--context=` / `-C` / `--list-context` arguments
   and documentation for this advanced feature.
+- When transcrypt refuses to do work in a dirty repository, print a list of
+  changed files to help the user understand and fix the issue.
 
 ### Fixed
 

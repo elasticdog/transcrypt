@@ -429,7 +429,13 @@ run_safety_checks() {
 		git update-index -q --really-refresh
 		# check if the repo is dirty
 		if ! git diff-index --quiet HEAD --; then
-			die 1 'the repo is dirty; commit or stash your changes before running transcrypt'
+			warn 'the repo is dirty; commit or stash your changes before running transcrypt\n'
+			# Output a human friendly summary of dirty files, with fallback to
+			# less friendly output formats if nicer ones aren't supported
+			git diff-index --name-status HEAD -- 2>/dev/null ||
+				git diff-index --stat HEAD -- 2>/dev/null ||
+				git diff-index HEAD --
+			exit 1
 		fi
 	fi
 }
