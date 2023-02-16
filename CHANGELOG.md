@@ -43,8 +43,17 @@ system, you must also run the `--upgrade` command in each repository:
 - When transcrypt refuses to do work in a dirty repository, print a list of
   changed files to help the user understand and fix the issue.
 
+### Changed
+
+- The `hexdump` command is now required by Transcrypt. It will be installed
+  already on many systems, or comes with the `bsdmainutils` package on
+  Ubuntu/Debian that was already required to get the `column` command.
+
 ### Fixed
 
+- Avoid null byte warnings when decrypting certain files, caused by a work-
+  around in 2.2.1 to repair files that could have been incorrectly encrypted
+  with 2.2.0 due to issue #147
 - Prevent `cd` commands printing out excess details when `CDPATH` is set (#156)
 
 ## [2.2.1] - 2023-02-11

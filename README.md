@@ -55,7 +55,7 @@ The requirements to run transcrypt are minimal:
 - Bash
 - Git
 - OpenSSL
-- `column` command (on Ubuntu/Debian install `bsdmainutils`)
+- `column` and `hexdump` commands (on Ubuntu/Debian install `bsdmainutils`)
 - `xxd` command if using OpenSSL version 3
   (on Ubuntu/Debian is included with `vim`)
 
