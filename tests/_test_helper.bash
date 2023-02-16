@@ -6,6 +6,8 @@ function init_git_repo {
   elif [[ -e "$BATS_TEST_DIRNAME/.git" ]]; then
     echo "WARNING: Test repo already exists at $BATS_TEST_DIRNAME/.git"
   else
+    # Configure "main" as the default branch name
+    git config --global init.defaultBranch main
     # Initialise test git repo at the same path as the test files
     git init "$BATS_TEST_DIRNAME"
     git checkout -b main
