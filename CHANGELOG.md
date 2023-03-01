@@ -32,7 +32,7 @@ system, you must also run the `--upgrade` command in each repository:
    $ transcrypt --upgrade
    ```
 
-## [Unreleased]
+## [2.2.2] - 2023-03-01
 
 ### Changed
 
@@ -283,7 +283,8 @@ Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 
 ## [0.9.4] - 2014-03-03
 
-[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.1...HEAD
+[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.2...HEAD
+[2.2.2]: https://github.com/elasticdog/transcrypt/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/elasticdog/transcrypt/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/elasticdog/transcrypt/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/elasticdog/transcrypt/compare/v2.0.0...v2.1.0

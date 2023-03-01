@@ -16,7 +16,7 @@ set -euo pipefail
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='2.2.1'
+readonly VERSION='2.2.2'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
