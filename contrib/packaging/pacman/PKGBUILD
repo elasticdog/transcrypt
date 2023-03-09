@@ -1,6 +1,6 @@
 # Maintainer: Aaron Bull Schaefer <aaron@elasticdog.com>
 pkgname=transcrypt
-pkgver=2.2.0
+pkgver=2.2.3
 pkgrel=1
 pkgdesc='A script to configure transparent encryption of files within a Git repository'
 arch=('any')
