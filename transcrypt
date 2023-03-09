@@ -222,7 +222,6 @@ git_clean() {
 	fi
 }
 
-# shellcheck disable=SC2005,SC2155
 git_smudge() {
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
@@ -231,33 +230,7 @@ git_smudge() {
 	cipher=$(git config --get --local "transcrypt${context_config_group}.cipher")
 	password=$(load_password "$context_config_group")
 	openssl_path=$(git config --get --local transcrypt.openssl-path)
-
-	# Write stdin to $tempfile, while skimming the first bytes at the same time
-	local firstbytes=$(tee "$tempfile" | head -c8 | LC_ALL=C tr -d '\0')
-	# If the first bytes are "Salted", then the file is encrypted
-	if [[ $firstbytes == "U2FsdGVk" ]]; then
-		# Fix for file mistakenly encrypted with double "Salted" prefixes due to #147
-		# that causes garbage characters at top of decrypted files.
-		#
-		# Check file header, which we already know starts with "Salted", to see if
-		# it has exactly the same "Salted__XYZ" prefix mistakenly repeated twice.
-		# Base64 decode gives raw bytes, hexdump gives bytes as ASCII hex characters.
-		local header_as_hex=$(echo "$(head -c48 <"$tempfile")" | openssl base64 -d | hexdump -ve '1/1 "%02x"')
-		local first_salt_prefix=$(echo "$header_as_hex" | cut -b 1-32)         # First 32 chars
-		local maybe_second_salt_prefix=$(echo "$header_as_hex" | cut -b 33-64) # Second 32 chars
-
-		# If the salted prefix is repeated -- and not empty, to avoid mistaken match if
-		# base64 decoding fails -- remove the first occurrence before decrypting...
-		if [[ "$first_salt_prefix" && "$first_salt_prefix" == "$maybe_second_salt_prefix" ]]; then
-			openssl base64 -d <"$tempfile" | tail -c+17 | ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS 2>/dev/null
-		# ...otherwise decrypt as normal
-		else
-			ENC_PASS=$password "$openssl_path" enc -d -a "-${cipher}" -md MD5 -pass env:ENC_PASS <"$tempfile" 2>/dev/null
-		fi
-	# If the first bytes are not "Salted", the file is not encrypted so output it unchanged
-	else
-		cat "$tempfile"
-	fi
+	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a 2>/dev/null || cat "$tempfile"
 }
 
 git_textconv() {
