@@ -32,6 +32,18 @@ system, you must also run the `--upgrade` command in each repository:
    $ transcrypt --upgrade
    ```
 
+## [2.2.3] - 2023-03-09
+
+### Fixed
+
+- Revert faulty automatic fix for mistakenly double-salted encrypted files,
+  which caused more problems than it solved by preventing decryption of some
+  files on some systems #158
+
+### Changed
+
+- The `hexdump` command is no longer required by Transcrypt.
+
 ## [2.2.2] - 2023-03-01
 
 ### Changed
@@ -283,7 +295,8 @@ Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 
 ## [0.9.4] - 2014-03-03
 
-[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.2...HEAD
+[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.3...HEAD
+[2.2.3]: https://github.com/elasticdog/transcrypt/compare/v2.2.2...v2.2.3
 [2.2.2]: https://github.com/elasticdog/transcrypt/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/elasticdog/transcrypt/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/elasticdog/transcrypt/compare/v2.1.0...v2.2.0
