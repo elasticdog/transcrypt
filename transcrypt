@@ -202,13 +202,22 @@ _translate_transcrypt_config_to_openssl_base_arguments() {
 	_openssl_base_arguments="ENC_PASS=\"${password}\" ${openssl_path} enc -${cipher} -md ${digest} -pass env:ENC_PASS"
 }
 
+##############################################################################
 # The `decryption -> encryption` process on an unchanged file must be
 # deterministic for everything to work transparently. To do that, the same
 # salt must be used each time we encrypt the same file. An HMAC has been
 # proven to be a PRF, so we generate an HMAC-SHA256 for each decrypted file
-# (keyed with a combination of the filename and transcrypt password), and
-# then use the last 16 bytes of that HMAC for the file's unique salt.
+# and then use the last 16 bytes of that HMAC for the file's unique salt (the
+# openssl standard for salt is 16 hex bytes).
+#
+# The HMAC-SHA256 is keyed with a combination of the filename and...
+# - for versions before 3, the transcrypt password
+# - for version 3 and later, an additional per-repository salt
+##############################################################################
 
+# The clean script ENCRYPTS files into the Git index, before they are sent to
+# the remote. The file contents are passed via stdin and the filename is passed
+# as $1 (or $2 if $1 is context name definition).
 git_clean() {
 	_translate_transcrypt_config_to_openssl_base_arguments "$1"
 
@@ -223,10 +232,15 @@ git_clean() {
 	if [[ ! -s $filename ]]; then
 		return
 	fi
+
 	# cache STDIN to test if it's already encrypted
+	# First, create the tempfile, then
+	# set a trap to remove the tempfile when we exit or if anything goes wrong
+	# finally write the stdin of this script to the tempfile
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
 	tee "$tempfile" &>/dev/null
+
 	# the first bytes of an encrypted file are always "Salted" in Base64
 	# The `head + LC_ALL=C tr` command handles binary data in old and new Bash (#116)
 	firstbytes=$(head -c8 "$tempfile" | LC_ALL=C tr -d '\0')
@@ -250,6 +264,8 @@ git_clean() {
 	fi
 }
 
+# The smudge script DECRYPTS files when they are checked out to working copy
+# files. The file contents are passed via stdin
 git_smudge() {
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
@@ -259,6 +275,10 @@ git_smudge() {
 	tee "$tempfile" | eval "${_openssl_base_arguments} -d -a" 2>/dev/null || cat "$tempfile"
 }
 
+# The textconv script allows users to see git diffs in plaintext.
+# It does this by decrypting the encrypted git globs into plain text before
+# passing them to the diff command.
+# The filename is passed as $1 (or $2 if $1 is context name definition).
 git_textconv() {
 	_translate_transcrypt_config_to_openssl_base_arguments "$1"
 
