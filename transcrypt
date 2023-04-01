@@ -567,6 +567,10 @@ save_helper_scripts() {
 
 # save helper hooks under the repository's git directory
 save_helper_hooks() {
+	if [[ $rekey ]]; then
+		return 0 # Bypass helper hook installation on rekey
+	fi
+
 	# Install pre-commit-crypt hook script
 	[[ ! -d "${GIT_HOOKS}" ]] && mkdir -p "${GIT_HOOKS}"
 	pre_commit_hook_installed="${GIT_HOOKS}/pre-commit-crypt"
@@ -597,6 +601,8 @@ save_configuration() {
 	# shellcheck disable=SC2086
 	if [[ $upgrade ]]; then
 		: # Bypass safety check on upgrade; we know we just called uninstall_transcrypt
+	elif [[ $rekey ]]; then
+		: # Bypass safety check on rekey
 	elif is_item_in_array "$CONTEXT" ${CONFIGURED_CONTEXTS}; then
 		if [[ "$CONTEXT" = 'default' ]]; then
 			die 1 "the current repository is already configured; see 'transcrypt --display'"
