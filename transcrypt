@@ -20,8 +20,9 @@ set -euo pipefail
 # the release version of this script
 readonly VERSION='3.0.0-alpha1'
 
-# the default cipher to utilize
+# the default encryption settings to recommend
 readonly DEFAULT_CIPHER='aes-256-cbc'
+readonly DEFAULT_DIGEST='md5'  # TODO change to 'sha512'
 
 # context name must match this regexp to ensure it is safe for git config and attrs
 readonly CONTEXT_REGEX='[a-z](-?[a-z0-9])*'
@@ -185,6 +186,22 @@ is_salt_prefix_workaround_required() {
 	fi
 }
 
+# Read transcrypt configuration from the Git config and translate the options
+# into a "base" OpenSSL command that can then be used to encrypt or decrypt a
+# file with minimal extra arguments, as appropriate.
+_translate_transcrypt_config_to_openssl_base_arguments() {
+	context=$(extract_context_name_from_name_value_arg "${1:-}")
+	context_config_group=$(derive_context_config_group "$context")
+
+	cipher=$(git config --get --local "transcrypt${context_config_group}.cipher" || printf '')
+	digest=$(git config --get --local "transcrypt${context_config_group}.digest" || printf '%s' $DEFAULT_DIGEST)
+	password=$(load_password "$context_config_group")
+
+	openssl_path=$(git config --get --local transcrypt.openssl-path || printf '')
+
+	_openssl_base_arguments="ENC_PASS=\"${password}\" ${openssl_path} enc -${cipher} -md ${digest} -pass env:ENC_PASS"
+}
+
 # The `decryption -> encryption` process on an unchanged file must be
 # deterministic for everything to work transparently. To do that, the same
 # salt must be used each time we encrypt the same file. An HMAC has been
@@ -193,10 +210,15 @@ is_salt_prefix_workaround_required() {
 # then use the last 16 bytes of that HMAC for the file's unique salt.
 
 git_clean() {
-	context=$(extract_context_name_from_name_value_arg "$1")
-	[[ "$context" ]] && shift
+	_translate_transcrypt_config_to_openssl_base_arguments "$1"
 
-	filename=$1
+	# We may or may not get a context argument as $1. Filename is $2 if we do.
+	if [[ "$context" ]]; then
+		filename=$2
+	else
+		filename=$1
+	fi
+
 	# ignore empty files
 	if [[ ! -s $filename ]]; then
 		return
@@ -211,10 +233,6 @@ git_clean() {
 	if [[ $firstbytes == "$OPENSSL_ENCRYPTED_SALTED_PREFIX_B64" ]]; then
 		cat "$tempfile"
 	else
-		context_config_group=$(derive_context_config_group "$context")
-		cipher=$(git config --get --local "transcrypt${context_config_group}.cipher")
-		password=$(load_password "$context_config_group")
-		openssl_path=$(git config --get --local transcrypt.openssl-path)
 		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
 
 		if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
@@ -222,12 +240,12 @@ git_clean() {
 			(
 				echo -n "$OPENSSL_ENCRYPTED_SALTED_PREFIX" && echo -n "$salt" | xxd -r -p &&
 					# Encrypt file to binary ciphertext
-					ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
+					eval "${_openssl_base_arguments} -e -S ${salt} -in ${tempfile}"
 			) |
 				openssl base64
 		else
 			# Encrypt file to base64 ciphertext
-			ENC_PASS=$password "$openssl_path" enc -e -a "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
+			eval "${_openssl_base_arguments} -e -a -S ${salt} -in ${tempfile}"
 		fi
 	fi
 }
@@ -235,29 +253,28 @@ git_clean() {
 git_smudge() {
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
-	context=$(extract_context_name_from_name_value_arg "$1")
-	context_config_group=$(derive_context_config_group "$context")
-	cipher=$(git config --get --local "transcrypt${context_config_group}.cipher")
-	password=$(load_password "$context_config_group")
-	openssl_path=$(git config --get --local transcrypt.openssl-path)
-	tee "$tempfile" | ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a 2>/dev/null || cat "$tempfile"
+
+	_translate_transcrypt_config_to_openssl_base_arguments "$1"
+
+	tee "$tempfile" | eval "${_openssl_base_arguments} -d -a" 2>/dev/null || cat "$tempfile"
 }
 
 git_textconv() {
-	context=$(extract_context_name_from_name_value_arg "$1")
-	[[ "$context" ]] && shift
+	_translate_transcrypt_config_to_openssl_base_arguments "$1"
 
-	filename=$1
+	# We may or may not get a context argument as $1. Filename is $2 if we do.
+	if [[ "$context" ]]; then
+		filename=$2
+	else
+		filename=$1
+	fi
+
 	# ignore empty files
 	if [[ ! -s $filename ]]; then
 		return
 	fi
 
-	context_config_group=$(derive_context_config_group "$context")
-	cipher=$(git config --get --local "transcrypt${context_config_group}.cipher")
-	password=$(load_password "$context_config_group")
-	openssl_path=$(git config --get --local transcrypt.openssl-path)
-	ENC_PASS=$password "$openssl_path" enc -d "-${cipher}" -md MD5 -pass env:ENC_PASS -a -in "$filename" 2>/dev/null || cat "$filename"
+	eval "${_openssl_base_arguments} -d -a -in \"${filename}\"" 2>/dev/null || cat "$filename"
 }
 
 # shellcheck disable=SC2005,SC2002,SC2181
