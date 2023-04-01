@@ -26,6 +26,13 @@ readonly DEFAULT_CIPHER='aes-256-cbc'
 # context name must match this regexp to ensure it is safe for git config and attrs
 readonly CONTEXT_REGEX='[a-z](-?[a-z0-9])*'
 
+# Encrypted files have the prefix "Salted__" ("U2FsdGVk" in Base64) due to an
+# OpenSSL convention. We rely on this marker to check if a file is already
+# encrypted. Later versions of OpenSSL have dropped this convention, so we must
+# sometimes add the prefix back in (see #133 #147).
+readonly OPENSSL_ENCRYPTED_SALTED_PREFIX='Salted__'
+readonly OPENSSL_ENCRYPTED_SALTED_PREFIX_B64='U2FsdGVk'
+
 ##### FUNCTIONS
 
 # load encryption password
@@ -158,7 +165,8 @@ derive_context_config_group() {
 }
 
 # Detect OpenSSL major version 3 or later which requires a compatibility
-# work-around to include the prefix 'Salted__' and salt value when encrypting.
+# work-around to include the prefix 'Salted__' before the salt value when
+# encrypting.
 #
 # Note that the LibreSSL project's version of the openssl command does NOT
 # require this work-around for major version 3.
@@ -200,7 +208,7 @@ git_clean() {
 	# the first bytes of an encrypted file are always "Salted" in Base64
 	# The `head + LC_ALL=C tr` command handles binary data in old and new Bash (#116)
 	firstbytes=$(head -c8 "$tempfile" | LC_ALL=C tr -d '\0')
-	if [[ $firstbytes == "U2FsdGVk" ]]; then
+	if [[ $firstbytes == "$OPENSSL_ENCRYPTED_SALTED_PREFIX_B64" ]]; then
 		cat "$tempfile"
 	else
 		context_config_group=$(derive_context_config_group "$context")
@@ -212,7 +220,7 @@ git_clean() {
 		if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
 			# Encrypt the file to base64, ensuring it includes the prefix 'Salted__' with the salt. #133
 			(
-				echo -n "Salted__" && echo -n "$salt" | xxd -r -p &&
+				echo -n "$OPENSSL_ENCRYPTED_SALTED_PREFIX" && echo -n "$salt" | xxd -r -p &&
 					# Encrypt file to binary ciphertext
 					ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
 			) |
@@ -313,7 +321,7 @@ git_pre_commit() {
 			if [[ $firstbytes == "" ]]; then
 				: # Do nothing
 			# The first bytes of an encrypted file must be "Salted" in Base64
-			elif [[ $firstbytes != "U2FsdGVk" ]]; then
+			elif [[ $firstbytes != "$OPENSSL_ENCRYPTED_SALTED_PREFIX_B64" ]]; then
 				printf 'Transcrypt managed file is not encrypted in the Git index: %s\n' "$secret_file" >&2
 				printf '\n' >&2
 				printf 'You probably staged this file using a tool that does not apply' >&2
@@ -340,7 +348,7 @@ git_pre_commit() {
 		# Get prefix of raw file in Git's index using the :FILENAME revision syntax
 		# The first bytes of an encrypted file are always "Salted" in Base64
 		local firstbytes=$(git show :"${secret_file}" | head -c8)
-		if [[ $firstbytes != "U2FsdGVk" ]]; then
+		if [[ $firstbytes != "$OPENSSL_ENCRYPTED_SALTED_PREFIX_B64" ]]; then
 			echo "true" >>"${tmp}"
 		fi
 	}
