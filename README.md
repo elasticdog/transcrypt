@@ -343,6 +343,7 @@ to encrypt a file \_top-secret* in a "super" context:
 transcrypt is provided under the terms of the
 [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
+Copyright &copy; 2020-2023, [James Murty](mailto:james@murty.co).
 Copyright &copy; 2014-2020, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
 
 ## Contributing
