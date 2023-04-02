@@ -774,8 +774,15 @@ save_configuration() {
 
 # display the current configuration settings
 display_configuration() {
-	local current_cipher
-	current_cipher=$(git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}.cipher")
+	local cipher
+	cipher=$(git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}.cipher")
+	local digest
+	digest=$(git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}.digest" || printf '')
+	local kdf
+	kdf=$(git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}.kdf" || printf '')
+	local iterations
+	iterations=$(git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}.iterations" || printf '')
+
 	local current_password
 	current_password=$(load_password "$CONTEXT_CONFIG_GROUP")
 	local escaped_password=${current_password//\'/\'\\\'\'}
@@ -787,18 +794,21 @@ display_configuration() {
 	[[ ! $REPO ]] || printf '  GIT_WORK_TREE:  %s\n' "$REPO"
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
-	printf '  CONTEXT:  %s\n' "$CONTEXT"
-	printf '  CIPHER:   %s\n' "$current_cipher"
-	printf '  PASSWORD: %s\n\n' "$current_password"
+	printf '  CONTEXT:        %s\n' "$CONTEXT"
+	printf '  CIPHER:         %s\n' "$cipher"
+	[[ "${digest:-}" ]] && printf '  DIGEST:         %s\n' "$digest"
+	[[ "${kdf:-}" ]] && printf '  KDF:            %s\n' "$kdf"
+	[[ "${iterations:-}" ]] && printf '  ITERATIONS:     %s\n' "$iterations"
+	printf '  PASSWORD:       %s\n\n' "$current_password"
 	if [[ "$contexts_count" -gt "1" ]]; then
 		printf 'The repository has %s contexts: %s\n\n' "$contexts_count" "$CONFIGURED_CONTEXTS"
 	fi
 	printf "Copy and paste the following command to initialize a cloned repository%s:\n\n" "$CONTEXT_DESCRIPTION"
 	if [[ $CONTEXT != 'default' ]]; then
-		printf "  transcrypt -C $CONTEXT -c %s -p '%s'\n" "$current_cipher" "$escaped_password"
-	else
-		printf "  transcrypt -c %s -p '%s'\n" "$current_cipher" "$escaped_password"
+		context_extra=" -C $CONTEXT"
 	fi
+
+	printf "  transcrypt${context_extra:-} -c ${cipher}${digest:+ -md ${digest}}${kdf:+ -k ${kdf}}${iterations:+ -iter ${iterations}} -p '%s'\n" "$escaped_password"
 }
 
 # remove transcrypt-related settings from the repository's git config
