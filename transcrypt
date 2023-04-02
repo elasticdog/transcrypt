@@ -1679,9 +1679,14 @@ _get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$(printf 'Encrypt us
 if [[ "$assume_legacy_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
 	_get_user_input digest "$DEFAULT_DIGEST" "" "$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")"
 
-	printf 'Use a key derivation function for best security? Requires Transcrypt 3+ and modern OpenSSL? [Y/n] '
-	read -r -n 1 -s answer
-	printf '\n'
+	if [[ -z ${kdf:-} ]]; then
+		printf 'Use a key derivation function for best security? Requires Transcrypt 3+ and modern OpenSSL? [Y/n] '
+		read -r -n 1 -s answer
+		printf '\n'
+	else
+		answer='y'
+	fi
+
 	if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
 		_get_user_input kdf "$DEFAULT_KDF" "" "$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")"
 		_get_user_input iterations "$DEFAULT_ITERATIONS" "" "$(printf 'How many iterations? Use "_" separators for clarity [%s] ' "$DEFAULT_ITERATIONS")"
