@@ -22,7 +22,9 @@ readonly VERSION='3.0.0-alpha1'
 
 # the default encryption settings to recommend
 readonly DEFAULT_CIPHER='aes-256-cbc'
-readonly DEFAULT_DIGEST='md5'  # TODO change to 'sha512'
+readonly DEFAULT_DIGEST='sha512'
+readonly DEFAULT_KDF='pbkdf2'
+readonly DEFAULT_ITERATIONS='1_000_000'
 
 # context name must match this regexp to ensure it is safe for git config and attrs
 readonly CONTEXT_REGEX='[a-z](-?[a-z0-9])*'
@@ -194,12 +196,18 @@ _translate_transcrypt_config_to_openssl_base_arguments() {
 	context_config_group=$(derive_context_config_group "$context")
 
 	cipher=$(git config --get --local "transcrypt${context_config_group}.cipher" || printf '')
-	digest=$(git config --get --local "transcrypt${context_config_group}.digest" || printf '%s' $DEFAULT_DIGEST)
+	digest=$(git config --get --local "transcrypt${context_config_group}.digest" || printf 'md5') # md5 for legacy compatibility
 	password=$(load_password "$context_config_group")
+
+	kdf=$(git config --get --local "transcrypt${context_config_group}.kdf" || printf '')
+	iterations=$(git config --get --local "transcrypt${context_config_group}.iterations" || printf '')
 
 	openssl_path=$(git config --get --local transcrypt.openssl-path || printf '')
 
-	_openssl_base_arguments="ENC_PASS=\"${password}\" ${openssl_path} enc -${cipher} -md ${digest} -pass env:ENC_PASS"
+	# TODO validate $kdf and $digest
+	# TODO assert $iterations and $project_salt are set when $kdf is applied
+
+	_openssl_base_arguments="ENC_PASS=\"${password}\" ${openssl_path} enc -pass env:ENC_PASS -${cipher} -md ${digest} ${kdf:+-${kdf}} ${iterations:+-iter ${iterations}}"
 }
 
 ##############################################################################
@@ -487,24 +495,38 @@ validate_cipher() {
 	fi
 }
 
-# ensure we have a cipher to encrypt with
-get_cipher() {
-	while [[ ! $cipher ]]; do
+# Helper to prompt the user, store a response, and validate the result
+_get_user_input() {
+	local varname=$1
+	local default=$2
+	local validate_fn=$3
+	local prompt=$4
+
+	while [[ ! ${!varname:-} ]]; do
 		local answer=
 		if [[ $interactive ]]; then
-			printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER"
+			printf '%s' "$prompt"
 			read -r answer
 		fi
-
-		# use the default cipher if the user gave no answer;
-		# otherwise verify the given cipher is supported by openssl
+		# use the default value if the user gave no answer; otherwise call the
+		# validate function, which should set the varname to empty if it is
+		# invalid and the user should continue, otherwise it should die.
 		if [[ ! $answer ]]; then
-			cipher=$DEFAULT_CIPHER
+			_set_global "$varname" "$default"
 		else
-			cipher=$answer
-			validate_cipher
+			_set_global "$varname" "$answer"
 		fi
 	done
+	if [[ $validate_fn ]]; then
+		${validate_fn} || die "Invalid setting"
+	fi
+}
+
+# sets a bash global variable by name
+_set_global() {
+	key=$1
+	val=$2
+	printf -v "$key" '%s' "$val"
 }
 
 # ensure we have a password to encrypt with
@@ -664,7 +686,11 @@ save_configuration() {
 	# write the encryption info
 	git config transcrypt.version "$VERSION"
 	git config "transcrypt${CONTEXT_CONFIG_GROUP}.cipher" "$cipher"
+	[[ ${digest:-} ]] && git config "transcrypt${CONTEXT_CONFIG_GROUP}.digest" "$digest"
+	[[ ${kdf:-} ]] && git config "transcrypt${CONTEXT_CONFIG_GROUP}.kdf" "$kdf"
+	[[ ${iterations:-} ]] && git config "transcrypt${CONTEXT_CONFIG_GROUP}.iterations" "$iterations"
 	save_password "$password" "$CONTEXT_CONFIG_GROUP"
+
 	git config transcrypt.openssl-path "$openssl_path"
 
 	# write the filter settings. Sorry for the horrific quote escaping below...
@@ -1203,6 +1229,20 @@ help() {
 		            the symmetric cipher to utilize for encryption;
 		            defaults to aes-256-cbc
 
+		     -md, --digest=DIGEST
+		            the message digest used to hash the salted password;
+		            defaults to sha512
+		            Use md5 for compatibility with transcrypt versions < 3
+
+		     -k, --kdf=KEY_DERIVATION_FUNCTION
+		            a key-derivation function to use, gives best security;
+		            defaults to pbkdf2
+		            If enabled, all users will need Transcrypt 3+ and modern OpenSSL
+
+		     -n, --iter=ITERATIONS
+		            the number of iterations for the key-derivation-function;
+		            defaults to 1_000_000
+
 		     -p, --password=PASSWORD
 		            the password to derive the key from;
 		            defaults to 30 random base64 characters
@@ -1351,6 +1391,7 @@ rekey=''
 show_file=''
 uninstall=''
 upgrade=''
+set_openssl_path=''
 openssl_path='openssl'
 
 # used to bypass certain safety checks
@@ -1392,6 +1433,27 @@ while [[ "${1:-}" != '' ]]; do
 	--cipher=*)
 		cipher=${1#*=}
 		;;
+	-md | --digest)
+		digest=$2
+		shift
+		;;
+	--digest=*)
+		digest=${1#*=}
+		;;
+	-k | --kdf)
+		kdf=${2}
+		shift
+		;;
+	--kdf=*)
+		kdf=${1#*=}
+		;;
+	-n | --iter)
+		iterations=${2}
+		shift
+		;;
+	--iter=*)
+		iterations=${1#*=}
+		;;
 	-p | --password)
 		password=$2
 		shift
@@ -1407,6 +1469,7 @@ while [[ "${1:-}" != '' ]]; do
 		context=${1#*=}
 		;;
 	--set-openssl-path=*)
+		set_openssl_path='true'
 		openssl_path=${1#*=}
 		# Immediately apply config setting
 		git config transcrypt.openssl-path "$openssl_path"
@@ -1557,8 +1620,34 @@ elif [[ $cipher ]]; then
 	validate_cipher
 fi
 
+# Try to detect when user is initialising transcrypt using a legacy command
+# from before version 3, before --kdf or --digest or --iter options were added
+if [[ ${cipher:-} ]] && [[ ${password:-} ]] && [[ -z ${digest:-} ]] && [[ -z ${kdf:-} ]] && [[ -z ${iterations:-} ]]; then
+	assume_legacy_init_command='true'
+else
+	assume_legacy_init_command=''
+fi
+
 # perform function calls to configure transcrypt
-get_cipher
+_get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$(printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER")"
+
+# Prompt user for encryption settings available since version 3, but only if:
+# - it doesn't seem like they are using a legacy init command format
+# - the user isn't just setting the openssl-path
+if [[ "$assume_legacy_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
+	_get_user_input digest "$DEFAULT_DIGEST" "" "$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")"
+
+	printf 'Use a key derivation function for best security? Requires Transcrypt 3+ and modern OpenSSL? [Y/n] '
+	read -r -n 1 -s answer
+	printf '\n'
+	if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
+		_get_user_input kdf "$DEFAULT_KDF" "" "$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")"
+		_get_user_input iterations "$DEFAULT_ITERATIONS" "" "$(printf 'How many iterations? Use "_" separators for clarity [%s] ' "$DEFAULT_ITERATIONS")"
+		# Strip "_" separator characters from iterations value
+		iterations=${iterations//_/}
+	fi
+fi
+
 get_password
 
 if [[ $rekey ]] && [[ $interactive ]]; then
