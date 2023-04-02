@@ -59,8 +59,8 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   run ../transcrypt --display
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
-  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
-  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  CIPHER:         aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD:       abc 123"* ]]
   [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
@@ -71,8 +71,8 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   run ../transcrypt -d
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
-  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
-  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  CIPHER:         aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD:       abc 123"* ]]
   [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
@@ -88,8 +88,8 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   run ../transcrypt --display
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
-  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
-  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  CIPHER:         aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD:       abc 123"* ]]
   [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
