@@ -1662,21 +1662,22 @@ elif [[ $cipher ]]; then
 	validate_cipher
 fi
 
-# Try to detect when user is initialising transcrypt using a legacy command
-# from before version 3, before --kdf or --digest or --iter options were added
+# Try to detect when user is initialising transcrypt using a command format
+# that does not specify a KDF or related settings, e.g. from before version 3.
 if [[ ${cipher:-} ]] && [[ ${password:-} ]] && [[ -z ${digest:-} ]] && [[ -z ${kdf:-} ]] && [[ -z ${iterations:-} ]]; then
-	assume_legacy_init_command='true'
+	is_no_kdf_init_command='true'
 else
-	assume_legacy_init_command=''
+	is_no_kdf_init_command=''
 fi
 
 # perform function calls to configure transcrypt
 _get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$(printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER")"
 
 # Prompt user for encryption settings available since version 3, but only if:
-# - it doesn't seem like they are using a legacy init command format
+# - it doesn't seem like they are using a legacy init command format, or just
+#   one that doesn't specify a KDF
 # - the user isn't just setting the openssl-path
-if [[ "$assume_legacy_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
+if [[ "$is_no_kdf_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
 	_get_user_input digest "$DEFAULT_DIGEST" "" "$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")"
 
 	if [[ -z ${kdf:-} ]]; then

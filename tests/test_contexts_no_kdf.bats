@@ -9,7 +9,7 @@ SUPER_SECRET_CONTENT_ENC="U2FsdGVkX1+dAkIV/LAKXMmqjDNOGoOVK8Rmhw9tUnbR4dwBDglpkX
 function setup {
   pushd "$BATS_TEST_DIRNAME" || exit 1
   init_git_repo
-  init_transcrypt
+  init_transcrypt_no_kdf
 
   # Init transcrypt with 'super-secret' context
   "$BATS_TEST_DIRNAME"/../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
