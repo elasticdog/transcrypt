@@ -36,6 +36,8 @@ readonly CONTEXT_REGEX='[a-z](-?[a-z0-9])*'
 readonly OPENSSL_ENCRYPTED_SALTED_PREFIX='Salted__'
 readonly OPENSSL_ENCRYPTED_SALTED_PREFIX_B64='U2FsdGVk'
 
+readonly SALT_FOR_PBKDF2_PROJECT_SALT='fabc0de8badc0de5'
+
 ##### FUNCTIONS
 
 # load encryption password
@@ -201,6 +203,7 @@ _translate_transcrypt_config_to_openssl_base_arguments() {
 
 	kdf=$(git config --get --local "transcrypt${context_config_group}.kdf" || printf '')
 	iterations=$(git config --get --local "transcrypt${context_config_group}.iterations" || printf '')
+	project_salt=$(git config --get --local "transcrypt${context_config_group}.project-salt" || printf '')
 
 	openssl_path=$(git config --get --local transcrypt.openssl-path || printf '')
 
@@ -237,9 +240,31 @@ _encrypt_file() {
 # openssl standard for salt is 16 hex bytes).
 #
 # The HMAC-SHA256 is keyed with a combination of the filename and...
-# - for versions before 3, the transcrypt password
-# - for version 3 and later, an additional per-repository salt
+# - if a key-derivation function is NOT set, the transcrypt password
+# - if a key-derivation function IS set, a "project salt" value. This extra
+#   salt value derived from the password using the same key-derivation function
+#   settings that protect each file and stored in the Git config
 ##############################################################################
+
+# Generate a project salt value to use for encrypting files when a
+# key-derivation function is configured.
+# This salt value is an encrypted hash of the password, using the same
+# password, and generated with the same high-strength key-derivation encryption
+# algorithm as protects each file.
+_generate_project_salt() {
+	local password="$1"
+
+	# TODO Is it safe or wise to save the password to a temporary file?
+	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
+	trap 'rm -f "$tempfile"' EXIT
+	echo -n "$password" >"$tempfile"
+
+	_translate_transcrypt_config_to_openssl_base_arguments "$1"
+
+	project_salt=$(_encrypt_file "$tempfile" "$SALT_FOR_PBKDF2_PROJECT_SALT")
+
+	rm -f "$tempfile"
+}
 
 # The clean script ENCRYPTS files into the Git index, before they are sent to
 # the remote. The file contents are passed via stdin and the filename is passed
@@ -273,9 +298,13 @@ git_clean() {
 	if [[ $firstbytes == "$OPENSSL_ENCRYPTED_SALTED_PREFIX_B64" ]]; then
 		cat "$tempfile"
 	else
-		salt=$("${openssl_path}" dgst -hmac "${filename}:${password}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
+		# Use "project salt" as base salt when available (i.e. when a
+		# key-derivation function is set) otherwise the password.
+		base_salt="${project_salt:-${password}}"
 
-		_encrypt_file "$tempfile" "$salt"
+		file_salt=$("${openssl_path}" dgst -hmac "${filename}:${base_salt}" -sha256 "$tempfile" | tr -d '\r\n' | tail -c16)
+
+		_encrypt_file "$tempfile" "$file_salt"
 	fi
 }
 
@@ -285,7 +314,7 @@ git_smudge() {
 	tempfile=$(mktemp 2>/dev/null || mktemp -t tmp)
 	trap 'rm -f "$tempfile"' EXIT
 
-	_translate_transcrypt_config_to_openssl_base_arguments "$1"
+	_translate_transcrypt_config_to_openssl_base_arguments "${1:-}"
 
 	tee "$tempfile" | eval "${_openssl_base_arguments} -d -a" 2>/dev/null || cat "$tempfile"
 }
@@ -699,6 +728,12 @@ save_configuration() {
 	save_password "$password" "$CONTEXT_CONFIG_GROUP"
 
 	git config transcrypt.openssl-path "$openssl_path"
+
+	# if a key derivation function is specified, generate a project salt to use when encrypting files
+	if [[ ${kdf:-} ]]; then
+		_generate_project_salt "$password"
+		git config "transcrypt${CONTEXT_CONFIG_GROUP}.project-salt" "$project_salt"
+	fi
 
 	# write the filter settings. Sorry for the horrific quote escaping below...
 	# shellcheck disable=SC2016
