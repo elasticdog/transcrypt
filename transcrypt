@@ -935,9 +935,9 @@ uninstall_transcrypt() {
 		pre_commit_hook="${GIT_HOOKS}/pre-commit"
 		pre_commit_hook_installed="${GIT_HOOKS}/pre-commit-crypt"
 		if [[ -f "$pre_commit_hook" ]]; then
-			hook_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook")
-			installed_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook_installed")
-			if [[ "$hook_md5" = "$installed_md5" ]]; then
+			hook_sha1=$("${openssl_path}" sha1 -hex <"$pre_commit_hook")
+			installed_sha1=$("${openssl_path}" sha1 -hex <"$pre_commit_hook_installed")
+			if [[ "$hook_sha1" = "$installed_sha1" ]]; then
 				rm "$pre_commit_hook"
 			else
 				printf 'WARNING: Cannot safely disable Git pre-commit hook %s please check it yourself\n' "$pre_commit_hook"
