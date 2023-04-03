@@ -151,16 +151,25 @@ repository. The owner of the origin repository can dump the credentials for you
 by running the `--display` command line option:
 
     $ transcrypt --display
-    The current repository was configured using transcrypt v0.2.0
+
+    The current repository was configured using transcrypt version 3.0.0-alpha1
     and has the following configuration:
 
-      CONTEXT:  default
-      CIPHER:   aes-256-cbc
-      PASSWORD: correct horse battery staple
+      GIT_WORK_TREE:  transcrypt
+      GIT_DIR:        transcrypt/.git
+      GIT_ATTRIBUTES: transcrypt/.gitattributes
+
+      CONTEXT:        default
+      CIPHER:         aes-256-cbc
+      DIGEST:         sha512
+      KDF:            pbkdf2
+      ITERATIONS:     1_000_000
+      PASSWORD:       correct horse battery staple
 
     Copy and paste the following command to initialize a cloned repository:
 
-      transcrypt -c aes-256-cbc -p 'correct horse battery staple'
+      transcrypt -c aes-256-cbc -md sha512 -k pbkdf2 -n 1_000_000 \
+        -p 'correct horse battery staple'
 
 Once transcrypt has stored the matching credentials, it will force a checkout of
 any exising encrypted files in order to decrypt them.
