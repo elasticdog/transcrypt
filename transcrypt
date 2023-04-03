@@ -207,6 +207,9 @@ _translate_transcrypt_config_to_openssl_base_arguments() {
 
 	openssl_path=$(git config --get --local transcrypt.openssl-path || printf '')
 
+	# Strip "_" separator characters from iterations value
+	iterations=${iterations//_/}
+
 	# TODO validate $kdf and $digest
 	# TODO assert $iterations and $project_salt are set when $kdf is applied
 
@@ -1701,8 +1704,6 @@ if [[ "$is_no_kdf_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
 	if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
 		_get_user_input kdf "$DEFAULT_KDF" "" "$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")"
 		_get_user_input iterations "$DEFAULT_ITERATIONS" "" "$(printf 'How many iterations? Use "_" separators for clarity [%s] ' "$DEFAULT_ITERATIONS")"
-		# Strip "_" separator characters from iterations value
-		iterations=${iterations//_/}
 	fi
 fi
 
