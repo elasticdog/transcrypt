@@ -508,28 +508,97 @@ run_safety_checks() {
 	fi
 }
 
+# Check if the first arg is contained in the space separated second arg
+_is_contained_str() {
+	arg=$1
+	values=$2
+	echo "$values" | tr -s ' ' '\n' | grep -Fx "$arg" &>/dev/null
+}
+
+# Checks if the target variable is in the set of valid values.  If it is not, it
+# unsets the global target variable, then if not in interactive mode it calls die.
+_validate_variable_str() {
+	local varname=$1
+	local valid_values=$2
+	local varval=${!varname}
+	if ! _is_contained_str "$varval" "$valid_values"; then
+		message=$(printf '%s is "%s", but must be one of:\n%s' "$varname" "$varval" "$valid_values")
+		if [[ $interactive ]]; then
+			_set_global "$varname" ""
+			echo "$message"
+			return 1
+		else
+			die 1 "$message"
+		fi
+	fi
+}
+
 # unset the cipher variable if it is not supported by openssl
 validate_cipher() {
-	local list_cipher_commands
+	local valid_ciphers
 	if "${openssl_path}" list-cipher-commands &>/dev/null; then
-		# OpenSSL < v1.1.0
-		list_cipher_commands="${openssl_path} list-cipher-commands"
+		# OpenSSL < v1.1.0 or LibreSSL
+		valid_ciphers=$("${openssl_path}" list-cipher-commands)
 	else
 		# OpenSSL >= v1.1.0
-		list_cipher_commands="${openssl_path} list -cipher-commands"
+		valid_ciphers=$("${openssl_path}" list -cipher-commands)
 	fi
 
-	local supported
-	supported=$($list_cipher_commands | tr -s ' ' '\n' | grep -Fx "$cipher") || true
-	if [[ ! $supported ]]; then
+	# Force global variable value to lowercase
+	cipher=$(echo "${cipher}" | tr '[:upper:]' '[:lower:]')
+
+	_validate_variable_str "cipher" "$valid_ciphers"
+}
+
+validate_digest() {
+	local valid_digests
+	if "${openssl_path}" list-message-digest-commands &>/dev/null; then
+		# LibreSSL
+		# BEWARE: LibreSSL return error code 0 for faulty list commands so we
+		# must try its command variant first to avoid accepting the error
+		# output we would get from the other OpenSSL command variants
+		valid_digests=$("${openssl_path}" list-message-digest-commands)
+	elif "${openssl_path}" list-digest-commands &>/dev/null; then
+		# OpenSSL < v1.1.0
+		valid_digests=$("${openssl_path}" list-digest-commands)
+	elif "${openssl_path}" list -digest-commands &>/dev/null; then
+		# OpenSSL >= v1.1.0
+		valid_digests=$("${openssl_path}" list -digest-commands)
+	fi
+
+	# Force global variable value to lowercase
+	digest=$(echo "${digest}" | tr '[:upper:]' '[:lower:]')
+
+	_validate_variable_str "digest" "$valid_digests"
+}
+
+# Only the "pbkdf2" key-derivation function is currently supported
+validate_kdf() {
+	local valid_kdfs
+	valid_kdfs="pbkdf2"
+
+	# Force global variable value to lowercase
+	kdf=$(echo "${kdf}" | tr '[:upper:]' '[:lower:]')
+
+	_validate_variable_str "kdf" "$valid_kdfs"
+}
+
+# Iteration count must be a positive integer
+validate_iterations() {
+	# Strip "_" separator characters from iterations value
+	local iterations_value
+	iterations_value=${iterations//_/}
+
+	if test "$iterations_value" -gt 0 2>/dev/null; then
+		: # Valid integer > 0
+	else
+		message=$(printf 'iterations is "%s", but must be a positive integer' "$iterations_value")
 		if [[ $interactive ]]; then
-			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
-			$list_cipher_commands | column -c 80
-			printf '\n'
-			cipher=''
+			_set_global "$varname" ""
+			echo "$message"
+			return 1
 		else
-			# shellcheck disable=SC2016
-			die 1 '"%s" is not a valid cipher; see `%s`' "$cipher" "$list_cipher_commands"
+			die 1 "$message"
 		fi
 	fi
 }
@@ -555,10 +624,19 @@ _get_user_input() {
 		else
 			_set_global "$varname" "$answer"
 		fi
+
+		# Run validate function if provided.
+		if [[ $validate_fn ]]; then
+			# In interactive mode, failed validation just clears the variable
+			# to permit re-entry within the while loop
+			if [[ $interactive ]]; then
+				${validate_fn} || _set_global "$varname" ""
+			# In non-interactive mode, failed validation causes script to die
+			else
+				${validate_fn} || die "Invalid setting"
+			fi
+		fi
 	done
-	if [[ $validate_fn ]]; then
-		${validate_fn} || die "Invalid setting"
-	fi
 }
 
 # sets a bash global variable by name
@@ -1673,6 +1751,12 @@ elif [[ $gpg_import_file ]]; then
 	import_gpg
 elif [[ $cipher ]]; then
 	validate_cipher
+elif [[ ${digest:-} ]]; then
+	validate_digest
+elif [[ ${kdf:-} ]]; then
+	validate_kdf
+elif [[ ${iterations:-} ]]; then
+	validate_iterations
 fi
 
 # Try to detect when user is initialising transcrypt using a command format
@@ -1684,17 +1768,21 @@ else
 fi
 
 # perform function calls to configure transcrypt
-_get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" "$(printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER")"
+_get_user_input cipher "$DEFAULT_CIPHER" "validate_cipher" \
+	"$(printf 'Encrypt using which cipher? [%s] ' "$DEFAULT_CIPHER")"
 
 # Prompt user for encryption settings available since version 3, but only if:
 # - it doesn't seem like they are using a legacy init command format, or just
 #   one that doesn't specify a KDF
 # - the user isn't just setting the openssl-path
 if [[ "$is_no_kdf_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
-	_get_user_input digest "$DEFAULT_DIGEST" "" "$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")"
+	_get_user_input digest "$DEFAULT_DIGEST" "validate_digest" \
+		"$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")"
 
 	if [[ -z ${kdf:-} ]]; then
-		printf 'Use a key derivation function for best security? Requires Transcrypt 3+ and modern OpenSSL? [Y/n] '
+		printf 'Use a key derivation function for best security?'
+		printf ' Requires Transcrypt 3+ and modern OpenSSL'
+		printf ' [Y/n] '
 		read -r -n 1 -s answer
 		printf '\n'
 	else
@@ -1702,8 +1790,10 @@ if [[ "$is_no_kdf_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
 	fi
 
 	if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
-		_get_user_input kdf "$DEFAULT_KDF" "" "$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")"
-		_get_user_input iterations "$DEFAULT_ITERATIONS" "" "$(printf 'How many iterations? Use "_" separators for clarity [%s] ' "$DEFAULT_ITERATIONS")"
+		_get_user_input kdf "$DEFAULT_KDF" "validate_kdf" \
+			"$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")"
+		_get_user_input iterations "$DEFAULT_ITERATIONS" "validate_iterations" \
+			"$(printf 'How many iterations? Use "_" separators for clarity [%s] ' "$DEFAULT_ITERATIONS")"
 	fi
 fi
 
