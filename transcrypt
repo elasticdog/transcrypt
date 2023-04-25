@@ -582,13 +582,21 @@ save_helper_hooks() {
 		"${CRYPT_DIR}/transcrypt" pre_commit
 	EOF
 
-	# Activate hook by copying it to the pre-commit script name, if safe to do so
+	# Activate hook by copying it to the pre-commit script name, but only if
+	# the global pre-commit hook is not already present
 	pre_commit_hook="${GIT_HOOKS}/pre-commit"
 	if [[ -f "$pre_commit_hook" ]]; then
-		printf 'WARNING:\n' >&2
-		printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' "$pre_commit_hook" >&2
-		printf 'Please manually install the pre-commit script saved as: %s\n' "$pre_commit_hook_installed" >&2
-		printf '\n'
+		# Nothing to do if our pre-commit hook is already installed
+		hook_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook")
+		installed_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook_installed")
+		if [[ "$hook_md5" = "$installed_md5" ]]; then
+			: # no-op
+		else
+			printf 'WARNING:\n' >&2
+			printf 'Cannot install Git pre-commit hook script because file already exists: %s\n' "$pre_commit_hook" >&2
+			printf 'Please manually install the pre-commit script saved as: %s\n' "$pre_commit_hook_installed" >&2
+			printf '\n'
+		fi
 	else
 		cp "$pre_commit_hook_installed" "$pre_commit_hook"
 		chmod 0755 "$pre_commit_hook"
