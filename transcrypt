@@ -1041,7 +1041,7 @@ import_gpg() {
 
 # Echo space-delimited list of context names defined in the git config
 get_contexts_from_git_config() {
-	config_names=$(git config --local --name-only --list | grep transcrypt)
+	config_names=$(git config --local --name-only --list | grep --color=never transcrypt)
 	extract_context_name_regex="transcrypt\.(${CONTEXT_REGEX}).password"
 	contexts=()
 	for name in $config_names; do
