@@ -16,6 +16,7 @@ set -euo pipefail
 ##### OVERRIDES
 
 # Disable any global grep options, to avoid problems like '--colors=always'
+# shellcheck disable=SC2034
 GREP_OPTIONS=""
 
 ##### CONSTANTS
