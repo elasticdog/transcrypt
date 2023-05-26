@@ -13,6 +13,11 @@ set -euo pipefail
 # that can be be found in the LICENSE file.
 #
 
+##### OVERRIDES
+
+# Disable any global grep options, to avoid problems like '--colors=always'
+GREP_OPTIONS=""
+
 ##### CONSTANTS
 
 # the release version of this script
