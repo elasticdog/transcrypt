@@ -47,6 +47,11 @@ system, you must also run the `--upgrade` command in each repository:
 
 - Prevent `cd` commands printing out excess details when `CDPATH` is set (#156)
 
+### Changed
+
+- Prevent global options set in `GREP_OPTIONS` enviroment variable from
+  breaking transcrypt's use of grep (#166)
+
 ## [2.2.3] - 2023-03-09
 
 ### Fixed

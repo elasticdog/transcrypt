@@ -264,6 +264,7 @@ directory.
       --list-contexts
              list all contexts configured in the  repository,  and warn about
              incompletely configured contexts
+
       -v, --version
              print the version information
 

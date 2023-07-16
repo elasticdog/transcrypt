@@ -63,3 +63,15 @@ If you're on OS X, you can install transcrypt directly via
 [Homebrew](http://brew.sh/):
 
     $ brew install transcrypt
+
+### FreeBSD
+
+If you're on FreeBSD, you can install transcrypt directly via the Ports
+collection:
+
+    # `cd /usr/ports/security/transcrypt && make install clean distclean`
+
+or via the packages system:
+
+    # `pkg install -y security/transcrypt`
+
