@@ -30,7 +30,9 @@ readonly VERSION='3.0.0-alpha1'
 readonly DEFAULT_CIPHER='aes-256-cbc'
 readonly DEFAULT_DIGEST='sha512'
 readonly DEFAULT_KDF='pbkdf2'
-readonly DEFAULT_ITERATIONS='1_000_000'
+# See OWASP PBKDF2 iteration count recommedations:
+# https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
+readonly DEFAULT_ITERATIONS='256_000'
 
 # context name must match this regexp to ensure it is safe for git config and attrs
 readonly CONTEXT_REGEX='[a-z](-?[a-z0-9])*'
@@ -1420,7 +1422,7 @@ help() {
 
 		     -n, --iter=ITERATIONS
 		            when using a key-derivation function, its number of iterations;
-		            defaults to 1_000_000
+		            defaults to 256_000
 
 		     -ps, --salt=PROJECT_SALT
 		            when using a key-derivation function, an extra value to

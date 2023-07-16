@@ -163,12 +163,12 @@ by running the `--display` command line option:
       CIPHER:         aes-256-cbc
       DIGEST:         sha512
       KDF:            pbkdf2
-      ITERATIONS:     1_000_000
+      ITERATIONS:     256_000
       PASSWORD:       correct horse battery staple
 
     Copy and paste the following command to initialize a cloned repository:
 
-      transcrypt -c aes-256-cbc -md sha512 -k pbkdf2 -n 1_000_000 \
+      transcrypt -c aes-256-cbc -md sha512 -k pbkdf2 -n 256_000 \
         -p 'correct horse battery staple'
 
 Once transcrypt has stored the matching credentials, it will force a checkout of
@@ -221,7 +221,7 @@ directory.
 
       -n, --iter=ITERATIONS
              when using a key-derivation function, its number of iterations;
-             defaults to 1_000_000
+             defaults to 256_000
 
       -ps, --salt=PROJECT_SALT
              when using a key-derivation function, an extra value to
