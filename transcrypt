@@ -1841,7 +1841,7 @@ if [[ "$is_no_kdf_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
 		"$(printf 'Encrypt using which digest? [%s] ' "$DEFAULT_DIGEST")"
 
 	if [[ -z ${kdf:-} ]]; then
-		printf 'Use a key derivation function for best security?\n'
+		printf 'Use the PBKDF2 key derivation function for best security?\n'
 		printf ' * Requires Transcrypt 3+ and modern OpenSSL *\n'
 		printf '[Y/n] '
 		read -r -n 1 -s answer
@@ -1851,8 +1851,12 @@ if [[ "$is_no_kdf_init_command" == "" ]] && [[ -z ${set_openssl_path:-} ]]; then
 	fi
 
 	if [[ $answer =~ $YES_REGEX ]] || [[ ! $answer ]]; then
-		_get_user_input kdf "$DEFAULT_KDF" "validate_kdf" \
-			"$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")"
+		# Only KDF currently supported is PBKDF2 so no need to prompt for it
+		kdf='pbkdf2'
+
+		# _get_user_input kdf "$DEFAULT_KDF" "validate_kdf" \
+		# 	"$(printf 'Which key derivation function? [%s] ' "$DEFAULT_KDF")"
+
 		_get_user_input iterations "$DEFAULT_ITERATIONS" "validate_iterations" \
 			"$(printf 'How many iterations? Use "_" separators for clarity [%s] ' "$DEFAULT_ITERATIONS")"
 
