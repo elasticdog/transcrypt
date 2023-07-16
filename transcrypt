@@ -706,9 +706,13 @@ confirm_configuration() {
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
-	printf '  CONTEXT:  %s\n' "$CONTEXT"
-	printf '  CIPHER:   %s\n' "$cipher"
-	printf '  PASSWORD: %s\n\n' "$password"
+	printf '  CONTEXT:        %s\n' "$CONTEXT"
+	printf '  CIPHER:         %s\n' "$cipher"
+	[[ "${digest:-}" ]] && printf '  DIGEST:         %s\n' "$digest"
+	[[ "${kdf:-}" ]] && printf '  KDF:            %s\n' "$kdf"
+	[[ "${iterations:-}" ]] && printf '  ITERATIONS:     %s\n' "$iterations"
+	[[ "${project_salt:-}" ]] && printf '  PROJECT SALT:   %s\n' "$project_salt"
+	printf '  PASSWORD:       %s\n\n' "$password"
 	printf 'Does this look correct? [Y/n] '
 	read -r -n 1 -s answer
 
@@ -730,9 +734,13 @@ confirm_rekey() {
 	printf '  GIT_DIR:        %s\n' "$GIT_DIR"
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf 'The following configuration will be saved:\n\n'
-	printf '  CONTEXT:  %s\n' "$CONTEXT"
-	printf '  CIPHER:   %s\n' "$cipher"
-	printf '  PASSWORD: %s\n\n' "$password"
+	printf '  CONTEXT:        %s\n' "$CONTEXT"
+	printf '  CIPHER:         %s\n' "$cipher"
+	[[ "${digest:-}" ]] && printf '  DIGEST:         %s\n' "$digest"
+	[[ "${kdf:-}" ]] && printf '  KDF:            %s\n' "$kdf"
+	[[ "${iterations:-}" ]] && printf '  ITERATIONS:     %s\n' "$iterations"
+	[[ "${project_salt:-}" ]] && printf '  PROJECT SALT:   %s\n' "$project_salt"
+	printf '  PASSWORD:       %s\n\n' "$password"
 	printf 'You are about to re-encrypt all encrypted files using new credentials.\n'
 	printf 'Once you do this, their historical diffs will no longer display in plain text.\n\n'
 	printf 'Proceed with rekey? [y/N] '
