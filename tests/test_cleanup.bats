@@ -5,16 +5,14 @@ load "$BATS_TEST_DIRNAME/_test_helper.bash"
 SECRET_CONTENT="My secret content"
 
 # Example generation:
-# - Generate project key
-#   echo -n "abc 123" | ENC_PASS='abc 123' openssl enc -e -a -aes-256-cbc -md sha512 -pass env:ENC_PASS -pbkdf2 -iter 99 -S fabc0de8badc0de5
-#   => U2FsdGVkX1/6vA3outwN5QyWIys28v/7MX+ZtGPhqR8=
+# - Using project salt: 5J0Q
 # - Generate file key
-#   openssl dgst -hmac "sensitive_file:U2FsdGVkX1/6vA3outwN5QyWIys28v/7MX+ZtGPhqR8=" -sha256 tmp  | tr -d '\r\n' | tail -c16
-#   => fb9652c7887ca210
+#   openssl dgst -hmac "sensitive_file:5J0Q" -sha256 sensitive_file  | tr -d '\r\n' | tail -c16
+#   => ec32c0fbf2261d18
 # - Encrypt file
-#   cat sensitive_file | ENC_PASS='abc 123' openssl enc -e -a -aes-256-cbc -md sha512 -pass env:ENC_PASS -pbkdf2 -iter 99 -S fb9652c7887ca210
-#   => U2FsdGVkX1/7llLHiHyiEAxtPlNHk2wE9oy521ml0Ngc81k5o7B+K1UhHgD8/2s9
-SECRET_CONTENT_ENC="U2FsdGVkX1/7llLHiHyiEAxtPlNHk2wE9oy521ml0Ngc81k5o7B+K1UhHgD8/2s9"
+#   cat sensitive_file | ENC_PASS='abc 123' openssl enc -e -a -aes-256-cbc -md sha512 -pass env:ENC_PASS -pbkdf2 -iter 99 -S ec32c0fbf2261d18
+#   => U2FsdGVkX1+NiURgsIjgkwyiBw0TSC8WhhDRly2h4x2exuwjay6y/nOahblrBL62
+SECRET_CONTENT_ENC="U2FsdGVkX1+NiURgsIjgkwyiBw0TSC8WhhDRly2h4x2exuwjay6y/nOahblrBL62"
 
 @test "cleanup: transcrypt -f flush clears cached plaintext" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"

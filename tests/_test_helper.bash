@@ -60,7 +60,7 @@ function init_transcrypt_no_kdf {
 }
 
 function init_transcrypt {
-  "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --digest sha512 --kdf pbkdf2 --iter 99 --password='abc 123' --yes
+  "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --digest sha512 --kdf pbkdf2 --iter 99 --salt 5J0Q --password='abc 123' --yes
 }
 
 function setup {
