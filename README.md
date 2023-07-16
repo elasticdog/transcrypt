@@ -209,6 +209,25 @@ directory.
              the symmetric cipher to utilize for encryption;
              defaults to aes-256-cbc
 
+      -md, --digest=DIGEST
+             the message digest used to hash the salted password;
+             defaults to sha512
+             Use md5 for compatibility with transcrypt versions < 3
+
+      -k, --kdf=KEY_DERIVATION_FUNCTION
+             a key-derivation function to use for strongest encryption;
+             defaults to pbkdf2
+             If enabled, all users will need Transcrypt 3+ and modern OpenSSL
+
+      -n, --iter=ITERATIONS
+             when using a key-derivation function, its number of iterations;
+             defaults to 1_000_000
+
+      -ps, --salt=PROJECT_SALT
+             when using a key-derivation function, an extra value to
+             strengthen per-file salt values;
+             defaults to 18 random base64 characters
+
       -p, --password=PASSWORD
              the password to derive the key from;
              defaults to 30 random base64 characters
