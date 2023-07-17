@@ -29,7 +29,7 @@ readonly VERSION='3.0.0-alpha1'
 # the default encryption settings to recommend
 readonly DEFAULT_CIPHER='aes-256-cbc'
 readonly DEFAULT_DIGEST='sha512'
-readonly DEFAULT_KDF='pbkdf2'
+#readonly DEFAULT_KDF='pbkdf2' # Commented out for now
 # See OWASP PBKDF2 iteration count recommedations:
 # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
 readonly DEFAULT_ITERATIONS='256_000'
