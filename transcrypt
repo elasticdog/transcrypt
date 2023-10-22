@@ -832,6 +832,15 @@ uninstall_transcrypt() {
 			remove_cached_plaintext
 		fi
 
+		# touch all encrypted files to prevent stale stat info
+		local encrypted_files
+		encrypted_files=$(git ls-crypt)
+		if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
+			cd "$REPO" >/dev/null || die 1 'could not change into the "%s" directory' "$REPO"
+			# shellcheck disable=SC2086
+			touch $encrypted_files
+		fi
+
 		# remove helper scripts
 		# Keep obsolete clean,smudge,textconv,merge refs here to remove them on upgrade
 		for script in {transcrypt,clean,smudge,textconv,merge}; do
@@ -852,15 +861,6 @@ uninstall_transcrypt() {
 			fi
 		fi
 		[[ -f "$pre_commit_hook_installed" ]] && rm "$pre_commit_hook_installed"
-
-		# touch all encrypted files to prevent stale stat info
-		local encrypted_files
-		encrypted_files=$(git ls-crypt)
-		if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
-			cd "$REPO" >/dev/null || die 1 'could not change into the "%s" directory' "$REPO"
-			# shellcheck disable=SC2086
-			touch $encrypted_files
-		fi
 
 		# remove context settings: cipher & password config, ls-crypt alias variant,
 		# crypt filter/diff/merge attributes. We do it here instead of `clean_gitconfig`
