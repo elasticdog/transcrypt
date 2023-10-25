@@ -167,6 +167,8 @@ derive_context_config_group() {
 # characters. We must avoid quoting of filenames to support names containing
 # double quotes. #173
 _list_encrypted_files() {
+	local strict_context=${1:-}
+
 	IFS=$'\n'
 	# List files with -z option to disable quoting of filenames, then
 	# immediately convert NUL-delimited filenames to be newline-delimited to be
@@ -176,8 +178,13 @@ _list_encrypted_files() {
 		local check
 		check=$(git check-attr filter "$file" 2>/dev/null)
 
-		# Only output names of encrypted files
-		if [[ "$check" == *"crypt${CONTEXT_CRYPT_SUFFIX:-}" ]]; then
+		# Only output names of encrypted files matching the context, either
+		# strictly (if $1 = "true") or loosely (if $1 is false or unset)
+		if [[ "$strict_context" == "true" ]] && \
+			[[ "$check" == "${file}: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}" ]]
+		then
+			echo "$file"
+		elif [[ "$check" == "${file}: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}"* ]]; then
 			echo "$file"
 		fi
 	done
@@ -986,7 +993,7 @@ upgrade_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" >/dev/null || die 1 'could not change into the "%s" directory' "$REPO"
-		_list_encrypted_files
+		_list_encrypted_files true
 	fi
 }
 
