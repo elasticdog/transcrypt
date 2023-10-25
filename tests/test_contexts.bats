@@ -76,7 +76,7 @@ function teardown {
   [[ $(git config --get diff.crypt.binary) = "true" ]]
   [[ $(git config --get merge.renormalize) = "true" ]]
 
-  [[ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt/{ print \$1 }'" ]]
+  [[ "$(git config --get alias.ls-crypt)" = '!"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-dir)"")"/transcrypt --list' ]]
 }
 
 @test "init: show extra context details in --display" {
@@ -216,7 +216,7 @@ function teardown {
   [ "${lines[1]}" = "$SUPER_SECRET_CONTENT_ENC" ]
 }
 
-@test "contexts: git ls-crypt lists encrypted file for all contexts" {
+@test "contexts: git ls-crypt lists encrypted files for all contexts" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
 
@@ -226,14 +226,14 @@ function teardown {
   [ "${lines[1]}" = "super_sensitive_file" ]
 }
 
-@test "contexts: git ls-crypt-default lists encrypted file for only 'default' context" {
+@test "contexts: git ls-crypt-default lists encrypted files for all contexts" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
   encrypt_named_file super_sensitive_file "$SECRET_CONTENT" "super-secret"
 
   run git ls-crypt-default
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "sensitive_file" ]
-  [ "${lines[1]}" = "" ]
+  [ "${lines[1]}" = "super_sensitive_file" ]
 }
 
 @test "contexts: git ls-crypt-super-secret lists encrypted file for only 'super-secret' context" {
