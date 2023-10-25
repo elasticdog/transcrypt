@@ -702,11 +702,18 @@ display_configuration() {
 
 # remove transcrypt-related settings from the repository's git config
 clean_gitconfig() {
-	git config --remove-section transcrypt 2>/dev/null || true
-	git config --remove-section filter.crypt 2>/dev/null || true
-	git config --remove-section diff.crypt 2>/dev/null || true
-	git config --remove-section merge.crypt 2>/dev/null || true
-	git config --unset merge.renormalize
+	git config --remove-section transcrypt"${CONTEXT_CONFIG_GROUP}" 2>/dev/null || true
+
+	git config --remove-section filter.crypt"${CONTEXT_CRYPT_SUFFIX}" 2>/dev/null || true
+	git config --remove-section diff.crypt"${CONTEXT_CRYPT_SUFFIX}" 2>/dev/null || true
+	git config --remove-section merge.crypt"${CONTEXT_CRYPT_SUFFIX}" 2>/dev/null || true
+
+	# unset merge.renormalize if all transcrypt configs are now removed
+	local transcrypt_values
+	transcrypt_values=$(git config --get-regex --local 'transcrypt\..*') || true
+	if [[ ! $transcrypt_values ]]; then
+		git config --unset merge.renormalize
+	fi
 
 	# remove the merge section if it's now empty
 	local merge_values
@@ -775,6 +782,15 @@ flush_credentials() {
 
 		# re-encrypt any files that had been previously decrypted
 		force_checkout
+
+		# Unset the ls-crypt alias for the current context
+		# We must do this after the force checkout, which relies on ls-crypt
+		git config --unset alias.ls-crypt"${CONTEXT_CRYPT_SUFFIX}" 2>/dev/null || true
+
+		# Also remove ls-crypt-default alias when removing default context
+		if [[ "$CONTEXT" = 'default' ]]; then
+			git config --unset alias.ls-crypt-default 2>/dev/null || true
+		fi
 
 		printf 'The local transcrypt credentials have been successfully flushed.\n'
 	else
