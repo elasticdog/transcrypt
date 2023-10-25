@@ -180,9 +180,8 @@ _list_encrypted_files() {
 
 		# Only output names of encrypted files matching the context, either
 		# strictly (if $1 = "true") or loosely (if $1 is false or unset)
-		if [[ "$strict_context" == "true" ]] && \
-			[[ "$check" == *": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}" ]]
-		then
+		if [[ "$strict_context" == "true" ]] &&
+			[[ "$check" == *": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}" ]]; then
 			echo "$file"
 		elif [[ "$check" == *": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}"* ]]; then
 			echo "$file"
