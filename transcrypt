@@ -707,20 +707,6 @@ clean_gitconfig() {
 	git config --remove-section filter.crypt"${CONTEXT_CRYPT_SUFFIX}" 2>/dev/null || true
 	git config --remove-section diff.crypt"${CONTEXT_CRYPT_SUFFIX}" 2>/dev/null || true
 	git config --remove-section merge.crypt"${CONTEXT_CRYPT_SUFFIX}" 2>/dev/null || true
-
-	# unset merge.renormalize if all transcrypt configs are now removed
-	local transcrypt_values
-	transcrypt_values=$(git config --get-regex --local 'transcrypt\..*') || true
-	if [[ ! $transcrypt_values ]]; then
-		git config --unset merge.renormalize
-	fi
-
-	# remove the merge section if it's now empty
-	local merge_values
-	merge_values=$(git config --get-regex --local 'merge\..*') || true
-	if [[ ! $merge_values ]]; then
-		git config --remove-section merge 2>/dev/null || true
-	fi
 }
 
 # Remove from the local Git DB any objects containing the cached plaintext of
@@ -878,6 +864,20 @@ uninstall_transcrypt() {
 		alias_values=$(git config --get-regex --local 'alias\..*') || true
 		if [[ ! $alias_values ]]; then
 			git config --remove-section alias 2>/dev/null || true
+		fi
+
+		# unset merge.renormalize if all transcrypt configs are now removed
+		local transcrypt_values
+		transcrypt_values=$(git config --get-regex --local 'transcrypt\..*') || true
+		if [[ ! $transcrypt_values ]]; then
+			git config --unset merge.renormalize
+		fi
+
+		# remove the merge section if it's now empty
+		local merge_values
+		merge_values=$(git config --get-regex --local 'merge\..*') || true
+		if [[ ! $merge_values ]]; then
+			git config --remove-section merge 2>/dev/null || true
 		fi
 
 		# remove any defined crypt patterns in gitattributes
