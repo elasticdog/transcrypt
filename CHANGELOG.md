@@ -46,6 +46,7 @@ system, you must also run the `--upgrade` command in each repository:
 ### Fixed
 
 - Prevent `cd` commands printing out excess details when `CDPATH` is set (#156)
+- Fix `--flush` command to work with contexts (#175)
 
 ### Changed
 
