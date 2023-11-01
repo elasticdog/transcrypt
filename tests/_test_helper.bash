@@ -39,10 +39,6 @@ function cleanup_all {
   rm -f "$BATS_TEST_DIRNAME"/sensitive_file
 }
 
-function init_transcrypt {
-  "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
-}
-
 function encrypt_named_file {
   filename="$1"
   content=$2
@@ -59,10 +55,25 @@ function encrypt_named_file {
   run git commit -m "Encrypt file \"$filename\""
 }
 
+function init_transcrypt_no_kdf {
+  "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
+}
+
+function init_transcrypt {
+  "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --digest sha512 --kdf pbkdf2 --iter 99 --salt 5J0Q --password='abc 123' --yes
+}
+
 function setup {
   pushd "$BATS_TEST_DIRNAME" || exit 1
   init_git_repo
-  if [[ ! "$SETUP_SKIP_INIT_TRANSCRYPT" ]]; then
+
+  if [[ "$SETUP_SKIP_INIT_TRANSCRYPT" ]]; then
+    return
+  fi
+
+  if [[ "$SETUP_INIT_TRANSCRYPT_NO_KDF" ]]; then
+    init_transcrypt_no_kdf
+  else
     init_transcrypt
   fi
 }

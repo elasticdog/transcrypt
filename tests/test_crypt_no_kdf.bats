@@ -2,6 +2,9 @@
 
 load "$BATS_TEST_DIRNAME/_test_helper.bash"
 
+# Custom setup: use no-KDF init transcrypt
+SETUP_INIT_TRANSCRYPT_NO_KDF=1
+
 SECRET_CONTENT="My secret content"
 SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/qiCg"
 

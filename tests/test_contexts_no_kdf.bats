@@ -9,7 +9,7 @@ SUPER_SECRET_CONTENT_ENC="U2FsdGVkX1+dAkIV/LAKXMmqjDNOGoOVK8Rmhw9tUnbR4dwBDglpkX
 function setup {
   pushd "$BATS_TEST_DIRNAME" || exit 1
   init_git_repo
-  init_transcrypt
+  init_transcrypt_no_kdf
 
   # Init transcrypt with 'super-secret' context
   "$BATS_TEST_DIRNAME"/../transcrypt --context=super-secret --cipher=aes-256-cbc --password=321cba --yes
@@ -86,9 +86,9 @@ function teardown {
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "The current repository was configured using transcrypt version $VERSION" ]
   [ "${lines[1]}" = "and has the following configuration for context 'super-secret':" ]
-  [ "${lines[5]}" = "  CONTEXT:  super-secret" ]
-  [ "${lines[6]}" = "  CIPHER:   aes-256-cbc" ]
-  [ "${lines[7]}" = "  PASSWORD: 321cba" ]
+  [ "${lines[5]}" = "  CONTEXT:        super-secret" ]
+  [ "${lines[6]}" = "  CIPHER:         aes-256-cbc" ]
+  [ "${lines[7]}" = "  PASSWORD:       321cba" ]
   [ "${lines[8]}" = "The repository has 2 contexts: default super-secret" ]
   [ "${lines[9]}" = "Copy and paste the following command to initialize a cloned repository for context 'super-secret':" ]
   [ "${lines[10]}" = "  transcrypt -C super-secret -c aes-256-cbc -p '321cba'" ]

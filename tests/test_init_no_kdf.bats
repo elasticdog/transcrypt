@@ -15,20 +15,20 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 }
 
 @test "init: creates .gitattributes" {
-  init_transcrypt
+  init_transcrypt_no_kdf
   [ -f .gitattributes ]
   run cat .gitattributes
   [ "${lines[0]}" = "#pattern  filter=crypt diff=crypt merge=crypt" ]
 }
 
 @test "init: creates scripts in .git/crypt/" {
-  init_transcrypt
+  init_transcrypt_no_kdf
   [ -d .git/crypt ]
   [ -f .git/crypt/transcrypt ]
 }
 
 @test "init: applies git config" {
-  init_transcrypt
+  init_transcrypt_no_kdf
   VERSION=$(../transcrypt -v | awk '{print $2}')
 
   [ "$(git config --get transcrypt.version)" = "$VERSION" ]
@@ -53,26 +53,26 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 }
 
 @test "init: show details for --display" {
-  init_transcrypt
+  init_transcrypt_no_kdf
   VERSION=$(../transcrypt -v | awk '{print $2}')
 
   run ../transcrypt --display
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
-  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
-  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  CIPHER:         aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD:       abc 123"* ]]
   [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
 @test "init: show details for -d" {
-  init_transcrypt
+  init_transcrypt_no_kdf
   VERSION=$(../transcrypt -v | awk '{print $2}')
 
   run ../transcrypt -d
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
-  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
-  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  CIPHER:         aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD:       abc 123"* ]]
   [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
@@ -80,7 +80,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   git config core.hooksPath ".git/myhooks"
   [ "$(git config --get core.hooksPath)" = '.git/myhooks' ]
 
-  init_transcrypt
+  init_transcrypt_no_kdf
   [ -d .git/myhooks ]
   [ -f .git/myhooks/pre-commit ]
 
@@ -88,13 +88,13 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   run ../transcrypt --display
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
-  [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
-  [[ "${output}" = *"  PASSWORD: abc 123"* ]]
+  [[ "${output}" = *"  CIPHER:         aes-256-cbc"* ]]
+  [[ "${output}" = *"  PASSWORD:       abc 123"* ]]
   [[ "${output}" = *"  transcrypt -c aes-256-cbc -p 'abc 123'"* ]]
 }
 
 @test "init: transcrypt.openssl-path config setting defaults to 'openssl'" {
-  init_transcrypt
+  init_transcrypt_no_kdf
   [ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 }
 
@@ -104,7 +104,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 }
 
 @test "init: --set-openssl-path is applied during upgrade" {
-  init_transcrypt
+  init_transcrypt_no_kdf
   [ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 
   # Set openssl path
@@ -116,7 +116,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 }
 
 @test "init: transcrypt.openssl-path config setting is retained with --upgrade" {
-  init_transcrypt
+  init_transcrypt_no_kdf
   [ "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 
   # Set openssl path
@@ -136,7 +136,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   # Set a custom location for the crypt/ directory
   git config transcrypt.crypt-dir /tmp/crypt
 
-  init_transcrypt
+  init_transcrypt_no_kdf
 
   # Confirm crypt/ directory is populated in custom location
   [ ! -d .git/crypt ]
@@ -152,7 +152,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   # Set a custom location for the crypt/ directory
   git config transcrypt.crypt-dir /tmp/crypt
 
-  init_transcrypt
+  init_transcrypt_no_kdf
 
   SECRET_CONTENT="My secret content"
   SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/qiCg"
