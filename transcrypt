@@ -216,7 +216,7 @@ git_clean() {
 		if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
 			# Encrypt the file to base64, ensuring it includes the prefix 'Salted__' with the salt. #133
 			(
-				echo -n "Salted__" && echo -n "$salt" | xxd -r -p &&
+				echo -n "Salted__" && echo -n "$salt" | sed "s/../\\\\x&/g" | xargs -0 printf "%b" &&
 					# Encrypt file to binary ciphertext
 					ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
 			) |
@@ -396,11 +396,6 @@ run_safety_checks() {
 	for cmd in {column,grep,mktemp,"${openssl_path}",sed,tee}; do
 		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
-	# check for extra `xxd` dependency when running against OpenSSL version 3+
-	if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
-		cmd="xxd"
-		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
-	fi
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
 	# checkout files without the destruction of uncommitted changes
