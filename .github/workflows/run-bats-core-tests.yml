@@ -9,19 +9,18 @@ on:
     branches: "**"
 
 jobs:
-
   lint:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    # https://github.com/luizm/action-sh-checker
-    - name: Run shellcheck and shfmt
-      uses: luizm/action-sh-checker@master
-      with:
-        sh_checker_exclude: tests
-        sh_checker_comment: true
+      # https://github.com/luizm/action-sh-checker
+      - name: Run shellcheck and shfmt
+        uses: luizm/action-sh-checker@master
+        with:
+          sh_checker_exclude: tests
+          sh_checker_comment: true
 
   test:
     # Test on older Ubuntu with OpenSSL < 1.1 and newer with OpenSSL >= 1.1
@@ -31,27 +30,27 @@ jobs:
         os: [ubuntu-20.04, ubuntu-22.04, macos-latest]
 
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
 
-    - name: Print bash version
-      run: bash --version
+      - name: Print bash version
+        run: bash --version
 
-    - name: Print OpenSSL version
-      run: openssl version
+      - name: Print OpenSSL version
+        run: openssl version
 
-    - name: Print Git version
-      run: git version
+      - name: Print Git version
+        run: git version
 
-    # Configure default Git branch name to suppress hint warnings
-    - name: Configure default Git branch to "main"
-      run: git config --global init.defaultBranch main
+      # Configure default Git branch name to suppress hint warnings
+      - name: Configure default Git branch to "main"
+        run: git config --global init.defaultBranch main
 
-    - name: Install and set up bats-core
-      run: |
-        git clone https://github.com/bats-core/bats-core.git /tmp/bats-core-repo
-        mkdir -p /tmp/bats-core
-        bash /tmp/bats-core-repo/install.sh /tmp/bats-core
+      - name: Install and set up bats-core
+        run: |
+          git clone https://github.com/bats-core/bats-core.git /tmp/bats-core-repo
+          mkdir -p /tmp/bats-core
+          bash /tmp/bats-core-repo/install.sh /tmp/bats-core
 
-    - name: Run tests
-      run: /tmp/bats-core/bin/bats tests/
+      - name: Run tests
+        run: /tmp/bats-core/bin/bats tests/
