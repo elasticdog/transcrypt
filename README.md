@@ -151,16 +151,26 @@ repository. The owner of the origin repository can dump the credentials for you
 by running the `--display` command line option:
 
     $ transcrypt --display
-    The current repository was configured using transcrypt v0.2.0
+
+    The current repository was configured using transcrypt version 3.0.0-alpha1
     and has the following configuration:
 
-      CONTEXT:  default
-      CIPHER:   aes-256-cbc
-      PASSWORD: correct horse battery staple
+      GIT_WORK_TREE:  transcrypt
+      GIT_DIR:        transcrypt/.git
+      GIT_ATTRIBUTES: transcrypt/.gitattributes
+
+      CONTEXT:        default
+      CIPHER:         aes-256-cbc
+      DIGEST:         sha512
+      KDF:            pbkdf2
+      ITERATIONS:     256_000
+      PROJECT SALT:   5J0QY8uOTe7/B9eYSJ2kOy91
+      PASSWORD:       correct horse battery staple
 
     Copy and paste the following command to initialize a cloned repository:
 
-      transcrypt -c aes-256-cbc -p 'correct horse battery staple'
+      transcrypt -c aes-256-cbc -md sha512 -k pbkdf2 -n 256_000 \
+        -ps 5J0QY8uOTe7/B9eYSJ2kOy91 -p 'correct horse battery staple'
 
 Once transcrypt has stored the matching credentials, it will force a checkout of
 any exising encrypted files in order to decrypt them.
@@ -199,6 +209,25 @@ directory.
       -c, --cipher=CIPHER
              the symmetric cipher to utilize for encryption;
              defaults to aes-256-cbc
+
+      -md, --digest=DIGEST
+             the message digest used to hash the salted password;
+             defaults to sha512
+             Use md5 for compatibility with transcrypt versions < 3
+
+      -k, --kdf=KEY_DERIVATION_FUNCTION
+             a key-derivation function to use for strongest encryption;
+             defaults to pbkdf2
+             If enabled, all users will need Transcrypt 3+ and modern OpenSSL
+
+      -n, --iter=ITERATIONS
+             when using a key-derivation function, its number of iterations;
+             defaults to 256_000
+
+      -ps, --salt=PROJECT_SALT
+             when using a key-derivation function, an extra value to
+             strengthen per-file salt values;
+             defaults to 18 random base64 characters
 
       -p, --password=PASSWORD
              the password to derive the key from;
@@ -344,6 +373,7 @@ to encrypt a file \_top-secret* in a "super" context:
 transcrypt is provided under the terms of the
 [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
+Copyright &copy; 2020-2023, [James Murty](mailto:james@murty.co).
 Copyright &copy; 2014-2020, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
 
 ## Contributing

@@ -3,7 +3,16 @@
 load "$BATS_TEST_DIRNAME/_test_helper.bash"
 
 SECRET_CONTENT="My secret content"
-SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/qiCg"
+
+# Example generation:
+# - Using project salt: 5J0Q
+# - Generate file key
+#   openssl dgst -hmac "sensitive_file:5J0Q" -sha256 sensitive_file  | tr -d '\r\n' | tail -c16
+#   => ec32c0fbf2261d18
+# - Encrypt file
+#   cat sensitive_file | ENC_PASS='abc 123' openssl enc -e -a -aes-256-cbc -md sha512 -pass env:ENC_PASS -pbkdf2 -iter 99 -S ec32c0fbf2261d18
+#   => U2FsdGVkX1+NiURgsIjgkwyiBw0TSC8WhhDRly2h4x2exuwjay6y/nOahblrBL62
+SECRET_CONTENT_ENC="U2FsdGVkX1+NiURgsIjgkwyiBw0TSC8WhhDRly2h4x2exuwjay6y/nOahblrBL62"
 
 @test "cleanup: transcrypt -f flush clears cached plaintext" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
