@@ -32,7 +32,7 @@ system, you must also run the `--upgrade` command in each repository:
    $ transcrypt --upgrade
    ```
 
-## [Unreleased]
+## [2.3.0] - 2024-09-10
 
 ### Added
 
@@ -47,11 +47,14 @@ system, you must also run the `--upgrade` command in each repository:
 
 - Prevent `cd` commands printing out excess details when `CDPATH` is set (#156)
 - Fix `--flush` command to work with contexts (#175)
+- Fix unbound variable error using `$GIT_REFLOG_ACTION` (issue #150)
 
 ### Changed
 
 - Prevent global options set in `GREP_OPTIONS` enviroment variable from
   breaking transcrypt's use of grep (#166)
+- If `CDPATH` is set then cd will print the path (#156)
+- Centralise load and save of password into functions (#141)
 
 ## [2.2.3] - 2023-03-09
 
@@ -318,7 +321,8 @@ Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 
 ## [0.9.4] - 2014-03-03
 
-[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.3...HEAD
+[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/elasticdog/transcrypt/compare/v2.2.3...v2.3.0
 [2.2.3]: https://github.com/elasticdog/transcrypt/compare/v2.2.2...v2.2.3
 [2.2.2]: https://github.com/elasticdog/transcrypt/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/elasticdog/transcrypt/compare/v2.2.0...v2.2.1

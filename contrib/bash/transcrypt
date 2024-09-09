@@ -21,8 +21,8 @@ _transcrypt() {
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts="-c -p -y -d -r -f -F -u -l -s -e -i -v -h \
-	      --cipher --password --set-openssl-path --yes --display --rekey --flush-credentials --force --uninstall --upgrade --list --show-raw --export-gpg --import-gpg --version --help"
+	opts="-c -p -y -d -r -f -F -u -l -s -e -i -C -v -h \
+	      --cipher --password --set-openssl-path --yes --display --rekey --flush-credentials --force --uninstall --upgrade --list --show-raw --export-gpg --import-gpg --context --list-contexts --version --help"
 
 	case "${prev}" in
 		-c | --cipher)
