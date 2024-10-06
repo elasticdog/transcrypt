@@ -191,18 +191,20 @@ is_salt_prefix_workaround_required() {
 # shellcheck disable=SC2155
 readonly IS_PRINTF_BIN_SUPPORTED=$([[ "$(echo -n "41" | sed "s/../\\\\x&/g" | xargs -0 printf "%b")" == "A" ]] && echo 'true' || echo 'false')
 
+# Apply one of three methods to convert a hex string to binary data, or
 hex_to_bin() {
+	# alternative 1 but xxd often only comes with a vim install
 	if command -v "xxd" >/dev/null; then
-		# alternative 1 but xxd only comes with vim
 		xxd -r -p
-	elif command -v "perl" >/dev/null; then
-		# alternative 2 as perl is fairly common
-		perl -pe "s/([0-9A-Fa-f]{2})/chr(hex(\$1))/eg"
+	# alternative 2, but requires printf that supports "%b"
+	# (macOS /usr/bin/printf doesn't)
 	elif $IS_PRINTF_BIN_SUPPORTED; then
-		# alternative 3 but requires printf that supports "%b" e.g. macOS /usr/bin/printf doesn't
 		sed "s/../\\\\x&/g" | xargs -0 printf "%b"
+	# alternative 3 as perl is fairly common
+	elif command -v "perl" >/dev/null; then
+		perl -pe "s/([0-9A-Fa-f]{2})/chr(hex(\$1))/eg"
 	else
-		die 'required command not found: xxd or perl or printf that supports "%%b"'
+		die 'required command not found: xxd, or printf that supports "%%b", or perl'
 	fi
 }
 
@@ -415,7 +417,10 @@ run_safety_checks() {
 		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 
-	echo -n "41" | hex_to_bin >/dev/null
+	# check for a working method to convert a hex string to binary data
+	if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
+		echo -n "41" | hex_to_bin >/dev/null
+	fi
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
 	# checkout files without the destruction of uncommitted changes

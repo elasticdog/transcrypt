@@ -6,8 +6,8 @@ The requirements to run transcrypt are minimal:
 - Git
 - OpenSSL
 - `column` command (on Ubuntu/Debian install `bsdmainutils`)
-- if using OpenSSL version 3, one of `xxd` (on Ubuntu/Debian is included with `vim`)
-  or `perl` or `printf` (with %b directive) command
+- if using OpenSSL 3+ one of: `xxd` (on Ubuntu/Debian is included with `vim`)
+  or `printf` command (with %b directive) or `perl`
 
 ...and optionally:
 
@@ -74,4 +74,3 @@ collection:
 or via the packages system:
 
     # `pkg install -y security/transcrypt`
-

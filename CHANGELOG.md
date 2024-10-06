@@ -50,6 +50,10 @@ system, you must also run the `--upgrade` command in each repository:
 
 ### Changed
 
+- Remove hard dependency on `xxd` which is often a heavy requirement because it
+  is only available with Vim on some platforms. Fall back to `printf` with full
+  %b support or `perl` when either of these are available, and only require
+  `xxd` when it is the only viable option (#181)
 - Prevent global options set in `GREP_OPTIONS` enviroment variable from
   breaking transcrypt's use of grep (#166)
 
