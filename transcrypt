@@ -188,6 +188,26 @@ is_salt_prefix_workaround_required() {
 # (keyed with a combination of the filename and transcrypt password), and
 # then use the last 16 bytes of that HMAC for the file's unique salt.
 
+# shellcheck disable=SC2155
+readonly IS_PRINTF_BIN_SUPPORTED=$([[ "$(echo -n "41" | sed "s/../\\\\x&/g" | xargs -0 printf "%b")" == "A" ]] && echo 'true' || echo 'false')
+
+# Apply one of three methods to convert a hex string to binary data, or
+hex_to_bin() {
+	# alternative 1 but xxd often only comes with a vim install
+	if command -v "xxd" >/dev/null; then
+		xxd -r -p
+	# alternative 2, but requires printf that supports "%b"
+	# (macOS /usr/bin/printf doesn't)
+	elif $IS_PRINTF_BIN_SUPPORTED; then
+		sed "s/../\\\\x&/g" | xargs -0 printf "%b"
+	# alternative 3 as perl is fairly common
+	elif command -v "perl" >/dev/null; then
+		perl -pe "s/([0-9A-Fa-f]{2})/chr(hex(\$1))/eg"
+	else
+		die 'required command not found: xxd, or printf that supports "%%b", or perl'
+	fi
+}
+
 git_clean() {
 	context=$(extract_context_name_from_name_value_arg "$1")
 	[[ "$context" ]] && shift
@@ -216,7 +236,7 @@ git_clean() {
 		if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
 			# Encrypt the file to base64, ensuring it includes the prefix 'Salted__' with the salt. #133
 			(
-				echo -n "Salted__" && echo -n "$salt" | xxd -r -p &&
+				echo -n "Salted__" && echo -n "$salt" | hex_to_bin &&
 					# Encrypt file to binary ciphertext
 					ENC_PASS=$password "$openssl_path" enc -e "-${cipher}" -md MD5 -pass env:ENC_PASS -S "$salt" -in "$tempfile"
 			) |
@@ -396,10 +416,10 @@ run_safety_checks() {
 	for cmd in {column,grep,mktemp,"${openssl_path}",sed,tee}; do
 		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
-	# check for extra `xxd` dependency when running against OpenSSL version 3+
+
+	# check for a working method to convert a hex string to binary data
 	if [ "$(is_salt_prefix_workaround_required)" == "true" ]; then
-		cmd="xxd"
-		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
+		echo -n "41" | hex_to_bin >/dev/null
 	fi
 
 	# ensure the repository is clean (if it has a HEAD revision) so we can force
