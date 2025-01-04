@@ -1402,10 +1402,12 @@ while [[ "${1:-}" != '' ]]; do
 		;;
 	-p | --password)
 		password=$2
+		[[ $password ]] || die 1 'empty password'
 		shift
 		;;
 	--password=*)
 		password=${1#*=}
+		[[ $password ]] || die 1 'empty password'
 		;;
 	-C | --context)
 		context=$2

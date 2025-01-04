@@ -38,6 +38,8 @@ system, you must also run the `--upgrade` command in each repository:
 
 - Make --upgrade safer by failing fast if transcrypt config cannot be read
   (#189)
+- Fail with error when an empty password is provided to the -p or --password
+  options #188
 
 ## [2.3.0] - 2024-09-10
 
