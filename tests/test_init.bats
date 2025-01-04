@@ -49,7 +49,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ "$(git config --get merge.renormalize)" = "true" ]
   [ "$(git config --get merge.crypt.name)" = "Merge transcrypt secret files" ]
 
-  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt/{ print \$1 }'" ]
+  [ "$(git config --get alias.ls-crypt)" = '!"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-dir)"")"/transcrypt --list' ]
 }
 
 @test "init: show details for --display" {

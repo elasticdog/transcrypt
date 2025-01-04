@@ -161,6 +161,34 @@ derive_context_config_group() {
 	fi
 }
 
+# Internal function that returns a list of filenames for encrypted files in the
+# repo, where the filenames are verbatim and not quoted in any way even if they
+# contain unusual characters like double-quotes, backslash and control
+# characters. We must avoid quoting of filenames to support names containing
+# double quotes. #173
+_list_encrypted_files() {
+	local strict_context=${1:-}
+
+	IFS=$'\n'
+	# List files with -z option to disable quoting of filenames, then
+	# immediately convert NUL-delimited filenames to be newline-delimited to be
+	# compatibility with bash variables
+	for file in $(git ls-files -z | tr '\0' '\n'); do
+		# Check for the suffix ': filter: crypt' that identifies encrypted file
+		local check
+		check=$(git check-attr filter "$file" 2>/dev/null)
+
+		# Only output names of encrypted files matching the context, either
+		# strictly (if $1 = "true") or loosely (if $1 is false or unset)
+		if [[ "$strict_context" == "true" ]] &&
+			[[ "$check" == *": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}" ]]; then
+			echo "$file"
+		elif [[ "$check" == *": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}"* ]]; then
+			echo "$file"
+		fi
+	done
+}
+
 # Detect OpenSSL major version 3 or later which requires a compatibility
 # work-around to include the prefix 'Salted__' and salt value when encrypting.
 #
@@ -325,7 +353,7 @@ git_pre_commit() {
 	tmp=$(mktemp)
 	IFS=$'\n'
 	slow_mode_if_failed() {
-		for secret_file in $(git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
+		for secret_file in $(_list_encrypted_files); do
 			# Skip symlinks, they contain the linked target file path not plaintext
 			if [[ -L $secret_file ]]; then
 				continue
@@ -373,7 +401,7 @@ git_pre_commit() {
 	if [[ "${BASH_VERSINFO[0]}" -ge 4 ]] && [[ "${BASH_VERSINFO[1]}" -ge 4 ]]; then
 		num_procs=$(nproc)
 		num_jobs="\j"
-		for secret_file in $(git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt$/{ print $1 }'); do
+		for secret_file in $(_list_encrypted_files); do
 			while ((${num_jobs@P} >= num_procs)); do
 				wait -n
 			done
@@ -679,15 +707,15 @@ save_configuration() {
 	git config merge.crypt.name 'Merge transcrypt secret files'
 
 	# add git alias for listing ALL encrypted files regardless of context
-	git config alias.ls-crypt "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt/{ print \$1 }'"
+	git config alias.ls-crypt "!$transcrypt_path --list"
 
 	# add a git alias for listing encrypted files in specific context, including 'default'
 	if [[ "$CONTEXT" = 'default' ]]; then
 		# List files with gitattribute 'filter=crypt'
-		git config alias.ls-crypt-default "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt$/{ print \$1 }'"
+		git config alias.ls-crypt-default "!$transcrypt_path --list"
 	else
 		# List files with gitattribute 'filter=crypt-<CONTEXT>'
-		git config "alias.ls-crypt-${CONTEXT}" "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt-${CONTEXT}$/{ print \$1 }'"
+		git config "alias.ls-crypt-${CONTEXT}" "!$transcrypt_path --context=${CONTEXT} --list"
 	fi
 }
 
@@ -832,6 +860,15 @@ uninstall_transcrypt() {
 			remove_cached_plaintext
 		fi
 
+		# touch all encrypted files to prevent stale stat info
+		local encrypted_files
+		encrypted_files=$(git ls-crypt)
+		if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
+			cd "$REPO" >/dev/null || die 1 'could not change into the "%s" directory' "$REPO"
+			# shellcheck disable=SC2086
+			touch $encrypted_files
+		fi
+
 		# remove helper scripts
 		# Keep obsolete clean,smudge,textconv,merge refs here to remove them on upgrade
 		for script in {transcrypt,clean,smudge,textconv,merge}; do
@@ -852,15 +889,6 @@ uninstall_transcrypt() {
 			fi
 		fi
 		[[ -f "$pre_commit_hook_installed" ]] && rm "$pre_commit_hook_installed"
-
-		# touch all encrypted files to prevent stale stat info
-		local encrypted_files
-		encrypted_files=$(git ls-crypt)
-		if [[ $encrypted_files ]] && [[ $IS_BARE == 'false' ]]; then
-			cd "$REPO" >/dev/null || die 1 'could not change into the "%s" directory' "$REPO"
-			# shellcheck disable=SC2086
-			touch $encrypted_files
-		fi
 
 		# remove context settings: cipher & password config, ls-crypt alias variant,
 		# crypt filter/diff/merge attributes. We do it here instead of `clean_gitconfig`
@@ -1005,7 +1033,7 @@ upgrade_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" >/dev/null || die 1 'could not change into the "%s" directory' "$REPO"
-		git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = ":" }; /crypt/{ print $1 }'
+		_list_encrypted_files true
 	fi
 }
 
@@ -1014,13 +1042,12 @@ show_raw_file() {
 	if [[ -f $show_file ]]; then
 		# ensure the file is currently being tracked
 		local escaped_file=${show_file//\//\\\/}
-		if git -c core.quotePath=false ls-files --others -- "$show_file" | awk "/${escaped_file}/{ exit 1 }"; then
-			file_paths=$(git -c core.quotePath=false ls-tree --name-only --full-name HEAD "$show_file")
-		else
+		file_paths=$(_list_encrypted_files | grep "$escaped_file")
+		if [[ -z "$file_paths" ]]; then
 			die 1 'the file "%s" is not currently being tracked by git' "$show_file"
 		fi
 	elif [[ $show_file == '*' ]]; then
-		file_paths=$(git ls-crypt)
+		file_paths=$(_list_encrypted_files)
 	else
 		die 1 'the file "%s" does not exist' "$show_file"
 	fi
