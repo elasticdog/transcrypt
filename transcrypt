@@ -97,7 +97,7 @@ gather_repo_metadata() {
 	readonly IS_BARE=$(git rev-parse --is-bare-repository 2>/dev/null || printf 'false')
 
 	# the current git repository's .git directory
-	readonly RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
+	readonly RELATIVE_GIT_DIR=$(git rev-parse --git-common-dir 2>/dev/null || printf '')
 	readonly GIT_DIR=$(realpath "$RELATIVE_GIT_DIR" 2>/dev/null)
 
 	# Respect transcrypt.crypt-dir if present. Default to crypt/ in Git dir
@@ -603,7 +603,7 @@ save_helper_hooks() {
 	cat <<-'EOF' >"$pre_commit_hook_installed"
 		#!/usr/bin/env bash
 		# Transcrypt pre-commit hook: fail if secret file in staging lacks the magic prefix "Salted" in B64
-		RELATIVE_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || printf '')
+		RELATIVE_GIT_DIR=$(git rev-parse --git-common-dir 2>/dev/null || printf '')
 		CRYPT_DIR=$(git config transcrypt.crypt-dir 2>/dev/null || printf '%s/crypt' "${RELATIVE_GIT_DIR}")
 		"${CRYPT_DIR}/transcrypt" pre_commit
 	EOF
@@ -656,7 +656,7 @@ save_configuration() {
 
 	# write the filter settings. Sorry for the horrific quote escaping below...
 	# shellcheck disable=SC2016
-	transcrypt_path='"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-dir)"")"/transcrypt'
+	transcrypt_path='"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-common-dir)"")"/transcrypt'
 
 	# Ensure filter attributes are always set for the default (unspecified) context
 	git config filter.crypt.clean "$transcrypt_path clean context=default %f"

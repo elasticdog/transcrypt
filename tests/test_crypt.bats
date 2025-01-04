@@ -224,7 +224,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   run cat .gitattributes
   [ "${lines[0]}" = "sensitive_file filter=crypt diff=crypt" ]
   # Check merge driver is not installed
-  [ ! "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt merge %O %A %B %L %P' ]
+  [ ! "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-common-dir)"")"/transcrypt merge %O %A %B %L %P' ]
 
   run git config --get --local transcrypt.version
   [ "${lines[0]}" = "0.0" ]
@@ -254,7 +254,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
 
   # Check merge driver is installed
-  [ "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-dir)"")"/transcrypt merge context=default %O %A %B %L %P' ]
+  [ "$(git config --get merge.crypt.driver)" = '"$(git config transcrypt.crypt-dir 2>/dev/null || printf ''%s/crypt'' ""$(git rev-parse --git-common-dir)"")"/transcrypt merge context=default %O %A %B %L %P' ]
 
   # Check .gitattributes is updated to include merge driver
   run cat .gitattributes
