@@ -920,6 +920,11 @@ uninstall_transcrypt() {
 
 # uninstall and re-install transcrypt to upgrade scripts and update configuration
 upgrade_transcrypt() {
+	# Fail with an error if we cannot read the existing config
+	if [[ ! $INSTALLED_VERSION ]]; then
+		die 1 'no existing transcrypt configuration found'
+	fi
+
 	if [[ $interactive ]]; then
 		printf 'You are about to upgrade the transcrypt scripts in your repository.\n'
 		printf 'Your configuration settings will not be changed.\n\n'
