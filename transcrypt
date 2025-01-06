@@ -1072,7 +1072,7 @@ export_gpg() {
 	fi
 
 	local current_cipher
-	current_cipher=$(git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}cipher")
+	current_cipher=$(git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}.cipher")
 	local current_password
 	current_password=$(load_password "$CONTEXT_CONFIG_GROUP")
 	mkdir -p "${CRYPT_DIR}"
