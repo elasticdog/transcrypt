@@ -181,7 +181,8 @@ _list_encrypted_files() {
 		else
 			grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
 		fi; } |
-		sed "s|: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*||"
+		sed "s|: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*||" |
+		while read -r file; do eval "echo $file"; done
 }
 
 # Detect OpenSSL major version 3 or later which requires a compatibility
