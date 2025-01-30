@@ -173,15 +173,15 @@ _list_encrypted_files() {
 	# List files with -z option to disable quoting of filenames, then
 	# immediately convert NUL-delimited filenames to be newline-delimited to be
 	# compatibility with bash variables
-    git ls-files -z | tr '\0' '\n' \
-      | git check-attr filter --stdin 2>/dev/null \
-      | {
-      if [[ "$strict_context" == "true" ]]; then
-        grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
-      else
-        grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
-      fi; } \
-      | sed "s|: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*||"
+	git ls-files -z | tr '\0' '\n' |
+		git check-attr filter --stdin 2>/dev/null |
+		{
+		if [[ "$strict_context" == "true" ]]; then
+			grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
+		else
+			grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
+		fi; } |
+		sed "s|: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*||"
 }
 
 # Detect OpenSSL major version 3 or later which requires a compatibility
