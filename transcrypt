@@ -180,7 +180,7 @@ _list_encrypted_files() {
 				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
 			else
 				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
-			fi;
+			fi
 		} |
 		sed "s|: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*||" |
 		while read -r file; do eval "echo $file"; done
