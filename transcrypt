@@ -174,7 +174,7 @@ _list_encrypted_files() {
 	# immediately convert NUL-delimited filenames to be newline-delimited to be
 	# compatibility with bash variables
 	git ls-files -z | tr '\0' '\n' |
-		git check-attr filter --stdin 2>/dev/null |
+		git -c core.quotePath=false check-attr filter --stdin 2>/dev/null |
 		{
 			if [[ "$strict_context" == "true" ]]; then
 				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
