@@ -176,11 +176,12 @@ _list_encrypted_files() {
 	git ls-files -z | tr '\0' '\n' |
 		git check-attr filter --stdin 2>/dev/null |
 		{
-		if [[ "$strict_context" == "true" ]]; then
-			grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
-		else
-			grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
-		fi; } |
+			if [[ "$strict_context" == "true" ]]; then
+				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
+			else
+				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
+			fi;
+		} |
 		sed "s|: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*||" |
 		while read -r file; do eval "echo $file"; done
 }
