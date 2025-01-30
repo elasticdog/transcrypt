@@ -173,7 +173,7 @@ _list_encrypted_files() {
 	# List files with -z option to disable quoting of filenames, then
 	# immediately convert NUL-delimited filenames to be newline-delimited to be
 	# compatibility with bash variables
-	git ls-files -z | tr '\0' '\n' |
+	git -c core.quotePath=false ls-files -z | tr '\0' '\n' |
 		git -c core.quotePath=false check-attr filter --stdin 2>/dev/null |
 		{
 			if [[ "$strict_context" == "true" ]]; then
