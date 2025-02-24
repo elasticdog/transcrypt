@@ -32,6 +32,8 @@ system, you must also run the `--upgrade` command in each repository:
    $ transcrypt --upgrade
    ```
 
+## [Unreleased]
+
 ## [2.3.1] - 2025-02-24
 
 ### Fixed
