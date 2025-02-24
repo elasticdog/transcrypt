@@ -1594,6 +1594,7 @@ elif [[ $cipher ]]; then
 	validate_cipher
 fi
 
+# shellcheck disable=SC2155
 readonly GIT_DIRTY="$(git diff-index --name-status HEAD -- 2>/dev/null || git diff-index --stat HEAD -- 2>/dev/null || git diff-index HEAD --)"
 
 # perform function calls to configure transcrypt
