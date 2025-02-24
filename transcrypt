@@ -22,7 +22,7 @@ GREP_OPTIONS=""
 ##### CONSTANTS
 
 # the release version of this script
-readonly VERSION='2.3.1-pre'
+readonly VERSION='2.3.1'
 
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
