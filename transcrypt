@@ -1618,6 +1618,14 @@ if [[ ! -f $GIT_ATTRIBUTES ]]; then
 	printf '#pattern  filter=crypt diff=crypt merge=crypt\n' >"$GIT_ATTRIBUTES"
 fi
 
+# check for modified (dirty) files after transcrypt configuration which could
+# indicate an incorrect password
+#
+# check if the repo is dirty
+if git status --porcelain 2>/dev/null | grep "^ M" >/dev/null; then
+	die 1 'Unexpected dirty files in the repository when configured by transcrypt%s, check your password.\n' "$CONTEXT_DESCRIPTION"
+fi
+
 printf 'The repository has been successfully configured by transcrypt%s.\n' "$CONTEXT_DESCRIPTION"
 
 exit 0
