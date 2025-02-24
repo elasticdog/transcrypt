@@ -1030,7 +1030,14 @@ upgrade_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" >/dev/null || die 1 'could not change into the "%s" directory' "$REPO"
-		_list_encrypted_files true
+
+		if [[ -z "$CONTEXT_CRYPT_SUFFIX" ]]; then
+			# Non-strict listing of files when context is unset / default
+			_list_encrypted_files
+		else
+			# Strict listing of files when a specific context is set
+			_list_encrypted_files true
+		fi
 	fi
 }
 
