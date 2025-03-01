@@ -392,13 +392,15 @@ git_pre_commit() {
 		# Get prefix of raw file in Git's index using the :FILENAME revision syntax
 		# The first bytes of an encrypted file are always "Salted" in Base64
 		local firstbytes=$(git show :"${secret_file}" | head -c8)
-		if [[ $firstbytes != "U2FsdGVk" ]]; then
+		if [[ $firstbytes == "" ]]; then
+			: # Do nothing
+		elif [[ $firstbytes != "U2FsdGVk" ]]; then
 			echo "true" >>"${tmp}"
 		fi
 	}
 
-	# if bash version is 4.4 or greater than fork to number of threads otherwise run normally
-	if [[ "${BASH_VERSINFO[0]}" -ge 4 ]] && [[ "${BASH_VERSINFO[1]}" -ge 4 ]]; then
+	# if bash version is greater than or equal to 4.4, fork to number of threads otherwise run normally
+	if [[ "${BASH_VERSINFO[0]}" -gt 4 ]] || { [[ "${BASH_VERSINFO[0]}" == 4 ]] && [[ "${BASH_VERSINFO[1]}" -ge 4 ]]; }; then
 		num_procs=$(nproc)
 		num_jobs="\j"
 		for secret_file in $(_list_encrypted_files); do
