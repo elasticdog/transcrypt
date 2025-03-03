@@ -34,6 +34,11 @@ system, you must also run the `--upgrade` command in each repository:
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix pre-commit hook to use "fast" multi-threaded mode for Bash versions 5+ as
+  well as 4.4+, and even if some encrypted files are empty (#197)
+
 ## [2.3.1] - 2025-02-24
 
 ### Fixed
