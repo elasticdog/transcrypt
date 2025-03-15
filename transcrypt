@@ -173,20 +173,25 @@ _list_encrypted_files() {
 	# List files with -z option to disable quoting of filenames, then
 	# immediately convert NUL-delimited filenames to be newline-delimited to be
 	# compatibility with bash variables
-	for file in $(git ls-files -z | tr '\0' '\n'); do
-		# Check for the suffix ': filter: crypt' that identifies encrypted file
-		local check
-		check=$(git check-attr filter "$file" 2>/dev/null)
-
-		# Only output names of encrypted files matching the context, either
-		# strictly (if $1 = "true") or loosely (if $1 is false or unset)
-		if [[ "$strict_context" == "true" ]] &&
-			[[ "$check" == *": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}" ]]; then
-			echo "$file"
-		elif [[ "$check" == *": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}"* ]]; then
-			echo "$file"
-		fi
-	done
+	# List files with -z option to disable quoting of filenames,
+	# then filter for files marked for encryption (git check-attr + grep),
+	# then only keep filenames (sed)
+	# then evaluate escaped characters like double-quotes, backslash and control characters (eval)
+	# which are part of the output regardless of core.quotePath=false as per
+	# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
+	git -c core.quotePath=false ls-files -z | tr '\0' '\n' |
+		git -c core.quotePath=false check-attr filter --stdin 2>/dev/null |
+		{
+			# Only output names of encrypted files matching the context, either
+			# strictly (if $1 = "true") or loosely (if $1 is false or unset)
+			if [[ "$strict_context" == "true" ]]; then
+				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
+			else
+				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
+			fi
+		} |
+		sed "s|: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*||" |
+		while read -r file; do eval "echo $file"; done
 }
 
 # Detect OpenSSL major version 3 or later which requires a compatibility
@@ -1035,7 +1040,14 @@ upgrade_transcrypt() {
 list_files() {
 	if [[ $IS_BARE == 'false' ]]; then
 		cd "$REPO" >/dev/null || die 1 'could not change into the "%s" directory' "$REPO"
-		_list_encrypted_files true
+
+		if [[ -z "$CONTEXT_CRYPT_SUFFIX" ]]; then
+			# Non-strict listing of files when context is unset / default
+			_list_encrypted_files
+		else
+			# Strict listing of files when a specific context is set
+			_list_encrypted_files true
+		fi
 	fi
 }
 
