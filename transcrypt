@@ -1376,6 +1376,9 @@ help() {
 		AUTHOR
 		     Aaron Bull Schaefer <aaron@elasticdog.com>
 
+		MAINTAINER
+		     James Murty <james@murty.co>
+
 		SEE ALSO
 		     enc(1), gitattributes(5)
 	EOF

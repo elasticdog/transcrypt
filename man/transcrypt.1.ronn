@@ -145,6 +145,10 @@ For example, to encrypt a file 'top-secret' in a "super" context:
 
 Aaron Bull Schaefer &lt;aaron@elasticdog.com&gt;
 
+## MAINTAINER
+
+James Murty &lt;james@murty.co&gt;
+
 ## SEE ALSO
 
 enc(1), gitattributes(5)
