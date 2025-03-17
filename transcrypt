@@ -426,6 +426,15 @@ git_pre_commit() {
 	unset IFS
 }
 
+# Add file patterns to .gitattributes
+add_pattern() {
+	for var in "$@"; do
+		line="$var  filter=crypt${CONTEXT_CRYPT_SUFFIX} diff=crypt${CONTEXT_CRYPT_SUFFIX} merge=crypt${CONTEXT_CRYPT_SUFFIX}"
+		grep -qxF "$line" "${GIT_ATTRIBUTES}" || echo "$line" >>"${GIT_ATTRIBUTES}"
+		sync
+	done
+}
+
 # verify that all requirements have been met
 run_safety_checks() {
 	# validate that we're in a git repository
@@ -722,6 +731,9 @@ save_configuration() {
 		# List files with gitattribute 'filter=crypt-<CONTEXT>'
 		git config "alias.ls-crypt-${CONTEXT}" "!$transcrypt_path --context=${CONTEXT} --list"
 	fi
+
+	# Add git alias `add-crypt` to add file pattern to .gitattributes
+	git config alias.add-crypt "!$transcrypt_path --add"
 }
 
 # display the current configuration settings
@@ -894,6 +906,9 @@ uninstall_transcrypt() {
 			fi
 		fi
 		[[ -f "$pre_commit_hook_installed" ]] && rm "$pre_commit_hook_installed"
+
+		# remove the `git add-crypt` alias.
+		git config --unset alias.add-crypt 2>/dev/null || true
 
 		# remove context settings: cipher & password config, ls-crypt alias variant,
 		# crypt filter/diff/merge attributes. We do it here instead of `clean_gitconfig`
@@ -1263,6 +1278,9 @@ help() {
 		     -d, --display
 		            display the current repository's cipher and password
 
+		     --add, --add=pattern
+		            add a file pattern to encrypt to the .gitattributes file
+
 		     -r, --rekey
 		            re-encrypt all encrypted files using new credentials
 
@@ -1328,8 +1346,10 @@ help() {
 		     matches  a file in your  repository,  the file  will  be  transparently
 		     encrypted once you stage and commit it:
 
-		         $ echo >> .gitattributes \\
-		         'sensitive_file  filter=crypt diff=crypt merge=crypt'
+		         $ transcrypt --add sensitive_file
+
+		         $ cat .gitattributes
+		         sensitive_file  filter=crypt diff=crypt merge=crypt
 
 		         $ git add .gitattributes sensitive_file
 		         $ git commit -m 'Add encrypted version of a sensitive file'
@@ -1360,8 +1380,10 @@ help() {
 		         $ transcrypt --context=super
 
 		         # Add a pattern to .gitattributes with "crypt-super" values
-		         $ echo >> .gitattributes \\
-		           'top-secret filter=crypt-super diff=crypt-super merge=crypt-super'
+		         $ transcrypt --context=super --add=top-secret
+
+		         $ cat .gitattributes
+		         top-secret filter=crypt-super diff=crypt-super merge=crypt-super
 
 		         # Add and commit your top-secret and .gitattribute files
 		         $ git add .gitattributes top-secret
@@ -1390,6 +1412,7 @@ help() {
 context=''
 cipher=''
 display_config=''
+add_pattern=''
 list_contexts_command=''
 flush_creds=''
 gpg_import_file=''
@@ -1450,6 +1473,17 @@ while [[ "${1:-}" != '' ]]; do
 	--password=*)
 		password=${1#*=}
 		[[ $password ]] || die 1 'empty password'
+		;;
+	--add)
+		add_pattern=$2
+		[[ $add_pattern ]] || die 1 'empty pattern'
+		requires_clean_repo=''
+		shift
+		;;
+	--add=*)
+		add_pattern=${1#*=}
+		[[ $add_pattern ]] || die 1 'empty pattern'
+		requires_clean_repo=''
 		;;
 	-C | --context)
 		context=$2
@@ -1582,6 +1616,9 @@ if [[ $list ]]; then
 	exit 0
 elif [[ $uninstall ]]; then
 	uninstall_transcrypt
+	exit 0
+elif [[ $add_pattern ]]; then
+	add_pattern "$add_pattern"
 	exit 0
 elif [[ $upgrade ]]; then
 	upgrade_transcrypt

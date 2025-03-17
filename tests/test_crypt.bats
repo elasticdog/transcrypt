@@ -206,6 +206,46 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   rm "$FILENAME"
 }
 
+@test "crypt: add file patterns to .gitattributes" {
+  # git add-crypt add file to gitattributes
+
+  # add file 1 via `add-crypt`
+  git add-crypt foobar
+  run cat .gitattributes
+  [[ "$status" -eq 0 ]]
+  [[ "${#lines[@]}" = "2" ]]
+  [[ "${lines[1]}" = "foobar  filter=crypt diff=crypt merge=crypt" ]]
+
+  # add pattern 2 via `add-crypt`
+  git add-crypt config/*.json
+  run cat .gitattributes
+  [[ "$status" -eq 0 ]]
+  [[ "${#lines[@]}" = "3" ]]
+  [[ "${lines[2]}" = "config/*.json  filter=crypt diff=crypt merge=crypt" ]]
+
+  # add patterns 3 & 4 via `transcrypt --add`
+  "$BATS_TEST_DIRNAME"/../transcrypt --add pattern2
+  "$BATS_TEST_DIRNAME"/../transcrypt --add=*.secret
+  run cat .gitattributes
+  [[ "$status" -eq 0 ]]
+  [[ "${#lines[@]}" = "5" ]]
+  [[ "${lines[3]}" = "pattern2  filter=crypt diff=crypt merge=crypt" ]]
+  [[ "${lines[4]}" = "*.secret  filter=crypt diff=crypt merge=crypt" ]]
+
+  # test ignore adding duplicate pattern
+  git add-crypt foobar
+  git add-crypt config/*.json
+  git add-crypt pattern2
+  git add-crypt *.secret
+  run cat .gitattributes
+  [[ "$status" -eq 0 ]]
+  [[ "${#lines[@]}" = "5" ]]  # no new line added
+  [[ "${lines[1]}" = "foobar  filter=crypt diff=crypt merge=crypt" ]]
+  [[ "${lines[2]}" = "config/*.json  filter=crypt diff=crypt merge=crypt" ]]
+  [[ "${lines[3]}" = "pattern2  filter=crypt diff=crypt merge=crypt" ]]
+  [[ "${lines[4]}" = "*.secret  filter=crypt diff=crypt merge=crypt" ]]
+}
+
 @test "crypt: transcrypt --upgrade applies new merge driver" {
   VERSION=$("$BATS_TEST_DIRNAME"/../transcrypt -v | awk '{print $2}')
 

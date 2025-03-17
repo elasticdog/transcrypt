@@ -34,6 +34,11 @@ system, you must also run the `--upgrade` command in each repository:
 
 ## [Unreleased]
 
+### Added
+
+- New commands make it easier to add file patterns to .gitattributes:
+  `transcrypt --add` and `git add-crypt` (#125)
+
 ### Changed
 
 - Improve check for incorrect password to avoid false report when transcrypt

@@ -104,7 +104,7 @@ config. If that pattern matches a file in your repository, the file will be
 transparently encrypted once you stage and commit it:
 
     $ cd <path-to-your-repo>/
-    $ echo 'sensitive_file  filter=crypt diff=crypt merge=crypt' >> .gitattributes
+    $ transcrypt --add sensitive_file
     $ git add .gitattributes sensitive_file
     $ git commit -m 'Add encrypted version of a sensitive file'
 
@@ -209,6 +209,9 @@ directory.
 
       -y, --yes
              assume yes and accept defaults for non-specified options
+
+      --add, --add=pattern
+             add a file pattern to encrypt to the .gitattributes file
 
       -d, --display
              display the current repository's cipher and password
@@ -326,8 +329,7 @@ to encrypt a file \_top-secret* in a "super" context:
     $ transcrypt --context=super
 
     # Add a pattern to .gitattributes with "crypt-super" values
-    $ echo >> .gitattributes \\
-      'top-secret filter=crypt-super diff=crypt-super merge=crypt-super'
+    $ transcrypt --context=super --add=top-secret
 
     # Add and commit your top-secret and .gitattribute files
     $ git add .gitattributes top-secret
