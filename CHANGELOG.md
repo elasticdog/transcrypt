@@ -34,6 +34,11 @@ system, you must also run the `--upgrade` command in each repository:
 
 ## [Unreleased]
 
+### Changed
+
+- Improve check for incorrect password to avoid false report when transcrypt
+  init is run with --force in a repo containing dirty files & add tests (#196)
+
 ### Fixed
 
 - Fix pre-commit hook to use "fast" multi-threaded mode for Bash versions 5+ as
