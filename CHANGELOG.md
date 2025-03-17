@@ -37,7 +37,7 @@ system, you must also run the `--upgrade` command in each repository:
 ### Changed
 
 - Improve check for incorrect password to avoid false report when transcrypt
-  init is run with --force in a repo containing dirty files (#196)
+  init is run with --force in a repo containing dirty files & add tests (#196)
 
 ### Fixed
 

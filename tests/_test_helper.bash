@@ -43,6 +43,10 @@ function init_transcrypt {
   "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
 }
 
+function uninstall_transcrypt {
+  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
+}
+
 function encrypt_named_file {
   filename="$1"
   content=$2
