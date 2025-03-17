@@ -33,7 +33,8 @@ jobs:
             ubuntu-22.04,
             ubuntu-24.04,
             ubuntu-latest,
-            macos-12,
+            # macOS 12 runner was deprecated late 2024
+            # macos-12,
             macos-13,
             macos-14,
             macos-latest,
