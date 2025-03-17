@@ -7,13 +7,13 @@ function init_git_repo {
     echo "WARNING: Test repo already exists at $BATS_TEST_DIRNAME/.git"
   else
     # Configure "main" as the default branch name
-    git config --global init.defaultBranch main
+    git config --local init.defaultBranch main
     # Initialise test git repo at the same path as the test files
     git init "$BATS_TEST_DIRNAME"
     git checkout -b main
     # Tests will fail if name and email aren't set
-    git config user.name "John Doe"
-    git config user.email johndoe@example.com
+    git config --local user.name "John Doe"
+    git config --local user.email johndoe@example.com
     # Flag test git repo as 100% the test one, for safety before later removal
     touch "$BATS_TEST_DIRNAME"/.git/repo-for-transcrypt-bats-tests
   fi
@@ -41,6 +41,10 @@ function cleanup_all {
 
 function init_transcrypt {
   "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
+}
+
+function uninstall_transcrypt {
+  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
 }
 
 function encrypt_named_file {

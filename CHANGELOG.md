@@ -34,6 +34,33 @@ system, you must also run the `--upgrade` command in each repository:
 
 ## [Unreleased]
 
+### Changed
+
+- Improve check for incorrect password to avoid false report when transcrypt
+  init is run with --force in a repo containing dirty files & add tests (#196)
+- Greatly improve performance in a repository with many files for pre-commit
+  safety check, encrypted file listing, and showing raw file (#193)
+
+### Fixed
+
+- Fix pre-commit hook to use "fast" multi-threaded mode for Bash versions 5+ as
+  well as 4.4+, and even if some encrypted files are empty (#197)
+
+## [2.3.1] - 2025-02-24
+
+### Fixed
+
+- Warn when password is probably incorrect by returning an error message and
+  return code if repo has dirty files after init (#182)
+- Fail with error when an empty password is provided to the -p or --password
+  options (#188)
+- Fix handling of double-quotes in encrypted file names (#173)
+- Make --upgrade safer by failing fast if transcrypt config cannot be read
+  (#189)
+- Fix --export-gpg command to properly include cipher in exported .asc file
+
+## [2.3.0] - 2024-09-10
+
 ### Added
 
 - Add contexts feature that lets you encrypt different sets of files with
@@ -47,11 +74,18 @@ system, you must also run the `--upgrade` command in each repository:
 
 - Prevent `cd` commands printing out excess details when `CDPATH` is set (#156)
 - Fix `--flush` command to work with contexts (#175)
+- Fix unbound variable error using `$GIT_REFLOG_ACTION` (issue #150)
 
 ### Changed
 
+- Remove hard dependency on `xxd` which is often a heavy requirement because it
+  is only available with Vim on some platforms. Fall back to `printf` with full
+  %b support or `perl` when either of these are available, and only require
+  `xxd` when it is the only viable option (#181)
 - Prevent global options set in `GREP_OPTIONS` enviroment variable from
   breaking transcrypt's use of grep (#166)
+- If `CDPATH` is set then cd will print the path (#156)
+- Centralise load and save of password into functions (#141)
 
 ## [2.2.3] - 2023-03-09
 
@@ -318,7 +352,9 @@ Since the v0.9.7 release, these are the notable improvements made to transcrypt:
 
 ## [0.9.4] - 2014-03-03
 
-[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.2.3...HEAD
+[unreleased]: https://github.com/elasticdog/transcrypt/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/elasticdog/transcrypt/compare/v2.3.0...v2.3.1
+[2.3.0]: https://github.com/elasticdog/transcrypt/compare/v2.2.3...v2.3.0
 [2.2.3]: https://github.com/elasticdog/transcrypt/compare/v2.2.2...v2.2.3
 [2.2.2]: https://github.com/elasticdog/transcrypt/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/elasticdog/transcrypt/compare/v2.2.0...v2.2.1

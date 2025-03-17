@@ -49,7 +49,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ "$(git config --get merge.renormalize)" = "true" ]
   [ "$(git config --get merge.crypt.name)" = "Merge transcrypt secret files" ]
 
-  [ "$(git config --get alias.ls-crypt)" = "!git -c core.quotePath=false ls-files | git -c core.quotePath=false check-attr --stdin filter | awk 'BEGIN { FS = \":\" }; / crypt/{ print \$1 }'" ]
+  [ "$(git config --get alias.ls-crypt)" = '!"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-dir)"")"/transcrypt --list' ]
 }
 
 @test "init: show details for --display" {
@@ -167,4 +167,47 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "==> sensitive_file <==" ]
   [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
+}
+
+@test "crypt: warn on incorrect password as indicated by dirty files after init" {
+  init_transcrypt
+
+  SECRET_CONTENT="My secret content"
+  SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/qiCg"
+
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+
+  # Clear the password and reset the repo
+  uninstall_transcrypt
+  git reset --hard
+
+  # Init transcrypt with wrong password, command fails with error message
+  run "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='WRONG' --yes
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "transcrypt: Unexpected new dirty files in the repository when configured by transcrypt, please check your password." ]
+}
+
+@test "crypt: warn on incorrect password as indicated by dirty files after init when forced" {
+  init_transcrypt
+
+  SECRET_CONTENT="My secret content"
+  SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/qiCg"
+
+  encrypt_named_file sensitive_file "$SECRET_CONTENT"
+
+  # Clear the password and reset the repo
+  uninstall_transcrypt
+  git reset --hard
+
+  # Dirty repo before init, to check pre- and post-init dirty files counts
+  # work despite the pre-existing dirty file
+  echo "Dirty file" > dirty_file
+  git add dirty_file
+
+  # Force init transcrypt with wrong password, command fails with error message
+  run "$BATS_TEST_DIRNAME"/../transcrypt --force --cipher=aes-256-cbc --password='WRONG' --yes
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "transcrypt: Unexpected new dirty files in the repository when configured by transcrypt, please check your password." ]
+
+  rm dirty_file
 }
