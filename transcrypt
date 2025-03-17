@@ -1596,12 +1596,12 @@ elif [[ $cipher ]]; then
 	validate_cipher
 fi
 
-list_dirty_files() {
-	{ git diff-index --name-status HEAD -- || git diff-index --stat HEAD -- || git diff-index HEAD -- || true; } 2>/dev/null
+count_dirty_files() {
+	{ git diff-index --name-status HEAD -- || git diff-index --stat HEAD -- || git diff-index HEAD -- || true; } 2>/dev/null | grep $'\n' -c
 }
 
 # shellcheck disable=SC2155
-readonly GIT_DIRTY_FILES_BEFORE_INIT="$(list_dirty_files | grep $'\n' -c)"
+readonly GIT_DIRTY_FILES_BEFORE_INIT="$(count_dirty_files)"
 
 # perform function calls to configure transcrypt
 get_cipher
@@ -1629,7 +1629,7 @@ fi
 
 # check for newly modified (dirty) files after transcrypt configuration which could
 # indicate an incorrect password
-if [[ ${GIT_DIRTY_FILES_BEFORE_INIT} -lt $(list_dirty_files | grep $'\n' -c) ]]; then
+if [[ ${GIT_DIRTY_FILES_BEFORE_INIT} -lt $(count_dirty_files) ]]; then
 	die 1 'Unexpected new dirty files in the repository when configured by transcrypt%s, please check your password.\n' "$CONTEXT_DESCRIPTION"
 fi
 
