@@ -44,7 +44,7 @@ cryptographic hash-based message authentication code for each decrypted file
 (keyed with a combination of the filename and transcrypt password), and then
 uses the last 16 bytes of that HMAC for the file's unique salt. When the content
 of the file changes, so does the salt. Since an
-[HMAC has been proven to be a PRF](http://cseweb.ucsd.edu/~mihir/papers/hmac-new.html),
+[HMAC has been proven to be a PRF](https://web.archive.org/web/20090706011828/cseweb.ucsd.edu/~mihir/papers/hmac-new.html),
 this method of salt selection does not leak information about the original
 contents, but is still deterministic.
 
