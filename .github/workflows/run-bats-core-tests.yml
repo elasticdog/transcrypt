@@ -29,7 +29,8 @@ jobs:
       matrix:
         os:
           [
-            ubuntu-20.04,
+            # ubuntu 20.04 runner was deprecated early 2025
+            # ubuntu-20.04,
             ubuntu-22.04,
             ubuntu-24.04,
             ubuntu-latest,
