@@ -1669,18 +1669,17 @@ if [[ $rekey ]]; then
 	stage_rekeyed_files
 else
 	force_checkout
+	# check for newly modified (dirty) files after transcrypt configuration which could
+	# indicate an incorrect password
+	if [[ ${GIT_DIRTY_FILES_BEFORE_INIT} -lt $(count_dirty_files) ]]; then
+		die 1 'Unexpected new dirty files in the repository when configured by transcrypt%s, please check your password.\n' "$CONTEXT_DESCRIPTION"
+	fi
 fi
 
 # ensure the git attributes file exists
 if [[ ! -f $GIT_ATTRIBUTES ]]; then
 	mkdir -p "${GIT_ATTRIBUTES%/*}"
 	printf '#pattern  filter=crypt diff=crypt merge=crypt\n' >"$GIT_ATTRIBUTES"
-fi
-
-# check for newly modified (dirty) files after transcrypt configuration which could
-# indicate an incorrect password
-if [[ ${GIT_DIRTY_FILES_BEFORE_INIT} -lt $(count_dirty_files) ]]; then
-	die 1 'Unexpected new dirty files in the repository when configured by transcrypt%s, please check your password.\n' "$CONTEXT_DESCRIPTION"
 fi
 
 printf 'The repository has been successfully configured by transcrypt%s.\n' "$CONTEXT_DESCRIPTION"
