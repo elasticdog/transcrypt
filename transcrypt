@@ -1159,13 +1159,31 @@ get_contexts_from_git_config() {
 
 # Echo space-delimited list of context names defined in the .gitattributes file
 get_contexts_from_git_attributes() {
-	if [[ -f $GIT_ATTRIBUTES ]]; then
+	IFS=$'\n'
+
+	# Find all .gitattributes files that apply to this git repository
+	POTENTIAL_GITATTRIBUTES_FILES=(
+		"${REPO}/.gitattributes"
+		"${GIT_DIR}/info/attributes"
+		"$(git config --get --local --path core.attributesFile 2>/dev/null || git config --get --path core.attributesFile 2>/dev/null || printf '')"
+	)
+	git_attributes_files=()
+	for attr_file in "${POTENTIAL_GITATTRIBUTES_FILES[@]}"; do
+		if [[ -f $attr_file ]]; then
+			git_attributes_files+=("$attr_file")
+		fi
+	done
+
+	# Find contexts defined across all .gitattributes files
+	contexts=()
+	# Must not quote variable using '[@]:-' or it will break for Bash < 4.4,
+	# see https://github.com/koalaman/shellcheck/issues/2387
+	# shellcheck disable=SC2068
+	for git_attributes_file in ${git_attributes_files[@]:-}; do
 		# Capture contents of .gitattributes without comments (leading # hash)
-		attr_lines=$(sed '/^.*#/d' <"$GIT_ATTRIBUTES")
+		attr_lines=$(sed '/^.*#/d' <"$git_attributes_file")
 		extract_context_name_regex="filter=crypt-(${CONTEXT_REGEX})"
 		recognise_crypt_regex="filter=crypt"
-		contexts=()
-		IFS=$'\n'
 		for attr_line in ${attr_lines}; do
 			if [[ $attr_line =~ $extract_context_name_regex ]]; then
 				contexts+=("${BASH_REMATCH[1]}")
@@ -1173,10 +1191,12 @@ get_contexts_from_git_attributes() {
 				contexts+=('default')
 			fi
 		done
-		unset IFS
-		if [[ "${contexts:-}" ]]; then
-			trim "$(printf "%q " "${contexts[@]}")"
-		fi
+	done
+
+	unset IFS
+
+	if [[ "${contexts:-}" ]]; then
+		trim "$(printf "%q " "${contexts[@]}")"
 	fi
 }
 
