@@ -109,7 +109,7 @@ gather_repo_metadata() {
 
 	# the current git repository's gitattributes file
 	local CORE_ATTRIBUTES
-	CORE_ATTRIBUTES=$(git config --get --local --path core.attributesFile 2>/dev/null || git config --get --path core.attributesFile 2>/dev/null || printf '')
+	CORE_ATTRIBUTES=$(git config --get --local --path core.attributesFile 2>/dev/null || printf '')
 	if [[ $CORE_ATTRIBUTES ]]; then
 		readonly GIT_ATTRIBUTES=$CORE_ATTRIBUTES
 	elif [[ $IS_BARE == 'true' ]] || [[ $IS_VCSH == 'true' ]]; then
