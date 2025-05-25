@@ -1459,14 +1459,15 @@ while [[ "${1:-}" != '' ]]; do
 		exit $?
 		;;
 	-c | --cipher)
-		cipher=$2
+		cipher=${2:-}
+		[[ $cipher ]] || die 1 'empty cipher'
 		shift
 		;;
 	--cipher=*)
 		cipher=${1#*=}
 		;;
 	-p | --password)
-		password=$2
+		password=${2:-}
 		[[ $password ]] || die 1 'empty password'
 		shift
 		;;
@@ -1475,7 +1476,7 @@ while [[ "${1:-}" != '' ]]; do
 		[[ $password ]] || die 1 'empty password'
 		;;
 	--add)
-		add_pattern=$2
+		add_pattern=${2:-1}
 		[[ $add_pattern ]] || die 1 'empty pattern'
 		requires_clean_repo=''
 		shift
@@ -1486,7 +1487,8 @@ while [[ "${1:-}" != '' ]]; do
 		requires_clean_repo=''
 		;;
 	-C | --context)
-		context=$2
+		context=${2:-}
+		[[ $context ]] || die 1 'empty context'
 		shift
 		;;
 	--context=*)
@@ -1535,7 +1537,8 @@ while [[ "${1:-}" != '' ]]; do
 		requires_clean_repo=''
 		;;
 	-s | --show-raw)
-		show_file=$2
+		show_file=${2:-}
+		[[ $show_file ]] || die 1 'empty file path'
 		show_raw_file
 		exit 0
 		;;
@@ -1545,7 +1548,8 @@ while [[ "${1:-}" != '' ]]; do
 		exit 0
 		;;
 	-e | --export-gpg)
-		gpg_recipient=$2
+		gpg_recipient=${2:-}
+		[[ $gpg_recipient ]] || die 1 'empty recipient'
 		requires_existing_config='true'
 		requires_clean_repo=''
 		shift
@@ -1556,7 +1560,8 @@ while [[ "${1:-}" != '' ]]; do
 		requires_clean_repo=''
 		;;
 	-i | --import-gpg)
-		gpg_import_file=$2
+		gpg_import_file=${2:-}
+		[[ $gpg_import_file ]] || die 1 'empty import file'
 		shift
 		;;
 	--import-gpg=*)
