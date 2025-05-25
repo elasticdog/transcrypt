@@ -1176,7 +1176,10 @@ get_contexts_from_git_attributes() {
 
 	# Find contexts defined across all .gitattributes files
 	contexts=()
-	for git_attributes_file in "${git_attributes_files[@]}"; do
+	# Must not quote variable using '[@]:-' or it will break for Bash < 4.4,
+	# see https://github.com/koalaman/shellcheck/issues/2387
+	# shellcheck disable=SC2068
+	for git_attributes_file in ${git_attributes_files[@]:-}; do
 		# Capture contents of .gitattributes without comments (leading # hash)
 		attr_lines=$(sed '/^.*#/d' <"$git_attributes_file")
 		extract_context_name_regex="filter=crypt-(${CONTEXT_REGEX})"
