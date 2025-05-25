@@ -1168,7 +1168,7 @@ get_contexts_from_git_attributes() {
 		"$(git config --get --local --path core.attributesFile 2>/dev/null || git config --get --path core.attributesFile 2>/dev/null || printf '')"
 	)
 	git_attributes_files=()
-	for attr_file in ${POTENTIAL_GITATTRIBUTES_FILES[*]}; do
+	for attr_file in "${POTENTIAL_GITATTRIBUTES_FILES[@]}"; do
 		if [[ -f $attr_file ]]; then
 			git_attributes_files+=("$attr_file")
 		fi
@@ -1176,7 +1176,7 @@ get_contexts_from_git_attributes() {
 
 	# Find contexts defined across all .gitattributes files
 	contexts=()
-	for git_attributes_file in ${git_attributes_files[*]}; do
+	for git_attributes_file in "${git_attributes_files[@]}"; do
 		# Capture contents of .gitattributes without comments (leading # hash)
 		attr_lines=$(sed '/^.*#/d' <"$git_attributes_file")
 		extract_context_name_regex="filter=crypt-(${CONTEXT_REGEX})"
