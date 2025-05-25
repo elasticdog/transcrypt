@@ -50,6 +50,8 @@ system, you must also run the `--upgrade` command in each repository:
 
 - Fix pre-commit hook to use "fast" multi-threaded mode for Bash versions 5+ as
   well as 4.4+, and even if some encrypted files are empty (#197)
+- Don't show message about unexpected dirty files after a `--rekey` because
+  dirty files are expected (#201)
 
 ## [2.3.1] - 2025-02-24
 
