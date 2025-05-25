@@ -54,6 +54,8 @@ system, you must also run the `--upgrade` command in each repository:
   dirty files are expected (#201)
 - Show useful error instead of `unbound variable` when --long option is missing
   a value, e.g. `transcrypt --context`
+- Find context definitions across all attributes config files: repo's
+  _.gitattributes_; repo's _info/attributes_; path in `core.attributesFile`
 
 ## [2.3.1] - 2025-02-24
 
