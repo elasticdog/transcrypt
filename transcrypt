@@ -182,9 +182,8 @@ _list_encrypted_files() {
 		# check-attr to print filter info, with some trickery to keep filename
 		# unquoted (-z) with space-delimited filter status and anewline
 		# delimiting of each file name
-		while read -r filename
-		do
-			git -c core.quotePath=false check-attr filter -z 2>/dev/null -- "$filename" | tr '\0' ' '
+		while read -r filename; do
+			git -c core.quotePath=false check-attr filter -z -- "$filename" 2>/dev/null | tr '\0' ' '
 			echo
 		done |
 		{
@@ -196,7 +195,7 @@ _list_encrypted_files() {
 				grep " filter crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
 			fi
 		} |
-		sed "s| filter crypt${CONTEXT_CRYPT_SUFFIX:-}.*||"  |
+		sed "s| filter crypt${CONTEXT_CRYPT_SUFFIX:-}.*||" |
 		while read -r filename; do eval 'echo $filename'; done
 }
 
