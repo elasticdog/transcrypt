@@ -178,18 +178,26 @@ _list_encrypted_files() {
 	# regardless of core.quotePath=false as per
 	# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
 	git -c core.quotePath=false ls-files -z | tr '\0' '\n' |
-		git -c core.quotePath=false check-attr filter --stdin 2>/dev/null |
+		# Read unquoted filenames one at a time per newline delimiters and use
+		# check-attr to print filter info, with some trickery to keep filename
+		# unquoted (-z) with space-delimited filter status and anewline
+		# delimiting of each file name
+		while read -r filename
+		do
+			git -c core.quotePath=false check-attr filter -z 2>/dev/null -- "$filename" | tr '\0' ' '
+			echo
+		done |
 		{
 			# Only output names of encrypted files matching the context, either
 			# strictly (if $1 = "true") or loosely (if $1 is false or unset)
 			if [[ "$strict_context" == "true" ]]; then
-				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
+				grep " filter crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
 			else
-				grep ": filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
+				grep " filter crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
 			fi
 		} |
-		sed "s|: filter: crypt${CONTEXT_CRYPT_SUFFIX:-}.*||" |
-		while read -r file; do eval "echo $file"; done
+		sed "s| filter crypt${CONTEXT_CRYPT_SUFFIX:-}.*||"  |
+		while read -r filename; do eval 'echo $filename'; done
 }
 
 # Detect OpenSSL major version 3 or later which requires a compatibility
