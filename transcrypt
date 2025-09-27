@@ -187,7 +187,7 @@ _list_encrypted_files() {
 			# Only output names of encrypted files matching the context, either
 			# strictly (if $1 = "true") or loosely (if $1 is false or unset)
 			if [[ "$strict_context" == "true" ]]; then
-				grep " filter crypt${CONTEXT_CRYPT_SUFFIX:-} $" || true
+				grep " filter crypt${CONTEXT_CRYPT_SUFFIX:-}$" || true
 			else
 				grep " filter crypt${CONTEXT_CRYPT_SUFFIX:-}.*$" || true
 			fi
