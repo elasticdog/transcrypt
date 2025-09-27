@@ -177,15 +177,12 @@ _list_encrypted_files() {
 	# backslash and control characters (eval) which are part of the output
 	# regardless of core.quotePath=false as per
 	# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
-	git -c core.quotePath=false ls-files -z | tr '\0' '\n' |
-		# Read unquoted filenames one at a time per newline delimiters and use
-		# check-attr to print filter info, with some trickery to keep filename
-		# unquoted (-z) with space-delimited filter status and anewline
-		# delimiting of each file name
-		while read -r filename; do
-			git -c core.quotePath=false check-attr filter -z -- "$filename" 2>/dev/null | tr '\0' ' '
-			echo
-		done |
+	git -c core.quotePath=false ls-files -z |
+		git -c core.quotePath=false check-attr filter -z --stdin 2>/dev/null |
+		# Split null-delimited list of filename + filter entries to be one line
+		# per file with space delimiters in that line by replacing every third
+		# null character with newline and the rest with a space
+		awk -v RS='\x00' 'NR % 3 == 0 {printf "%s\n", $0} NR % 3 != 0 {printf "%s ", $0}' |
 		{
 			# Only output names of encrypted files matching the context, either
 			# strictly (if $1 = "true") or loosely (if $1 is false or unset)
