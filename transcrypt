@@ -429,7 +429,7 @@ git_pre_commit() {
 # Add file patterns to .gitattributes
 add_pattern() {
 	for var in "$@"; do
-		line="$var filter=crypt${CONTEXT_CRYPT_SUFFIX} diff=crypt${CONTEXT_CRYPT_SUFFIX} merge=crypt${CONTEXT_CRYPT_SUFFIX}"
+		line="$var filter=crypt${CONTEXT_CRYPT_SUFFIX} diff=crypt${CONTEXT_CRYPT_SUFFIX} merge=crypt${CONTEXT_CRYPT_SUFFIX} -delta"
 		echo "$line" >>"${GIT_ATTRIBUTES}"
 		sync
 	done
@@ -1349,7 +1349,7 @@ help() {
 		         $ transcrypt --add sensitive_file
 
 		         $ cat .gitattributes
-		         sensitive_file  filter=crypt diff=crypt merge=crypt
+		         sensitive_file  filter=crypt diff=crypt merge=crypt -delta
 
 		         $ git add .gitattributes sensitive_file
 		         $ git commit -m 'Add encrypted version of a sensitive file'
@@ -1383,7 +1383,7 @@ help() {
 		         $ transcrypt --context=super --add=top-secret
 
 		         $ cat .gitattributes
-		         top-secret filter=crypt-super diff=crypt-super merge=crypt-super
+		         top-secret filter=crypt-super diff=crypt-super merge=crypt-super -delta
 
 		         # Add and commit your top-secret and .gitattribute files
 		         $ git add .gitattributes top-secret
@@ -1684,7 +1684,7 @@ fi
 # ensure the git attributes file exists
 if [[ ! -f $GIT_ATTRIBUTES ]]; then
 	mkdir -p "${GIT_ATTRIBUTES%/*}"
-	printf '#pattern  filter=crypt diff=crypt merge=crypt\n' >"$GIT_ATTRIBUTES"
+	printf '#pattern  filter=crypt diff=crypt merge=crypt -delta\n' >"$GIT_ATTRIBUTES"
 fi
 
 printf 'The repository has been successfully configured by transcrypt%s.\n' "$CONTEXT_DESCRIPTION"
