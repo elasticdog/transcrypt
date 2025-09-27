@@ -429,8 +429,8 @@ git_pre_commit() {
 # Add file patterns to .gitattributes
 add_pattern() {
 	for var in "$@"; do
-		line="$var  filter=crypt${CONTEXT_CRYPT_SUFFIX} diff=crypt${CONTEXT_CRYPT_SUFFIX} merge=crypt${CONTEXT_CRYPT_SUFFIX}"
-		grep -qxF "$line" "${GIT_ATTRIBUTES}" || echo "$line" >>"${GIT_ATTRIBUTES}"
+		line="$var filter=crypt${CONTEXT_CRYPT_SUFFIX} diff=crypt${CONTEXT_CRYPT_SUFFIX} merge=crypt${CONTEXT_CRYPT_SUFFIX}"
+		echo "$line" >>"${GIT_ATTRIBUTES}"
 		sync
 	done
 }
