@@ -44,7 +44,8 @@ system, you must also run the `--upgrade` command in each repository:
 - Improve check for incorrect password to avoid false report when transcrypt
   init is run with --force in a repo containing dirty files & add tests (#196)
 - Greatly improve performance in a repository with many files for pre-commit
-  safety check, encrypted file listing, and showing raw file (#193)
+  safety check, encrypted file listing, and showing raw file (#193). Also fixed
+  related regression handling file names with special characters (#204)
 
 ### Fixed
 

@@ -135,6 +135,40 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   rm "$FILENAME"
 }
 
+@test "crypt: challenging file name with special characters is included in --list" {
+  FILENAME='"Difficult file name""")))(((][][].secret'
+  SECRET_CONTENT_ENC="U2FsdGVkX18wtFI6Ydnw7t7uUCKUMK3KeqExy6bC9mGNx1BjpXLbaOH3mxOtoPjn"
+
+  # It's too hard to use `encrypt_named_file` function here due to difficult
+  # filename quoting, so do similar steps manually
+  echo "$SECRET_CONTENT" > "$FILENAME"
+  echo "*.secret filter=crypt diff=crypt merge=crypt" >> .gitattributes
+  git add .gitattributes "${FILENAME}"
+  run git commit -m "Encrypt file \"$FILENAME\""
+
+  # Working copy is decrypted
+  run cat "$FILENAME"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT" ]
+
+  # Git internal copy is encrypted
+  run git show HEAD:"\"Difficult file name\"\"\")))(((][][].secret" --no-textconv
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
+
+  # git ls-crypt lists encrypted file
+  run git ls-crypt
+  [ "$status" -eq 0 ]
+  [[ "${output}" = *"$FILENAME" ]]
+
+  # transcrypt --list lists encrypted file"
+  run ../transcrypt --list
+  [ "$status" -eq 0 ]
+  [[ "${output}" = *"$FILENAME" ]]
+
+  rm "$FILENAME"
+}
+
 @test "crypt: handle very small file" {
   FILENAME="small file.txt"
   SECRET_CONTENT="sh"
