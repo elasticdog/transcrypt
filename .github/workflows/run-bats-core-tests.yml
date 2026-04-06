@@ -23,12 +23,12 @@ jobs:
           sh_checker_comment: true
 
   test:
+    # See available runner images: https://github.com/actions/runner-images
     # Test on older Ubuntu with OpenSSL < 1.1 and newer with OpenSSL >= 1.1
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os:
-          [
+        os: [
             # ubuntu 20.04 runner was deprecated early 2025
             # ubuntu-20.04,
             ubuntu-22.04,
@@ -36,8 +36,10 @@ jobs:
             ubuntu-latest,
             # macOS 12 runner was deprecated late 2024
             # macos-12,
-            macos-13,
+            # macOS 13 runner was deprecated Feb 2026
+            # macos-13,
             macos-14,
+            macos-15,
             macos-latest,
           ]
 
