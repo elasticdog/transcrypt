@@ -38,6 +38,9 @@ system, you must also run the `--upgrade` command in each repository:
 
 - New commands make it easier to add file patterns to .gitattributes:
   `transcrypt --add` and `git add-crypt` (#125)
+- Improve compatibility with `git worktree` by finding the git directory via
+  `--git-common-dir` instead of `--git-dir`, requires git version newer than
+  November 2024 (#186)
 
 ### Changed
 

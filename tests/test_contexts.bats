@@ -76,7 +76,7 @@ function teardown {
   [[ $(git config --get diff.crypt.binary) = "true" ]]
   [[ $(git config --get merge.renormalize) = "true" ]]
 
-  [[ "$(git config --get alias.ls-crypt)" = '!"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-dir)"")"/transcrypt --list' ]]
+  [[ "$(git config --get alias.ls-crypt)" = '!"$(git config transcrypt.crypt-dir 2>/dev/null || printf %s/crypt ""$(git rev-parse --git-common-dir)"")"/transcrypt --list' ]]
 }
 
 @test "init: show extra context details in --display" {
