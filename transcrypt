@@ -28,6 +28,14 @@ readonly VERSION='2.3.2-pre'
 # the default cipher to utilize
 readonly DEFAULT_CIPHER='aes-256-cbc'
 
+# default crypto policy for legacy repositories
+readonly DEFAULT_CRYPTO_FORMAT='legacy'
+readonly DEFAULT_DIGEST='md5'
+readonly DEFAULT_KDF='legacy'
+readonly DEFAULT_ITERATIONS='256000'
+readonly DEFAULT_AUTH='none'
+
+
 # context name must match this regexp to ensure it is safe for git config and attrs
 readonly CONTEXT_REGEX='[a-z](-?[a-z0-9])*'
 
@@ -242,6 +250,105 @@ hex_to_bin() {
 		die 'required command not found: xxd, or printf that supports "%%b", or perl'
 	fi
 }
+
+# Return success if the configured openssl supports an `enc` option.
+openssl_enc_supports() {
+	local option=$1
+	"${openssl_path}" enc -help 2>&1 | grep -q -- "$option"
+}
+
+# Print the configured crypto setting for the current context, with a default.
+current_crypto_setting() {
+	local key=$1
+	local default_value=$2
+	git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}.${key}" 2>/dev/null || printf '%s' "$default_value"
+}
+
+# Print a one-page diagnostic summary of local crypto tool capabilities.
+diagnose_crypto() {
+	local openssl_version
+	openssl_version=$("${openssl_path}" version 2>/dev/null || printf 'unavailable')
+
+	printf 'Crypto diagnostics for transcrypt\n\n'
+	printf '  openssl path:                 %s\n' "$openssl_path"
+	printf '  openssl version:              %s\n' "$openssl_version"
+	if openssl_enc_supports '-pbkdf2'; then
+		printf '  openssl enc -pbkdf2:          yes\n'
+	else
+		printf '  openssl enc -pbkdf2:          no\n'
+	fi
+	if openssl_enc_supports '-iter'; then
+		printf '  openssl enc -iter:            yes\n'
+	else
+		printf '  openssl enc -iter:            no\n'
+	fi
+	if [[ "$(is_salt_prefix_workaround_required)" == 'true' ]]; then
+		printf '  explicit -S salt behavior:    openssl-3-no-prefix\n'
+	else
+		printf '  explicit -S salt behavior:    legacy-or-libressl-prefix\n'
+	fi
+	if command -v python3 >/dev/null; then
+		printf '  python3 PBKDF2 fallback:      yes (%s)\n' "$(python3 --version 2>&1)"
+	else
+		printf '  python3 PBKDF2 fallback:      no\n'
+	fi
+}
+
+# Print security posture for the currently configured repository/context.
+audit_security() {
+	printf 'Security audit for this transcrypt repository%s\n\n' "$CONTEXT_DESCRIPTION"
+
+	if [[ ! $INSTALLED_VERSION ]]; then
+		printf '  Status: not configured by transcrypt yet.\n\n'
+		diagnose_crypto
+		return 0
+	fi
+
+	local current_cipher current_format current_digest current_kdf current_iterations current_auth
+	current_cipher=$(git config --get --local "transcrypt${CONTEXT_CONFIG_GROUP}.cipher" 2>/dev/null || printf '%s' "$DEFAULT_CIPHER")
+	current_format=$(current_crypto_setting 'crypto-format' "$DEFAULT_CRYPTO_FORMAT")
+	current_digest=$(current_crypto_setting 'digest' "$DEFAULT_DIGEST")
+	current_kdf=$(current_crypto_setting 'kdf' "$DEFAULT_KDF")
+	current_iterations=$(current_crypto_setting 'iterations' "$DEFAULT_ITERATIONS")
+	current_auth=$(current_crypto_setting 'auth' "$DEFAULT_AUTH")
+
+	printf '  Version:        %s\n' "$INSTALLED_VERSION"
+	printf '  Context:        %s\n' "$CONTEXT"
+	printf '  Cipher:         %s\n' "$current_cipher"
+	printf '  Crypto format:  %s\n' "$current_format"
+	printf '  KDF:            %s\n' "$current_kdf"
+	printf '  Digest:         %s\n' "$current_digest"
+	printf '  Iterations:     %s\n' "$current_iterations"
+	printf '  Authentication: %s\n\n' "$current_auth"
+
+	local findings=0
+	if [[ $current_format == 'legacy' ]] || [[ $current_kdf == 'legacy' ]] || [[ $current_digest == 'md5' ]]; then
+		findings=$((findings + 1))
+		printf '[HIGH] Legacy password derivation is enabled.\n'
+		printf '       Legacy transcrypt uses OpenSSL password derivation with MD5-era settings,\n'
+		printf '       which is fast to brute force for human-chosen passwords.\n\n'
+	fi
+	if [[ $current_auth == 'none' ]]; then
+		findings=$((findings + 1))
+		printf '[HIGH] Ciphertext authentication is not enabled.\n'
+		printf '       Legacy encrypted blobs can be corrupted or tampered with without a\n'
+		printf '       strong message authentication failure before decryption.\n\n'
+	fi
+	if [[ $current_format == 'legacy' ]]; then
+		findings=$((findings + 1))
+		printf '[MEDIUM] Legacy deterministic salts are derived from the password.\n'
+		printf '         This preserves old behavior but is not suitable for a modern PBKDF2\n'
+		printf '         migration without changing the salt design.\n\n'
+	fi
+
+	if [[ $findings -eq 0 ]]; then
+		printf 'No high-severity legacy crypto findings were detected for this context.\n'
+	else
+		printf 'Recommended next step: upgrade this repository to an authenticated secure format\n'
+		printf 'when all collaborators have a compatible transcrypt version.\n'
+	fi
+}
+
 
 git_clean() {
 	context=$(extract_context_name_from_name_value_arg "$1")
@@ -459,7 +566,7 @@ run_safety_checks() {
 	fi
 
 	# check for dependencies
-	for cmd in {column,grep,mktemp,"${openssl_path}",sed,tee}; do
+	for cmd in {grep,mktemp,"${openssl_path}",sed,tee}; do
 		command -v "$cmd" >/dev/null || die 'required command "%s" was not found' "$cmd"
 	done
 
@@ -502,7 +609,12 @@ validate_cipher() {
 	if [[ ! $supported ]]; then
 		if [[ $interactive ]]; then
 			printf '"%s" is not a valid cipher; choose one of the following:\n\n' "$cipher"
-			$list_cipher_commands | column -c 80
+			if command -v column >/dev/null; then
+				$list_cipher_commands | column -c 80
+			else
+				$list_cipher_commands | tr '\n' ' '
+				printf '\n'
+			fi
 			printf '\n'
 			cipher=''
 		else
@@ -1260,7 +1372,7 @@ list_contexts() {
 # print this script's usage message to stderr
 usage() {
 	cat <<-EOF >&2
-		usage: transcrypt [-c CIPHER] [-p PASSWORD] [-h]
+		usage: transcrypt [-c CIPHER] [-p PASSWORD] [--audit] [--diagnose-crypto] [-h]
 	EOF
 }
 
@@ -1323,6 +1435,12 @@ help() {
 		     --upgrade
 		            apply the  latest transcrypt scripts  in the  repository without
 		            changing your configuration settings
+
+		     --audit
+		            summarize security-relevant crypto settings for this repository
+
+		     --diagnose-crypto
+		            show local OpenSSL and fallback crypto capabilities
 
 		     -l, --list
 		            list all of the transparently encrypted files in the repository,
@@ -1436,6 +1554,8 @@ help() {
 context=''
 cipher=''
 display_config=''
+audit_security_command=''
+diagnose_crypto_command=''
 add_pattern=''
 list_contexts_command=''
 flush_creds=''
@@ -1525,6 +1645,14 @@ while [[ "${1:-}" != '' ]]; do
 		;;
 	-y | --yes)
 		interactive=''
+		;;
+	--audit)
+		audit_security_command='true'
+		requires_clean_repo=''
+		;;
+	--diagnose-crypto)
+		diagnose_crypto_command='true'
+		requires_clean_repo=''
 		;;
 	-d | --display)
 		display_config='true'
@@ -1640,7 +1768,13 @@ readonly YES_REGEX='^[Yy]$'
 
 # in order to keep behavior consistent no matter what order the options were
 # specified in, we must run these here rather than in the case statement above
-if [[ $list ]]; then
+if [[ $diagnose_crypto_command ]]; then
+	diagnose_crypto
+	exit 0
+elif [[ $audit_security_command ]]; then
+	audit_security
+	exit 0
+elif [[ $list ]]; then
 	list_files
 	exit 0
 elif [[ $uninstall ]]; then
