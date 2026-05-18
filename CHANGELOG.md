@@ -60,6 +60,7 @@ system, you must also run the `--upgrade` command in each repository:
   a value, e.g. `transcrypt --context`
 - Find context definitions across all attributes config files: repo's
   _.gitattributes_; repo's _info/attributes_; path in `core.attributesFile`
+- Fix zsh shell completions (#177)
 
 ## [2.3.1] - 2025-02-24
 
