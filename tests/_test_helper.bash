@@ -37,6 +37,7 @@ function cleanup_all {
   nuke_git_repo
   rm -f "$BATS_TEST_DIRNAME"/.gitattributes
   rm -f "$BATS_TEST_DIRNAME"/sensitive_file
+  rm -fR "$BATS_TEST_DIRNAME"/.transcrypt
 }
 
 function init_transcrypt {
