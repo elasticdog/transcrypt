@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load "$BATS_TEST_DIRNAME/_test_helper.bash"
+load "$BATS_TEST_DIRNAME/../_test_helper.bash"
 
 SECRET_CONTENT="My secret content"
 SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/qiCg"
@@ -39,7 +39,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
 
 @test "crypt: transcrypt --show-raw shows encrypted content" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
-  run ../transcrypt --show-raw sensitive_file
+  run ../../transcrypt --show-raw sensitive_file
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "==> sensitive_file <==" ]
   [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
@@ -56,7 +56,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
 @test "crypt: transcrypt --list lists encrypted file" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  run ../transcrypt --list
+  run ../../transcrypt --list
   [ "$status" -eq 0 ]
   [[ "${output}" = *"sensitive_file" ]]
 }
@@ -64,7 +64,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
 @test "crypt: transcrypt --uninstall leaves decrypted file and repo dirty" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  run ../transcrypt --uninstall --yes
+  run ../../transcrypt --uninstall --yes
   [ "$status" -eq 0 ]
 
   run cat sensitive_file
@@ -81,7 +81,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
 @test "crypt: git reset after uninstall leaves encrypted file" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
+  "$BATS_TEST_DIRNAME"/../../transcrypt --uninstall --yes
 
   git reset --hard
   check_repo_is_clean
@@ -117,7 +117,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
 
   # transcrypt --show-raw shows encrypted content
-  run ../transcrypt --show-raw "$FILENAME"
+  run ../../transcrypt --show-raw "$FILENAME"
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "==> $FILENAME <==" ]
   [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
@@ -128,7 +128,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [[ "${output}" = *"$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
-  run ../transcrypt --list
+  run ../../transcrypt --list
   [ "$status" -eq 0 ]
   [[ "${output}" = *"$FILENAME" ]]
 
@@ -162,7 +162,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [[ "${output}" = *"$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
-  run ../transcrypt --list
+  run ../../transcrypt --list
   [ "$status" -eq 0 ]
   [[ "${output}" = *"$FILENAME" ]]
 
@@ -188,7 +188,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
 
   # transcrypt --show-raw shows encrypted content
-  run ../transcrypt --show-raw "$FILENAME"
+  run ../../transcrypt --show-raw "$FILENAME"
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "==> $FILENAME <==" ]
   [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
@@ -199,7 +199,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [[ "${output}" = *"$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
-  run ../transcrypt --list
+  run ../../transcrypt --list
   [ "$status" -eq 0 ]
   [[ "${output}" = *"$FILENAME" ]]
 
@@ -222,7 +222,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [ "${lines[0]}" = "$SECRET_CONTENT_ENC" ]
 
   # transcrypt --show-raw shows encrypted content
-  run ../transcrypt --show-raw "$FILENAME"
+  run ../../transcrypt --show-raw "$FILENAME"
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "==> $FILENAME <==" ]
   [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
@@ -233,7 +233,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [[ "${output}" = *"$FILENAME" ]]
 
   # transcrypt --list lists encrypted file"
-  run ../transcrypt --list
+  run ../../transcrypt --list
   [ "$status" -eq 0 ]
   [[ "${output}" = *"$FILENAME" ]]
 
@@ -258,8 +258,8 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [[ "${lines[2]}" = "config/*.json  filter=crypt diff=crypt merge=crypt" ]]
 
   # add patterns 3 & 4 via `transcrypt --add`
-  "$BATS_TEST_DIRNAME"/../transcrypt --add pattern2
-  "$BATS_TEST_DIRNAME"/../transcrypt --add=*.secret
+  "$BATS_TEST_DIRNAME"/../../transcrypt --add pattern2
+  "$BATS_TEST_DIRNAME"/../../transcrypt --add=*.secret
   run cat .gitattributes
   [[ "$status" -eq 0 ]]
   [[ "${#lines[@]}" = "5" ]]
@@ -281,7 +281,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
 }
 
 @test "crypt: transcrypt --upgrade applies new merge driver" {
-  VERSION=$("$BATS_TEST_DIRNAME"/../transcrypt -v | awk '{print $2}')
+  VERSION=$("$BATS_TEST_DIRNAME"/../../transcrypt -v | awk '{print $2}')
 
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
@@ -312,7 +312,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
 
   # Perform re-install
-  run ../transcrypt --upgrade --yes
+  run ../../transcrypt --upgrade --yes
   [ "$status" -eq 0 ]
 
   run git config --get --local transcrypt.version
@@ -341,7 +341,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
 @test "crypt: transcrypt --force handles files missing from working copy" {
   encrypt_named_file sensitive_file "$SECRET_CONTENT"
 
-  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
+  "$BATS_TEST_DIRNAME"/../../transcrypt --uninstall --yes
 
   # Reset repo to restore .gitattributes file
   git reset --hard
@@ -350,7 +350,7 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   rm sensitive_file
 
   # Re-init with --force should check out deleted secret file
-  ../transcrypt --force --cipher=aes-256-cbc --password='abc 123' --yes
+  ../../transcrypt --force --cipher=aes-256-cbc --password='abc 123' --yes
 
   # Check sensitive_file is present and decrypted
   run cat sensitive_file

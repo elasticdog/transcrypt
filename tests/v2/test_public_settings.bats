@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load "$BATS_TEST_DIRNAME/_test_helper.bash"
+load "$BATS_TEST_DIRNAME/../_test_helper.bash"
 
 @test "settings: display reads non-secret legacy public settings file" {
   mkdir -p .transcrypt
@@ -12,7 +12,7 @@ digest = MD5
 kdf = legacy
 CONFIG
 
-  run ../transcrypt --display
+  run ../../transcrypt --display
   [ "$status" -eq 0 ]
   [[ "$output" = *"  FORMAT:   legacy"* ]]
   [[ "$output" = *"  KDF:      legacy"* ]]
@@ -29,7 +29,7 @@ digest = MD5
 kdf = unsupported
 CONFIG
 
-  run ../transcrypt --display
+  run ../../transcrypt --display
   [ "$status" -ne 0 ]
   [[ "$output" = *"unsupported transcrypt KDF"* ]]
 }
@@ -46,7 +46,7 @@ iterations = 250000
 base-salt = test-public-salt
 CONFIG
 
-  run ../transcrypt --display
+  run ../../transcrypt --display
   [ "$status" -ne 0 ]
   [[ "$output" = *"unsupported transcrypt format"* || "$output" = *"unsupported transcrypt KDF"* ]]
 }

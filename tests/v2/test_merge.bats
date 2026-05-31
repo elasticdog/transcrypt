@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load "$BATS_TEST_DIRNAME/_test_helper.bash"
+load "$BATS_TEST_DIRNAME/../_test_helper.bash"
 
 @test "merge: branches with encrypted file - addition, no conflict" {
   echo "1. First step" > sensitive_file

@@ -41,11 +41,11 @@ function cleanup_all {
 }
 
 function init_transcrypt {
-  "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
+  "$BATS_TEST_DIRNAME"/../../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
 }
 
 function uninstall_transcrypt {
-  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
+  "$BATS_TEST_DIRNAME"/../../transcrypt --uninstall --yes
 }
 
 function encrypt_named_file {
