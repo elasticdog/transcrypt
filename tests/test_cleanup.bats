@@ -99,3 +99,18 @@ SECRET_CONTENT_ENC="U2FsdGVkX1/6ilR0PmJpAyCF7iG3+k4aBwbgVd48WaQXznsg42nXbQrlWsf/
   run git show "$cached_plaintext_obj"
   [ "$status" -ne 0 ]
 }
+
+@test "cleanup: transcrypt --uninstall succeeds when saved pre-commit-crypt hook is missing" {
+  # Simulate a hook manager (e.g. husky) re-generating the hooks directory:
+  # transcrypt's saved hook copy is gone and a foreign pre-commit hook is in
+  # its place
+  rm .git/hooks/pre-commit-crypt
+  echo '#!/bin/sh' > .git/hooks/pre-commit
+
+  run ../transcrypt --uninstall --yes
+  [ "$status" -eq 0 ]
+  [[ "${output}" = *"WARNING: Cannot safely disable Git pre-commit hook"* ]]
+
+  # Confirm the foreign pre-commit hook was left alone
+  [ -f .git/hooks/pre-commit ]
+}

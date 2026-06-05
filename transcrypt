@@ -902,7 +902,10 @@ uninstall_transcrypt() {
 		pre_commit_hook_installed="${GIT_HOOKS}/pre-commit-crypt"
 		if [[ -f "$pre_commit_hook" ]]; then
 			hook_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook")
-			installed_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook_installed")
+			installed_md5=''
+			if [[ -f "$pre_commit_hook_installed" ]]; then
+				installed_md5=$("${openssl_path}" md5 -hex <"$pre_commit_hook_installed")
+			fi
 			if [[ "$hook_md5" = "$installed_md5" ]]; then
 				rm "$pre_commit_hook"
 			else
