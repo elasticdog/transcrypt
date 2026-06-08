@@ -32,6 +32,13 @@ system, you must also run the `--upgrade` command in each repository:
    $ transcrypt --upgrade
    ```
 
+## [Unreleased]
+
+### Fixed
+
+- Show warning message instead of crashing for `--uninstall` or `--upgrade`
+  action when _transcrypt_'s saved pre-commit-crypt hook file is missing (#212)
+
 ## [2.3.2] - 2026-05-18
 
 ### Added
