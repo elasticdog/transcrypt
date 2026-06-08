@@ -55,7 +55,7 @@ The requirements to run transcrypt are minimal:
 - Bash
 - Git
 - OpenSSL
-- `column` and `hexdump` commands (on Ubuntu/Debian install `bsdmainutils`)
+- `column` command (on Ubuntu/Debian install `bsdmainutils`)
 - if using OpenSSL 3+ one of: `xxd` (on Ubuntu/Debian is included with `vim`)
   or `printf` command (with %b directive) or `perl`
 
@@ -346,7 +346,7 @@ to encrypt a file \_top-secret* in a "super" context:
 transcrypt is provided under the terms of the
 [MIT License](https://en.wikipedia.org/wiki/MIT_License).
 
-Copyright &copy; 2019-2025, [James Murty](mailto:james@murty.co).  
+Copyright &copy; 2019-2025, [James Murty](mailto:james@murty.co).
 Copyright &copy; 2014-2020, [Aaron Bull Schaefer](mailto:aaron@elasticdog.com).
 
 ## Contributing
