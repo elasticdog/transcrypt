@@ -172,7 +172,7 @@ _list_encrypted_files() {
 
 	# Prefer GNU Awk `gawk` command when available: it supports handling of
 	# NUL-delimited strings, while some `awk` versions may not (#213)
-	AWK_COMMAND=$(command -v "gawk" || "awk")
+	AWK_COMMAND=$(command -v "gawk" > /dev/null && echo "gawk" || echo "awk")
 
 	IFS=$'\n'
 	# List files with -z option to disable quoting of filenames, then filter
