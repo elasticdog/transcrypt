@@ -170,6 +170,10 @@ derive_context_config_group() {
 _list_encrypted_files() {
 	local strict_context=${1:-}
 
+	# Prefer GNU Awk `gawk` command when available: it supports handling of
+	# NUL-delimited strings, while some `awk` versions may not (#213)
+	AWK_COMMAND=$(command -v "gawk" || "awk")
+
 	IFS=$'\n'
 	# List files with -z option to disable quoting of filenames, then filter
 	# for files marked for encryption (git check-attr + grep), then only keep
@@ -177,12 +181,13 @@ _list_encrypted_files() {
 	# backslash and control characters (eval) which are part of the output
 	# regardless of core.quotePath=false as per
 	# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
+	# shellcheck disable=SC2016
 	git -c core.quotePath=false ls-files -z |
 		git -c core.quotePath=false check-attr filter -z --stdin 2>/dev/null |
 		# Split null-delimited list of filename + filter entries to be one line
 		# per file with space delimiters in that line by replacing every third
 		# null character with newline and the rest with a space
-		awk -v RS='\x00' 'NR % 3 == 0 {printf "%s\n", $0} NR % 3 != 0 {printf "%s ", $0}' |
+		${AWK_COMMAND} -v RS='\x00' 'NR % 3 == 0 {printf "%s\n", $0} NR % 3 != 0 {printf "%s ", $0}' |
 		{
 			# Only output names of encrypted files matching the context, either
 			# strictly (if $1 = "true") or loosely (if $1 is false or unset)
