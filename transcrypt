@@ -143,6 +143,19 @@ die() {
 	exit "$st"
 }
 
+# Apply a sed script ($1) in-place to a file ($2), following symlinks so a
+# symlinked file is edited in place rather than being replaced. We avoid
+# `sed -i` because BSD/macOS sed refuses to edit symlinks ("in-place editing
+# only works for regular files") while GNU sed would replace the symlink with
+# a regular file, breaking the link. Writing back through `cat >` follows the
+# symlink and preserves it.
+sed_inplace() {
+	local script="$1" file="$2" tmp
+	tmp=$(mktemp)
+	sed "$script" "$file" >"$tmp" && cat "$tmp" >"$file"
+	rm -f "$tmp"
+}
+
 # return context name if $1 has format 'context=name-of-context' else empty string
 extract_context_name_from_name_value_arg() {
 	local before_last_equals=${1%=*}
@@ -956,14 +969,7 @@ uninstall_transcrypt() {
 		fi
 
 		# remove any defined crypt patterns in gitattributes
-		case $OSTYPE in
-		darwin*)
-			/usr/bin/sed -i '' "/filter=crypt/d" "$GIT_ATTRIBUTES"
-			;;
-		linux*)
-			sed -i "/filter=crypt/d" "$GIT_ATTRIBUTES"
-			;;
-		esac
+		sed_inplace "/filter=crypt/d" "$GIT_ATTRIBUTES"
 
 		if [[ ! $upgrade ]]; then
 			printf 'The transcrypt configuration has been completely removed from the repository.\n'
@@ -1037,14 +1043,7 @@ upgrade_transcrypt() {
 	echo "$ORIG_GITATTRIBUTES" >"$GIT_ATTRIBUTES"
 
 	# Update .gitattributes for transcrypt'ed files to include "merge=crypt" config
-	case $OSTYPE in
-	darwin*)
-		/usr/bin/sed -i '' 's/diff=crypt$/diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
-		;;
-	linux*)
-		sed -i 's/diff=crypt$/diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
-		;;
-	esac
+	sed_inplace 's/diff=crypt$/diff=crypt merge=crypt/' "$GIT_ATTRIBUTES"
 
 	printf 'Upgrade is complete\n'
 

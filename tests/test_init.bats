@@ -131,6 +131,51 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ ! "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 }
 
+@test "init: --uninstall works when core.attributesFile is a symlink" {
+  # transcrypt must edit the attributes file through the symlink. Editing with
+  # `sed -i` errors on BSD/macOS for symlinks ("in-place editing only works for
+  # regular files") and silently replaces the symlink with a regular file on
+  # GNU/Linux.
+  echo '"sensitive_file" filter=crypt diff=crypt merge=crypt' > attributes_target
+  ln -sf attributes_target attributes_link
+  git config core.attributesFile "$BATS_TEST_DIRNAME/attributes_link"
+
+  init_transcrypt
+  [ -L attributes_link ]
+
+  run ../transcrypt --uninstall --yes
+  [ "$status" -eq 0 ]
+
+  # The symlink must be preserved, not replaced by a regular file...
+  [ -L attributes_link ]
+  # ...and the crypt pattern removed from its target
+  run cat attributes_link
+  [[ "${output}" != *"filter=crypt"* ]]
+
+  rm -f attributes_link attributes_target
+}
+
+@test "init: --upgrade works when core.attributesFile is a symlink" {
+  # The upgrade path rewrites "diff=crypt" lines to add "merge=crypt", and must
+  # likewise edit through the symlink rather than over it.
+  echo '"sensitive_file" filter=crypt diff=crypt' > attributes_target
+  ln -sf attributes_target attributes_link
+  git config core.attributesFile "$BATS_TEST_DIRNAME/attributes_link"
+
+  init_transcrypt
+
+  run ../transcrypt --upgrade --yes
+  [ "$status" -eq 0 ]
+
+  # The symlink must be preserved, not replaced by a regular file...
+  [ -L attributes_link ]
+  # ...and the pattern upgraded in place to include "merge=crypt"
+  run cat attributes_link
+  [[ "${output}" = *"diff=crypt merge=crypt"* ]]
+
+  rm -f attributes_link attributes_target
+}
+
 @test "init: transcrypt.crypt-dir config setting is applied during init" {
   # Clear tmp crypt/ directory, in case junk was left there from prior test runs
   rm -fR /tmp/crypt/
