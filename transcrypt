@@ -192,10 +192,19 @@ _list_encrypted_files() {
 	# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
 	git -c core.quotePath=false ls-files -z |
 		git -c core.quotePath=false check-attr filter -z --stdin 2>/dev/null |
-		# Split null-delimited list of filename + filter entries to be one line
-		# per file with space delimiters in that line by replacing every third
-		# null character with newline and the rest with a space
-		awk -v RS='\x00' 'NR % 3 == 0 {printf "%s\n", $0} NR % 3 != 0 {printf "%s ", $0}' |
+		# Convert the null-delimited "<path> NUL <attr> NUL <info> NUL" triples
+		# emitted by check-attr into one space-delimited line per file. We read
+		# the NUL-delimited fields directly in bash rather than using
+		# `awk -v RS='\x00'` because some awk builds (notably the Homebrew "one
+		# true awk", e.g. version 20260426) only read the first record when RS
+		# is a null byte. See #213.
+		{
+			while IFS= read -r -d '' path &&
+				IFS= read -r -d '' attr &&
+				IFS= read -r -d '' info; do
+				printf '%s %s %s\n' "$path" "$attr" "$info"
+			done
+		} |
 		{
 			# Only output names of encrypted files matching the context, either
 			# strictly (if $1 = "true") or loosely (if $1 is false or unset)

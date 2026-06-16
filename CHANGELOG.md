@@ -40,6 +40,10 @@ system, you must also run the `--upgrade` command in each repository:
   action when _transcrypt_'s saved pre-commit-crypt hook file is missing (#212)
 - Make `--install` and `--upgrade` actions support a gitattributes file that is
   a symlink instead of a standard file (#216)
+- List encrypted files using bash's null-delimited `read` instead of
+  `awk -v RS='\x00'`, which fails to list any files with awk builds that read
+  only the first record when the record separator is a null byte, such as the
+  Homebrew "one true awk" (#213, onetrueawk/awk#270)
 
 ## [2.3.2] - 2026-05-18
 

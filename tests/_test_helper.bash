@@ -14,6 +14,8 @@ function init_git_repo {
     # Tests will fail if name and email aren't set
     git config --local user.name "John Doe"
     git config --local user.email johndoe@example.com
+    # Tests require merge conflictStyle
+    git config --local merge.conflictStyle merge
     # Flag test git repo as 100% the test one, for safety before later removal
     touch "$BATS_TEST_DIRNAME"/.git/repo-for-transcrypt-bats-tests
   fi
