@@ -38,6 +38,8 @@ system, you must also run the `--upgrade` command in each repository:
 
 - Show warning message instead of crashing for `--uninstall` or `--upgrade`
   action when _transcrypt_'s saved pre-commit-crypt hook file is missing (#212)
+- Make `--install` and `--upgrade` actions support a gitattributes file that is
+  a symlink instead of a standard file (#216)
 
 ## [2.3.2] - 2026-05-18
 
