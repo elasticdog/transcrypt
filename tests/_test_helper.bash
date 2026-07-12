@@ -1,52 +1,31 @@
+# Isolate tests from the developer's global and system git config, so
+# settings like merge.conflictstyle or commit.gpgsign cannot change test
+# behavior. Requires Git 2.32+.
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_CONFIG_SYSTEM=/dev/null
+
+# Absolute path to the script under test. Tests run inside per-test
+# temporary repos, so cwd-relative paths to the script would break.
+TRANSCRYPT="$BATS_TEST_DIRNAME/../transcrypt"
+
 function init_git_repo {
-  # Warn and do nothing if test dir envvar is unset
-  if [[ -z "$BATS_TEST_DIRNAME" ]]; then
-    echo "WARNING: Required envvar \$BATS_TEST_DIRNAME is unset"
-  # Warn and do nothing if test git repo path already exists
-  elif [[ -e "$BATS_TEST_DIRNAME/.git" ]]; then
-    echo "WARNING: Test repo already exists at $BATS_TEST_DIRNAME/.git"
-  else
-    # Configure "main" as the default branch name
-    git config --local init.defaultBranch main
-    # Initialise test git repo at the same path as the test files
-    git init "$BATS_TEST_DIRNAME"
-    git checkout -b main
-    # Tests will fail if name and email aren't set
-    git config --local user.name "John Doe"
-    git config --local user.email johndoe@example.com
-    # Tests require merge conflictStyle
-    git config --local merge.conflictStyle merge
-    # Flag test git repo as 100% the test one, for safety before later removal
-    touch "$BATS_TEST_DIRNAME"/.git/repo-for-transcrypt-bats-tests
-  fi
-}
-
-function nuke_git_repo {
-  # Warn and do nothing if test dir envvar is unset
-  if [[ -z "$BATS_TEST_DIRNAME" ]]; then
-    echo "WARNING: Required envvar \$BATS_TEST_DIRNAME is unset"
-  # Warn and do nothing if the test git repo is missing the flag file that
-  # ensures it *really* is the test one, as set by the 'init_git_repo' function
-  elif [[ ! -e "$BATS_TEST_DIRNAME/.git/repo-for-transcrypt-bats-tests" ]]; then
-    echo "WARNING: Aborting delete of non-test Git repo at $BATS_TEST_DIRNAME/.git"
-  else
-    # Forcibly delete the test git repo
-    rm -fR "$BATS_TEST_DIRNAME"/.git
-  fi
-}
-
-function cleanup_all {
-  nuke_git_repo
-  rm -f "$BATS_TEST_DIRNAME"/.gitattributes
-  rm -f "$BATS_TEST_DIRNAME"/sensitive_file
+  # Each test builds its repository in the bats-managed per-test temp
+  # dir, isolated from every other test so suites run under --jobs N.
+  # bats removes BATS_TEST_TMPDIR after teardown; no cleanup needed.
+  TEST_REPO="$BATS_TEST_TMPDIR/repo"
+  git init --quiet -b main "$TEST_REPO"
+  pushd "$TEST_REPO" >/dev/null || exit 1
+  # Tests will fail if name and email aren't set
+  git config --local user.name "John Doe"
+  git config --local user.email johndoe@example.com
 }
 
 function init_transcrypt {
-  "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
+  "$TRANSCRYPT" --cipher=aes-256-cbc --password='abc 123' --yes
 }
 
 function uninstall_transcrypt {
-  "$BATS_TEST_DIRNAME"/../transcrypt --uninstall --yes
+  "$TRANSCRYPT" --uninstall --yes
 }
 
 function encrypt_named_file {
@@ -66,16 +45,14 @@ function encrypt_named_file {
 }
 
 function setup {
-  pushd "$BATS_TEST_DIRNAME" || exit 1
   init_git_repo
-  if [[ ! "$SETUP_SKIP_INIT_TRANSCRYPT" ]]; then
+  if [[ ! "${SETUP_SKIP_INIT_TRANSCRYPT:-}" ]]; then
     init_transcrypt
   fi
 }
 
 function teardown {
-  cleanup_all
-  popd || exit 1
+  popd >/dev/null || exit 1
 }
 
 function check_repo_is_clean {
