@@ -12,29 +12,29 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 # Operations that should work in a repo not yet initialised
 
 @test "not inited: show help for --help" {
-  run ../../transcrypt --help
+  run $TRANSCRYPT --help
   [ "${lines[1]}" = "     transcrypt -- transparently encrypt files within a git repository" ]
 }
 
 @test "not inited: show help for -h" {
-  run ../../transcrypt -h
+  run $TRANSCRYPT -h
   [ "${lines[1]}" = "     transcrypt -- transparently encrypt files within a git repository" ]
 }
 
 @test "not inited: show version for --version" {
-  VERSION=$(../../transcrypt -v | awk '{print $2}')
-  run ../../transcrypt --version
+  VERSION=$($TRANSCRYPT -v | awk '{print $2}')
+  run $TRANSCRYPT --version
   [ "${lines[0]}" = "transcrypt $VERSION" ]
 }
 
 @test "not inited: show version for -v" {
-  VERSION=$(../../transcrypt -v | awk '{print $2}')
-  run ../../transcrypt -v
+  VERSION=$($TRANSCRYPT -v | awk '{print $2}')
+  run $TRANSCRYPT -v
   [ "${lines[0]}" = "transcrypt $VERSION" ]
 }
 
 @test "not inited: no files listed for --list" {
-  run ../../transcrypt --list
+  run $TRANSCRYPT --list
   if [[ "${output}" = *"WARNING"* ]]; then
     [ "${lines[0]}" = "*** WARNING : deprecated key derivation used." ]
     [ "${lines[1]}" = "Using -iter or -pbkdf2 would be better." ]
@@ -44,7 +44,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 }
 
 @test "not inited: no files listed for -l" {
-  run ../../transcrypt -l
+  run $TRANSCRYPT -l
   if [[ "${output}" = *"WARNING"* ]]; then
     [ "${lines[0]}" = "*** WARNING : deprecated key derivation used." ]
     [ "${lines[1]}" = "Using -iter or -pbkdf2 would be better." ]
@@ -57,32 +57,32 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 # Operations that should not work in a repo not yet initialised
 
 @test "not inited: error on --display" {
-  run ../../transcrypt --display
+  run $TRANSCRYPT --display
   [ "$status" -ne 0 ]
   [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
 
 @test "not inited: error on -d" {
-  run ../../transcrypt -d
+  run $TRANSCRYPT -d
   [ "$status" -ne 0 ]
   [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
 
 @test "not inited: error on --uninstall" {
-  run ../../transcrypt --uninstall
+  run $TRANSCRYPT --uninstall
   [ "$status" -ne 0 ]
   [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
 
 @test "not inited: error on -u" {
-  run ../../transcrypt -u
+  run $TRANSCRYPT -u
   [ "$status" -ne 0 ]
   [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
 
 
 @test "not inited: error on --upgrade" {
-  run ../../transcrypt --upgrade
+  run $TRANSCRYPT --upgrade
   [ "$status" -ne 0 ]
   [[ "${output}" = *"transcrypt: the current repository is not configured"* ]]
 }
