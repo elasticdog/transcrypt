@@ -9,7 +9,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: works at all" {
   # Use literal command not function to confirm command works at least once
-  run ../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes
+  run $TRANSCRYPT --cipher=aes-256-cbc --password='abc 123' --yes
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The repository has been successfully configured by transcrypt."* ]]
 }
@@ -29,7 +29,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: applies git config" {
   init_transcrypt
-  VERSION=$(../transcrypt -v | awk '{print $2}')
+  VERSION=$($TRANSCRYPT -v | awk '{print $2}')
 
   [ "$(git config --get transcrypt.version)" = "$VERSION" ]
   [ "$(git config --get transcrypt.cipher)" = "aes-256-cbc" ]
@@ -56,9 +56,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: show details for --display" {
   init_transcrypt
-  VERSION=$(../transcrypt -v | awk '{print $2}')
+  VERSION=$($TRANSCRYPT -v | awk '{print $2}')
 
-  run ../transcrypt --display
+  run $TRANSCRYPT --display
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
@@ -68,9 +68,9 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: show details for -d" {
   init_transcrypt
-  VERSION=$(../transcrypt -v | awk '{print $2}')
+  VERSION=$($TRANSCRYPT -v | awk '{print $2}')
 
-  run ../transcrypt -d
+  run $TRANSCRYPT -d
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
@@ -86,8 +86,8 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ -d .git/myhooks ]
   [ -f .git/myhooks/pre-commit ]
 
-  VERSION=$(../transcrypt -v | awk '{print $2}')
-  run ../transcrypt --display
+  VERSION=$($TRANSCRYPT -v | awk '{print $2}')
+  run $TRANSCRYPT --display
   [ "$status" -eq 0 ]
   [[ "${output}" = *"The current repository was configured using transcrypt version $VERSION"* ]]
   [[ "${output}" = *"  CIPHER:   aes-256-cbc"* ]]
@@ -101,7 +101,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 }
 
 @test "init: --set-openssl-path is applied during init" {
-  run ../transcrypt --cipher=aes-256-cbc --password='abc 123' --yes --set-openssl-path=/test/path
+  run $TRANSCRYPT --cipher=aes-256-cbc --password='abc 123' --yes --set-openssl-path=/test/path
   [ "$(git config --get transcrypt.openssl-path)" = "/test/path" ]
 }
 
@@ -112,7 +112,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   # Set openssl path
   FULL_OPENSSL_PATH=$(which openssl)
 
-  run ../transcrypt --upgrade --yes --set-openssl-path="$FULL_OPENSSL_PATH"
+  run $TRANSCRYPT --upgrade --yes --set-openssl-path="$FULL_OPENSSL_PATH"
   [ "$(git config --get transcrypt.openssl-path)" = "$FULL_OPENSSL_PATH" ]
   [ ! "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 }
@@ -123,10 +123,10 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
   # Set openssl path
   FULL_OPENSSL_PATH=$(which openssl)
-  run ../transcrypt --set-openssl-path="$FULL_OPENSSL_PATH"'' --yes
+  run $TRANSCRYPT --set-openssl-path="$FULL_OPENSSL_PATH"'' --yes
 
   # Retain transcrypt.openssl-path config setting on upgrade
-  run ../transcrypt --upgrade --yes
+  run $TRANSCRYPT --upgrade --yes
   [ "$(git config --get transcrypt.openssl-path)" = "$FULL_OPENSSL_PATH" ]
   [ ! "$(git config --get transcrypt.openssl-path)" = 'openssl' ]
 }
@@ -138,12 +138,12 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   # GNU/Linux.
   echo '"sensitive_file" filter=crypt diff=crypt merge=crypt' > attributes_target
   ln -sf attributes_target attributes_link
-  git config core.attributesFile "$BATS_TEST_DIRNAME/attributes_link"
+  git config core.attributesFile "$PWD/attributes_link"
 
   init_transcrypt
   [ -L attributes_link ]
 
-  run ../transcrypt --uninstall --yes
+  run $TRANSCRYPT --uninstall --yes
   [ "$status" -eq 0 ]
 
   # The symlink must be preserved, not replaced by a regular file...
@@ -160,11 +160,11 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   # likewise edit through the symlink rather than over it.
   echo '"sensitive_file" filter=crypt diff=crypt' > attributes_target
   ln -sf attributes_target attributes_link
-  git config core.attributesFile "$BATS_TEST_DIRNAME/attributes_link"
+  git config core.attributesFile "$PWD/attributes_link"
 
   init_transcrypt
 
-  run ../transcrypt --upgrade --yes
+  run $TRANSCRYPT --upgrade --yes
   [ "$status" -eq 0 ]
 
   # The symlink must be preserved, not replaced by a regular file...
@@ -178,26 +178,26 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
 
 @test "init: transcrypt.crypt-dir config setting is applied during init" {
   # Clear tmp crypt/ directory, in case junk was left there from prior test runs
-  rm -fR /tmp/crypt/
+  rm -fR $BATS_TEST_TMPDIR/crypt/
 
   # Set a custom location for the crypt/ directory
-  git config transcrypt.crypt-dir /tmp/crypt
+  git config transcrypt.crypt-dir $BATS_TEST_TMPDIR/crypt
 
   init_transcrypt
 
   # Confirm crypt/ directory is populated in custom location
   [ ! -d .git/crypt ]
   [ ! -f .git/crypt/transcrypt ]
-  [ -d /tmp/crypt ]
-  [ -f /tmp/crypt/transcrypt ]
+  [ -d $BATS_TEST_TMPDIR/crypt ]
+  [ -f $BATS_TEST_TMPDIR/crypt/transcrypt ]
 }
 
 @test "crypt: transcrypt.crypt-dir config setting produces working scripts" {
   # Clear tmp crypt/ directory, in case junk was left there from prior test runs
-  rm -fR /tmp/crypt/
+  rm -fR $BATS_TEST_TMPDIR/crypt/
 
   # Set a custom location for the crypt/ directory
-  git config transcrypt.crypt-dir /tmp/crypt
+  git config transcrypt.crypt-dir $BATS_TEST_TMPDIR/crypt
 
   init_transcrypt
 
@@ -210,7 +210,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "$SECRET_CONTENT" ]
 
-  run ../transcrypt --show-raw sensitive_file
+  run $TRANSCRYPT --show-raw sensitive_file
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "==> sensitive_file <==" ]
   [ "${lines[1]}" = "$SECRET_CONTENT_ENC" ]
@@ -229,7 +229,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   git reset --hard
 
   # Init transcrypt with wrong password, command fails with error message
-  run "$BATS_TEST_DIRNAME"/../transcrypt --cipher=aes-256-cbc --password='WRONG' --yes
+  run $TRANSCRYPT --cipher=aes-256-cbc --password='WRONG' --yes
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "transcrypt: Unexpected new dirty files in the repository when configured by transcrypt, please check your password." ]
 }
@@ -252,7 +252,7 @@ SETUP_SKIP_INIT_TRANSCRYPT=1
   git add dirty_file
 
   # Force init transcrypt with wrong password, command fails with error message
-  run "$BATS_TEST_DIRNAME"/../transcrypt --force --cipher=aes-256-cbc --password='WRONG' --yes
+  run $TRANSCRYPT --force --cipher=aes-256-cbc --password='WRONG' --yes
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "transcrypt: Unexpected new dirty files in the repository when configured by transcrypt, please check your password." ]
 

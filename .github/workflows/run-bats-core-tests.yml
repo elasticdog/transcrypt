@@ -66,5 +66,14 @@ jobs:
           mkdir -p /tmp/bats-core
           bash /tmp/bats-core-repo/install.sh /tmp/bats-core
 
+      # GNU parallel enables bats --jobs
+      - name: Install GNU parallel
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install parallel
+          else
+            sudo apt-get update -qq && sudo apt-get install -y -qq parallel
+          fi
+
       - name: Run tests
-        run: /tmp/bats-core/bin/bats tests/
+        run: /tmp/bats-core/bin/bats --jobs 4 tests/
