@@ -34,6 +34,11 @@ system, you must also run the `--upgrade` command in each repository:
 
 ## [Unreleased]
 
+### Changed
+
+- Improve test suite to better use `bats` conventions to run tests in
+  isoloation, so they can be run faster in parallel (#217, #218)
+
 ### Fixed
 
 - Show warning message instead of crashing for `--uninstall` or `--upgrade`
