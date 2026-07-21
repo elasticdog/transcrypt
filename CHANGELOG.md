@@ -41,6 +41,8 @@ system, you must also run the `--upgrade` command in each repository:
 
 ### Fixed
 
+- Fix error in pre-commit hook's "fast" multi-threaded mode when `nproc` is not
+  installed but `bash` 4.4+ is: fall back to 1 thread (#197)
 - Show warning message instead of crashing for `--uninstall` or `--upgrade`
   action when _transcrypt_'s saved pre-commit-crypt hook file is missing (#212)
 - Make `--install` and `--upgrade` actions support a gitattributes file that is
