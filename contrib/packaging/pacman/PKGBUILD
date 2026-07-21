@@ -1,6 +1,6 @@
 # Maintainer: James Murty <james@murty.co>
 pkgname=transcrypt
-pkgver=2.3.2
+pkgver=2.3.3-pre
 pkgrel=1
 pkgdesc='A script to configure transparent encryption of files within a Git repository'
 arch=('any')
