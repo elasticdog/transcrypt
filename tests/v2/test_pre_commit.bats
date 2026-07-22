@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load "$BATS_TEST_DIRNAME/_test_helper.bash"
+load "$BATS_TEST_DIRNAME/../_test_helper.bash"
 
 @test "pre-commit: pre-commit hook installed on init" {
   # Confirm pre-commit-crypt file is installed

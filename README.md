@@ -371,5 +371,5 @@ version of "Bash Automated Testing System" and stored in the _tests/_ directory.
 To run the tests:
 
 - [install bats-core](https://github.com/bats-core/bats-core#installation)
-- run all tests with: `bats tests/`
-- run an individual test with e.g: `bats tests/test_crypt.bats`
+- run all tests with: `bats tests/v2 tests/v3`
+- run an individual test with e.g: `bats tests/v3/test_crypt.bats`

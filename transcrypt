@@ -156,6 +156,96 @@ sed_inplace() {
 	rm -f "$tmp"
 }
 
+# print the absolute path to the in-repository non-secret settings file
+public_settings_file() {
+	local repo
+	repo=$(git rev-parse --show-toplevel 2>/dev/null || printf '')
+	[[ $repo ]] || return 1
+	printf '%s/.transcrypt/config\n' "$repo"
+}
+
+# return true if the in-repository non-secret settings file exists
+has_public_settings_file() {
+	local settings_file
+	settings_file=$(public_settings_file) || return 1
+	[[ -f $settings_file ]]
+}
+
+# read a non-secret setting from .transcrypt/config
+read_public_setting() {
+	local key=$1
+	local settings_file
+	settings_file=$(public_settings_file) || return 1
+	[[ -f $settings_file ]] || return 1
+	git config --file "$settings_file" --get "transcrypt.$key" 2>/dev/null
+}
+
+# read a non-secret setting from .transcrypt/config, with a fallback value
+read_public_setting_or_default() {
+	local key=$1
+	local default_value=$2
+	local value
+	value=$(read_public_setting "$key") || value=$default_value
+	printf '%s\n' "$value"
+}
+
+# Load non-secret crypto settings from .transcrypt/config. Legacy repositories
+# have no settings file, so these defaults preserve the historical behavior.
+load_public_crypto_settings() {
+	PUBLIC_SETTINGS_FILE=''
+	PUBLIC_FORMAT='legacy'
+	PUBLIC_CIPHER=''
+	PUBLIC_DIGEST='MD5'
+	PUBLIC_KDF='legacy'
+	PUBLIC_ITERATIONS=''
+	PUBLIC_BASE_SALT=''
+
+	PUBLIC_SETTINGS_FILE=$(public_settings_file 2>/dev/null || printf '')
+	[[ $PUBLIC_SETTINGS_FILE && -f $PUBLIC_SETTINGS_FILE ]] || return 0
+
+	PUBLIC_FORMAT=$(read_public_setting_or_default format legacy)
+	PUBLIC_CIPHER=$(read_public_setting_or_default cipher '')
+	PUBLIC_DIGEST=$(read_public_setting_or_default digest MD5)
+	PUBLIC_KDF=$(read_public_setting_or_default kdf legacy)
+	PUBLIC_ITERATIONS=$(read_public_setting_or_default iterations '')
+	PUBLIC_BASE_SALT=$(read_public_setting_or_default base-salt '')
+}
+
+# ensure public settings use values transcrypt understands before they affect
+# encryption or decryption behavior
+validate_public_crypto_settings() {
+	load_public_crypto_settings
+	[[ $PUBLIC_SETTINGS_FILE && -f $PUBLIC_SETTINGS_FILE ]] || return 0
+
+	case $PUBLIC_FORMAT in
+	legacy) ;;
+	*) die 1 'unsupported transcrypt format in %s: %s' "$PUBLIC_SETTINGS_FILE" "$PUBLIC_FORMAT" ;;
+	esac
+
+	case $PUBLIC_CIPHER in
+	aes-256-cbc) ;;
+	*) die 1 'unsupported transcrypt cipher in %s: %s' "$PUBLIC_SETTINGS_FILE" "$PUBLIC_CIPHER" ;;
+	esac
+
+	case $PUBLIC_KDF in
+	legacy) ;;
+	*) die 1 'unsupported transcrypt KDF in %s: %s' "$PUBLIC_SETTINGS_FILE" "$PUBLIC_KDF" ;;
+	esac
+
+	case $PUBLIC_DIGEST in
+	MD5 | md5) ;;
+	*) die 1 'unsupported transcrypt digest in %s: %s' "$PUBLIC_SETTINGS_FILE" "$PUBLIC_DIGEST" ;;
+	esac
+
+	if [[ $PUBLIC_ITERATIONS ]]; then
+		die 1 'PBKDF2 iterations are not supported by this transcrypt settings reader'
+	fi
+
+	if [[ $PUBLIC_BASE_SALT ]]; then
+		die 1 'base-salt is not supported by this transcrypt settings reader'
+	fi
+}
+
 # return context name if $1 has format 'context=name-of-context' else empty string
 extract_context_name_from_name_value_arg() {
 	local before_last_equals=${1%=*}
@@ -779,6 +869,15 @@ display_configuration() {
 	printf '  GIT_ATTRIBUTES: %s\n\n' "$GIT_ATTRIBUTES"
 	printf '  CONTEXT:  %s\n' "$CONTEXT"
 	printf '  CIPHER:   %s\n' "$current_cipher"
+	if has_public_settings_file; then
+		validate_public_crypto_settings
+		printf '  FORMAT:   %s\n' "$PUBLIC_FORMAT"
+		printf '  KDF:      %s\n' "$PUBLIC_KDF"
+		printf '  DIGEST:   %s\n' "$PUBLIC_DIGEST"
+		if [[ $PUBLIC_ITERATIONS ]]; then
+			printf '  ITER:     %s\n' "$PUBLIC_ITERATIONS"
+		fi
+	fi
 	printf '  PASSWORD: %s\n\n' "$current_password"
 	if [[ "$contexts_count" -gt "1" ]]; then
 		printf 'The repository has %s contexts: %s\n\n' "$contexts_count" "$CONFIGURED_CONTEXTS"

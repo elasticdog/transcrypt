@@ -6,7 +6,7 @@ export GIT_CONFIG_SYSTEM=/dev/null
 
 # Absolute path to the script under test. Tests run inside per-test
 # temporary repos, so cwd-relative paths to the script would break.
-TRANSCRYPT="$BATS_TEST_DIRNAME/../transcrypt"
+TRANSCRYPT="$BATS_TEST_DIRNAME/../../transcrypt"
 
 function init_git_repo {
   # Each test builds its repository in the bats-managed per-test temp

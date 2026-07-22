@@ -76,4 +76,4 @@ jobs:
           fi
 
       - name: Run tests
-        run: /tmp/bats-core/bin/bats --jobs 4 tests/
+        run: /tmp/bats-core/bin/bats --jobs 4 tests/v2/ tests/v3/

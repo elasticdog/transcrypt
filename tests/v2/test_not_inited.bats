@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load "$BATS_TEST_DIRNAME/_test_helper.bash"
+load "$BATS_TEST_DIRNAME/../_test_helper.bash"
 
 # Custom setup: don't init transcrypt
 # We need to init and tear down Git repo for these tests, mainly to avoid
